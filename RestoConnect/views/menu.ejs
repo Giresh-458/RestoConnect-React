@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu Page</title>
+    <link rel="stylesheet" href="/css/menu_page_styles.css">
+</head>
+<body>
+    <nav class="nav-bar">
+        
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/customer/order_reservation" title="View Cart" id="cartLink">🛒 Cart</a></li>
+        </ul>
+        <div class="menu-toggle">&#9776;</div>
+    </nav>
+
+    <div class="item_list items" id="restaurant_info">
+        <h2 id="restaurant_name"><%= restaurant.name %></h2>
+        <h4 id="restaurant_location"><%= restaurant.location %></h4>
+    </div>
+
+    <div id="menu">
+        <% dishes.forEach((dish, index) => { %>
+            <div class="items">
+                <div class="text-content">
+                    <h2 class="dish_name"><%= dish.name %></h2>
+                    <h4 class="dish_price">Rs <%= dish.price %></h4>
+                    <div class="dish_description"><%= dish.description %></div>
+                </div>
+                <div class="right-side">
+                    <div class="dish_img">
+                        <img src="/images/<%= dish.image %>" alt="<%= dish.name %>">
+                    </div>
+                    <% 
+                        let quantity = 0;
+                        if(cart && cart.length > 0){
+                            const item = cart.find(c => c.dish === dish.name);
+                            if(item) quantity = item.quantity;
+                        }
+                    %>
+                    <form action="/customer/cart/add" method="post" style="display:inline; <% if(quantity > 0){ %> display:none; <% } %>">
+                      <input type="hidden" name="dish" value="<%= dish.name %>">
+                      <button type="submit" class="cart_button" data-index="<%= index %>">Add to Cart</button>
+                    </form>
+                    <div class="counter" data-index="<%= index %>" data-dish="<%= dish.name %>" style="display: <% if(quantity > 0){ %> flex <% } else { %> none <% } %>;">
+                        <form action="/customer/cart/decrease" method="post" style="display:inline;">
+                            <input type="hidden" name="dish" value="<%= dish.name %>">
+                            <button type="submit" class="decrease" data-index="<%= index %>">-</button>
+                        </form>
+                        <span class="item_count"><%= quantity %></span>
+                        <form action="/customer/cart/increase" method="post" style="display:inline;">
+                            <input type="hidden" name="dish" value="<%= dish.name %>">
+                            <button type="submit" class="increase" data-index="<%= index %>">+</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+
+    <form id="orderForm" action="/customer/cart/order" method="post" style="display: none;">
+        <input type="hidden" name="restaurant" id="restaurantInput">
+        <input type="hidden" name="order" id="orderInput">
+        <input type="hidden" name="rest_id" value="<%= restaurant.rest_id %>">
+    </form>
+
+    <form id="orderForm" action="/customer/cart/order" method="post">
+        <input type="hidden" name="restaurant" value="<%= restaurant.rest_id %>">
+        <button type="submit" class="btn2">Order</button>
+    </form>
+
+    <script src="/js/menu.js">
+       
+    </script>
+    <script>
+        document.getElementById('cartLink').addEventListener('click', function(event) {
+            const cart = <%= JSON.stringify(cart) %>;
+            if (!cart || cart.length === 0) {
+                event.preventDefault();
+                alert('Cart is empty');
+            }
+        });
+    </script>
+</body>
+</html>

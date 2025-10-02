@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order & Reservation</title>
+    <link rel="stylesheet" href="/css/orderReservation.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Order & Table Reservation</h1>
+      <a href="/menu/<%= rest_id %>" class="back-btn">Back</a>
+    </header>
+    <main>
+      <h2>Restaurant: <%= restaurantName %></h2>
+
+      <section class="cart-section">
+        <h3>Your Order</h3>
+        <ul>
+          <% cart.forEach(item => { %>
+          <li><%= item.quantity %> x <%= item.dish %></li>
+          <% }); %>
+        </ul>
+      </section>
+
+      <section class="combined-order-reservation-section">
+        <h3>Confirm Your Order & Reserve a Table</h3>
+        <form
+          id="orderReservationForm"
+          action="/customer/order_reservation/combined"
+          method="POST"
+        >
+          <label for="specialRequests">Special Requests:</label>
+          <textarea
+            name="specialRequests"
+            id="specialRequests"
+            placeholder="Any custom request..."
+          ></textarea>
+
+          <input
+            type="hidden"
+            name="restaurant"
+            value="<%= restaurantName %>"
+          />
+
+          <label for="date">Date:</label>
+          <input type="date" name="date" id="date" required />
+
+          <label for="time">Time:</label>
+          <input type="time" name="time" id="time" required />
+
+          <label for="guests">Number of Guests:</label>
+          <input type="number" name="guests" id="guests" min="1" required />
+
+          <div
+            id="validationError"
+            class="error-message"
+            style="color: red; display: none"
+          ></div>
+
+          <button type="submit">Place Order & Reserve Table</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/js/orderReservation.js"></script>
+  </body>
+</html>

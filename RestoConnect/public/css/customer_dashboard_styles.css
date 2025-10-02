@@ -1,0 +1,192 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  body {
+    background-color: #121212;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  
+  .dashboard {
+    display: flex;
+    height: 100vh; 
+  }
+  
+  
+  .sidebar {
+    width: 250px;
+    background-color: #333;
+    color: #fff;
+    padding: 20px;
+  }
+  
+  .sidebar ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .sidebar ul li {
+    margin: 20px 0;
+  }
+  
+  .sidebar ul li a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 18px;
+  }
+  
+  .sidebar ul li a:hover {
+    text-decoration: none;
+    color: #e50914;
+
+  }
+  
+  .logout a {
+    color: #e50914;
+    font-weight: bold;
+  }
+  
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: #1f1f1f;
+    color: #fff;
+    overflow-y: auto;
+    text-align: left; 
+  }
+  
+  
+  .box {
+    background-color: #2a2a2a;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .profile.box {
+    text-align: center;
+  }
+  
+  .profile.box img {
+    border-radius: 50%;
+    margin-bottom: 10px;
+  }
+  
+  .nadcusdashboards.box {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+  }
+  
+  .chart-container {
+    width: 45%;
+    min-width: 280px;
+    background-color: #3a3a3a;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  
+  .chart-container canvas {
+    display: block;
+    margin: 0 auto 10px auto;
+  }
+  
+  .chart-container ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  
+  .ncuspastorder.box {
+    text-align: left;
+  }
+  
+  .ncusprevdiv div {
+    background-color: #3a3a3a;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 10px;
+  }
+  
+  .ncusprevdiv h1 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  
+  .ncusprevdiv ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  
+  .ncusdasheditform.box {
+    display: none; 
+    position: relative;
+    text-align: left;
+  }
+  
+  .ncusdasheditform h1 {
+    margin-bottom: 15px;
+  }
+  
+  .ncusdasheditform label {
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .ncusdasheditform input {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    background-color: #2a2a2a;
+    color: #fff;
+  }
+  
+  .close-btn {
+    text-decoration: none;
+    color: #fff;
+    font-size: 24px;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    transition: color 0.3s;
+  }
+  
+  .close-btn:hover {
+    color: #e50914;
+  }
+  
+  .none {
+    display: none !important;
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard {
+      flex-direction: column;
+      height: auto;
+    }
+  
+    .sidebar {
+      width: 100%;
+      height: auto;
+      text-align: center;
+    }
+  
+    .content {
+      margin-top: 20px;
+    }
+  
+    .nadcusdashboards.box {
+      flex-direction: column;
+      align-items: center;
+    }
+    .chart-container {
+      width: 100%;
+    }
+  }

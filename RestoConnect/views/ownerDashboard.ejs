@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RestoConnect - Dashboard</title>
+    <link rel="stylesheet" href="/css/owner_dashboard.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/owner" class="backButton">Back</a>
+      <h1>Manager Dashboard - <%= restaurant %></h1>
+      <a href="/logout" class="logout-btn">Logout</a>
+    </header>
+    <main>
+      <div class="dashboard-container">
+        <div class="card">
+          <h3>Total Orders</h3>
+          <p id="totalOrders"><%= totalOrders %></p>
+        </div>
+        <div class="card">
+          <h3>Total Customers</h3>
+          <p id="totalCustomers"><%= totalCustomers %></p>
+        </div>
+        <div class="card">
+          <h3>Total Revenue</h3>
+          <p id="totalRevenue">$<%= totalRevenue.toFixed(2) %></p>
+        </div>
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-box">
+          <h3>Overall Revenue</h3>
+          <canvas id="overallRevenueChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Monthly Revenue</h3>
+          <canvas id="monthlyRevenueChart"></canvas>
+        </div>
+      </div>
+    </main>
+    <script>
+      const yearlyRevenueLabels = <%- JSON.stringify(yearlyRevenueLabels) %>;
+      const yearlyRevenueValues = <%- JSON.stringify(yearlyRevenueValues) %>;
+      const monthlyRevenueLabels = <%- JSON.stringify(monthlyRevenueLabels) %>;
+      const monthlyRevenueValues = <%- JSON.stringify(monthlyRevenueValues) %>;
+      const totalOrders = <%= totalOrders %>;
+      const totalCustomers = <%= totalCustomers %>;
+      const totalRevenue = <%= totalRevenue.toFixed(2) %>;
+    </script>
+    <script src="/js/ownerDashboard.js"></script>
+  </body>
+</html>

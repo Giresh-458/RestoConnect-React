@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/css/customer_dashboard_styles.css">
+</head>
+<body>
+  <div class="dashboard">
+    <div class="sidebar">
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="#prev_order">Orders</a></li>
+        <li class="logout"><a href="/logout">Logout</a></li>
+      </ul>
+    </div>
+
+    <div class="content">
+      <div class="nadcuscontainer1" id="home">
+        <div class="profile box">
+          <span></span>
+          <div>
+            <img src="<%= img_url %>" alt="Profile Image" width="40px">
+            <h3><%= name %></h3>
+            <h4>Email: <%= email %></h4>
+            <h4>Phone: <%= phone %></h4>
+            <h4>Address: <%= address %></h4>
+          <button id="editProfileBtn">Edit Profile</button>
+          </div>
+        </div>
+
+        <div class="ncuseditprofileform box none" id="editProfileForm">
+          <div id="cross_symbol_edit">
+            <a href="#" class="close-btn-edit">&#10006;</a>
+          </div>
+          <h1>Edit Profile</h1>
+          <form action="/customer/edit" method="post">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" value="<%= name %>" required>
+            <br>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="<%= email %>" required>
+            <br>
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="<%= phone %>">
+            <br>
+            <label for="img_url">Profile Image URL</label>
+            <input type="text" id="img_url" name="img_url" value="<%= img_url %>">
+            <br>
+            <button type="submit">Save Changes</button>
+          </form>
+        </div>
+
+
+      <div class="ncuspastorder box" id="prev_order">
+        <div class="ncusprevdiv">
+          <% prev_order.forEach(rest => { %>
+            <div>
+              <h1><%= rest.name %></h1>
+              <ul>
+                <% rest.items.forEach(item => { %>
+                  <li><%= item %></li>
+                <% }); %>
+              </ul>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="nadcusdashboards box" id="charts">
+        <div class="chart-container">
+          <canvas id="pichart1" width="200" height="200"></canvas>
+          <ul>
+            <% item_list.forEach(product => { %>
+              <li><%= product %></li>
+            <% }); %>
+          </ul>
+        </div>
+        <div class="chart-container">
+          <canvas id="pichart2" width="200" height="200"></canvas>
+          <ul>
+            <% restaurent_list.forEach((product, index) => { %>
+              <li><%= product %> - <%= restaurent_counts[index] %></li>
+            <% }); %>
+          </ul>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script>
+    const item_list = <%- JSON.stringify(item_list) %>;
+    const item_counts = <%- JSON.stringify(item_counts) %>;
+    const restaurent_list = <%- JSON.stringify(restaurent_list) %>;
+    const restaurent_counts = <%- JSON.stringify(restaurent_counts) %>;
+  </script>
+  <script src="/js/customer_dashboard_script.js"></script>
+</body>
+</html>

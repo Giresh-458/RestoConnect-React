@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/admin_dashboard_styles.css" />
+  </head>
+  <body>
+    <header class="topnav">
+      <div class="logo">RESTO <span style="color: orange">CONNECT</span></div>
+      <nav>
+        <a href="#">Home</a>
+        <a href="#restlist">Restaurants</a>
+        <a href="#stats">User Statistics</a>
+        <a href="#revenue">Revenue</a>
+        <a href="/logout">LogOut</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="profile-section">
+        <div class="profile-card">
+          <div class="profile-pic"></div>
+          <div class="profile-info" id="profileDisplay">
+            <p><strong>Name:</strong> <%= current_admin ? current_admin.username : 'N/A' %></p>
+            <p><strong>Email Id:</strong> <%= current_admin ? current_admin.email : 'N/A' %></p>
+          </div>
+          <button class="edit-btn1" id="editProfileBtn">✎ Edit</button>
+
+          <form id="profileEditForm" action="/admin/edit_profile" method="POST" style="display:none; margin-top: 10px;">
+            <label for="username">Name:</label>
+            <input type="text" id="username" name="username" value="<%= current_admin ? current_admin.username : '' %>" required />
+            <label for="email">Email Id:</label>
+            <input type="email" id="email" name="email" value="<%= current_admin ? current_admin.email : '' %>" required />
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" placeholder="New Password (leave blank to keep current)" />
+            <button type="submit">Save</button>
+            <button type="button" id="cancelEditBtn">Cancel</button>
+          </form>
+        </div>
+      </section>
+
+    
+
+      <section class="restaurant-list" id="restaurantlist">
+
+        <input type="text" list="restaurants" id="rest-list">
+        <datalist id="restaurants">
+
+        </datalist>
+
+        <button id="seerest">click</button>
+
+        <div id="diplay-rest">
+
+
+
+        </div>
+
+      </section>
+
+
+
+      <section class="statistics" id="stats">
+        <h2>Statistics</h2>
+        <div>
+          <div class="stat-box orange">
+            <p>Total Users</p>
+            <h1 id="totalUsersCount"><%= total_user_count %></h1>
+          </div>
+          <div class="stat-box orange" ">
+            <p>Total Restaurants</p>
+            <h1 id="totalRestaurantsCount"></h1>
+
+          </div>
+        </div>
+      </section>
+
+      <section class="revenue" id="revenue">
+        <h2>Revenue</h2>
+        <div class="revenue-container">
+          <div class="revenue-card">
+            <h3>Current Month Revenue</h3>
+            <div class="revenue-value"><span class="trend-up">▲</span> <%= totalRevenue %></div>
+          </div>
+        </div>
+      </section>
+
+
+    
+
+      <section class="user-list" id="userlist">
+
+        <input type="text" list="users" id="users-list">
+        <datalist id="users">
+
+        </datalist>
+
+        <button id="see-user">click</button>
+
+        <div id="diplay">
+
+
+
+        </div>
+
+      </section>
+
+      <section class="requests-list" >
+        <div id="requestslist">
+
+
+
+        </div>
+      </section>
+
+      
+
+
+    </main>
+
+    <script src="/js/admin_dash_script.js"></script>
+  </body>
+</html>

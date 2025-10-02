@@ -1,0 +1,153 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f8f9fa;
+}
+header {
+  background-color: #333;
+  color: white;
+  text-align: center;
+  padding: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+#backButton {
+  position: absolute;
+  left: 15px;
+  background-color: #e50914;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 10px 15px;
+  border-radius: 5px;
+  border: none;
+}
+
+#backButton:hover {
+  background-color: #c82333;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.add-button {
+  display: block;
+  margin: 20px auto;
+  background: #ffa500;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.form-container {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px auto;
+  max-width: 400px;
+}
+
+input,
+textarea,
+select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.3s ease-in-out;
+  font-size: 16px;
+}
+
+.submit-button:hover {
+  transform: scale(1.1);
+}
+
+.submit-button:active {
+  transform: scale(0.9);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.status {
+  font-weight: bold;
+  padding: 5px;
+  text-align: center;
+  border-radius: 5px;
+}
+
+.status-available {
+  color: green;
+}
+
+.status-outofstock {
+  color: red;
+}
+
+.status-comingsoon {
+  color: #ffa500;
+}
+
+.actions {
+  display: flex;
+  gap: 5px;
+}
+
+.edit,
+.delete {
+  cursor: pointer;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.edit {
+  background-color: #ffa500;
+  color: white;
+}
+
+.delete {
+  background-color: #dc3545;
+  color: white;
+}
+
+.edit:hover {
+  background-color: #e67e22;
+}
+
+.delete:hover {
+  background-color: #c82333;
+}

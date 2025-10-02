@@ -1,0 +1,273 @@
+/* ===== Global Styles ===== */
+body {
+  font-family: "Poppins", sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+  color: #333;
+}
+
+/* ===== Header ===== */
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 22px;
+  flex: 1;
+  text-align: center;
+}
+
+.logout-btn,
+.backButton {
+  background-color: #e50914;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.logout-btn:hover,
+.backButton:hover {
+  background-color: #c82333;
+}
+
+/* ===== Main Container ===== */
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 30px auto;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Headings */
+h2 {
+  margin-bottom: 15px;
+}
+
+.highlight {
+  color: #e50914;
+  font-weight: bold;
+}
+
+/* ===== Dropdown & Buttons ===== */
+select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  margin-bottom: 15px;
+  width: 250px;
+}
+
+button,
+.menu_btn {
+  padding: 10px 18px;
+  background-color: #e50914;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.3s ease;
+}
+
+button:hover,
+.menu_btn:hover {
+  background-color: #c82333;
+}
+
+.menu_btn {
+  display: inline-block;
+  margin: 10px 0;
+  text-decoration: none;
+}
+
+/* ===== Section Cards ===== */
+.staff-management,
+.table-management {
+  background: #fff;
+  padding: 25px;
+  margin: 25px auto;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  text-align: left;
+}
+
+.staff-management h2,
+.table-management h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #222;
+}
+
+/* ===== Forms ===== */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+form label {
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+form input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* ===== Staff Section ===== */
+.staff-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #f8f8f8;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  gap: 15px;
+}
+
+.staff-info {
+  flex: 1;
+}
+
+.delete-btn {
+  margin-top: 10px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.delete-btn {
+  background-color: #555;
+}
+
+.delete-btn:hover {
+  background-color: #333;
+}
+
+/* ===== Task List ===== */
+.task-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.task-list li {
+  background: #f8f8f8;
+  margin: 8px 0;
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ===== Table List ===== */
+.table-list ul {
+  list-style: none;
+  padding: 0;
+}
+
+.table-list li {
+  background: #f8f8f8;
+  margin: 8px 0;
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .container {
+    width: 95%;
+  }
+
+  .staff-card {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-list li,
+  .table-list li {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+}
+
+
+
+
+
+
+.staff-card {
+  display: flex;
+  gap: 12px;
+  align-items: stretch; 
+}
+
+
+.staff-card form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.staff-card input {
+  width: 202%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+
+.edit-btn {
+  padding: 8px 14px;
+  font-size: 14px;
+  background: #e50914;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: auto; 
+}
+
+.staff-card form[action*="delete"] {
+  justify-content: flex-end; 
+}
+
+.delete-btn-staff {
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 14px;
+  background-color: #555;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.delete-btn-staff:hover {
+  background-color: #333;
+}
+
+
+
+
