@@ -43,8 +43,7 @@ let validate = async (req, res, next) => {
     let user = await User.findOne({ $or: [ { username: username }, { email: username } ] });
     console.log(user)
     if (!user) {
-        console.log("User not found");
-        return res.redirect('/loginPage?error=UserNotFound');
+        return res.json({valid:false});
     }
     
     let passwordMatch = await bcrypt.compare(password.trim(), user.password);
@@ -53,7 +52,7 @@ let validate = async (req, res, next) => {
         req.session.username = user.username;
         next();
     } else {
-        return res.redirect('/loginPage?error=InvalidPassword');
+        return res.json({valid:false});
     }
 }
 
