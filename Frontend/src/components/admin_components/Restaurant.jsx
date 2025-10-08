@@ -13,18 +13,18 @@ lastpayload:'restaurants'
 function reducer(state,action){
 
 if(action.type=='load'){
-return {users_list:[...action.payload],lastaction:'load',lastpayload:'users'};
+return {restaurants_list:[...action.payload],lastaction:'load',lastpayload:'users'};
 }
 else if(action.type=='delete'){
   
-return {users_list:[...state.users_list.filter((_id)=>{
-     return _id!=action.payload
+return {restaurants_list:[...state.users_list.filter((element)=>{
+     return element._id!=action.payload
 })],lastaction:'delete',lastpayload:action.payload};
 }
 else if(action.type=='edit'){
    
-   return {users_list:[...state.users_list.filter((_id)=>{
-     return _id!=action.payload._id
+   return {restaurants_list:[...state.users_list.filter((element)=>{
+     return element._id!=action.payload._id
 }),action.payload],lastaction:'edit',lastpayload:action.payload};
 }
 
@@ -36,7 +36,7 @@ else if(action.type=='edit'){
 
 
 
-export default function Restaurant(){
+export  function Restaurant(){
 
 const firstRender = useRef(true);
 const [state,Dispatch] = useReducer(reducer,initialState);
@@ -76,9 +76,9 @@ if(state.lastaction=='delete'){
 else if(state.lastaction=='edit'){
 
   let xhr = new XMLHttpRequest();
-    xhr.open("get",`http://localhost:3000/admin/edit_restaurant/${state.lastpayload._id}`,true);
+    xhr.open("post",`http://localhost:3000/admin/edit_restaurant/${state.lastpayload._id}`,true);
     xhr.withCredentials = true;
-    xhr.send(state.lastpayload);
+    xhr.send(JSON.stringify(state.lastpayload));
 }
 },[state.lastaction]);
 

@@ -11,10 +11,11 @@ router.get('/', (req, res) => {
     } else if (error === 'InvalidPassword') {
         errorMessage = 'Incorrect password. Please try again.';
     }
-    res.render('login', {
+    res.json( {
         title: 'Log In',
         buttonText: 'Log In',
         toggleText: 'New user? Sign Up',
+        valid:false,
         errorMessage: errorMessage
     });
 });

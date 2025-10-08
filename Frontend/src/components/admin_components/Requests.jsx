@@ -17,9 +17,8 @@ return {requests_list:[...action.payload],lastaction:'load',lastpayload:'request
 }
 else if(action.type=='accept' || action.type=='reject'){
   
-return {requests_list:[...state.requests_list.filter((_id)=>{
-     return _id!=action.payload
-})],lastaction:action.type,lastpayload:action.payload};
+return {requests_list: state.requests_list.filter(req => req._id !== action.payload)
+,lastaction:action.type,lastpayload:action.payload};
 }
 
 
@@ -28,7 +27,7 @@ return {requests_list:[...state.requests_list.filter((_id)=>{
 
 
 
-export default function Requests(){
+export  function Requests(){
 
 const firstRender = useRef(true);
 const [state,Dispatch] = useReducer(reducer,initialState);
@@ -59,7 +58,7 @@ return;
 if(state.lastaction=='accept'){
 
   let xhr = new XMLHttpRequest();
-    xhr.open("get",`http://localhost:3000/admin/delete_restaurant/${state.lastpayload}`,true);
+    xhr.open("get",`http://localhost:3000/admin/accept_request/${state.lastpayload}`,true);
     xhr.withCredentials = true;
     xhr.send();
 
@@ -67,7 +66,7 @@ if(state.lastaction=='accept'){
 else if(state.lastaction=='reject'){
 
     let xhr = new XMLHttpRequest();
-    xhr.open("get",`http://localhost:3000/admin/delete_restaurant/${state.lastpayload}`,true);
+    xhr.open("get",`http://localhost:3000/admin/reject_request/${state.lastpayload}`,true);
     xhr.withCredentials = true;
     xhr.send();
 
@@ -82,7 +81,20 @@ return (
 
 <>
 
-{JSON.stringify(state,null,2)}
+{state.requests_list.map((element,i)=>{
+
+return (
+    <div key={i}>
+
+
+
+    <button onClick={()=>{Dispatch({type:"accept",payload:element.owner_username})}}>accept</button>
+    <button onClick={()=>{Dispatch({type:"reject",payload:element.owner_username})}}>reject</button>
+    </div>
+);
+
+
+})}
 
 
 </>

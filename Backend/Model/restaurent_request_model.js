@@ -40,12 +40,12 @@ const restaurantSchema = new mongoose.Schema({
   },
 });
 
-restaurantSchema.pre("save", function(next) {
+/*restaurantSchema.pre("save", function(next) {
   if (this.isModified("owner_password")) {
     this.owner_password = bcrypt.hashSync(this.owner_password, 10);
   }
   next();
-});
+});*/
 
 module.exports = mongoose.model("RestaurantRequest", restaurantSchema);
 
