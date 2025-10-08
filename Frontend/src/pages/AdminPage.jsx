@@ -1,8 +1,7 @@
 import { redirect, useLoaderData } from "react-router-dom";
 import { isLogin } from "../util/auth";
 import User from '../components/admin_components/User'
-import Restaurant from "../components/admin_components/Restaurant";
-import Requests from "../components/admin_components/Requests";
+
 import { AdminDashBoard } from "../components/admin_components/AdminDashBoard";
 import { Settings } from "../components/admin_components/Settings";
 import { RestaurantSubPage } from "../components/admin_components/RestaurentSubPage";
