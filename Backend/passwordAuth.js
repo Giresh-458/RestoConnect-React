@@ -39,13 +39,13 @@ let validate = async (req, res, next) => {
         res.redirect('/loginPage');
         return;
     }
-
-    let user = await User.findOne({ $or: [ { username: username }, { email: username } ] });
-    console.log(user)
+    
+    let user = await User.findOne({ $or: [ { username: username }, { email: email } ] });
+   
     if (!user) {
         return res.json({valid:false});
     }
-    
+     console.log(user)
     let passwordMatch = await bcrypt.compare(password.trim(), user.password);
     if (passwordMatch) {
         

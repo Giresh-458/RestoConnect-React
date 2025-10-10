@@ -57,6 +57,6 @@ export async function action({request}){
   }
   console.log(res);
  
-
+  console.log(res.role)
     return redirect(`/${res.role}/`);
 }
