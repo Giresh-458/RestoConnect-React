@@ -3,14 +3,19 @@ const { User } = require('./Model/userRoleModel');
 const bcrypt = require('bcrypt');
 
 let validate = async (req, res, next) => {
-    console.log("in auth")
     let { username, email, password, fullName } = req.body;
     console.log(fullName)
     if (fullName) {
         let chk = await User.findOne({ $or: [ { username: username }, { email: email } ] });
         console.log(chk)
         if (chk != null) {
-            res.send('error');
+             res.render('login', {
+        title: 'Log In',
+        buttonText: 'Log In',
+        toggleText: 'New user? Sign Up',
+        errorMessage: "User or email already exists"
+    }); 
+    
             return;
         }
 
@@ -35,24 +40,31 @@ let validate = async (req, res, next) => {
             rest_id: null
         });
         await newUser.save();
-        console.log('Encrypted password stored in DB:', newUser.password);
         res.redirect('/loginPage');
         return;
     }
-    
-    let user = await User.findOne({ $or: [ { username: username }, { email: email } ] });
-   
+
+    let user = await User.findOne({ $or: [ { username: username }, { email: username } ] });
     if (!user) {
-        return res.json({valid:false});
+        return res.render('login', {
+        title: 'Log In',
+        buttonText: 'Log In',
+        toggleText: 'New user? Sign Up',
+        errorMessage: "User Not Found"
+    });
     }
-     console.log(user)
+    
     let passwordMatch = await bcrypt.compare(password.trim(), user.password);
     if (passwordMatch) {
-        
         req.session.username = user.username;
         next();
     } else {
-        return res.json({valid:false});
+        return res.render('login', {
+        title: 'Log In',
+        buttonText: 'Log In',
+        toggleText: 'New user? Sign Up',
+        errorMessage: "Invalid Password"
+    });;
     }
 }
 

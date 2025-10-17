@@ -6,7 +6,6 @@ body {
   color: #333;
 }
 
-
 header {
   background-color: #333;
   color: #fff;
@@ -18,7 +17,6 @@ header {
   align-items: center;
 }
 
-
 .backButton {
   background-color: #e50914;
   color: white;
@@ -27,13 +25,12 @@ header {
   text-decoration: none;
   padding: 10px 15px;
   border-radius: 5px;
-  margin-left: 15px; /* Consistent spacing */
+  margin-left: 15px;
 }
 
 .backButton:hover {
   background-color: #c82333;
 }
-
 
 .logout-btn {
   background-color: #e50914;
@@ -42,20 +39,18 @@ header {
   text-decoration: none;
   border-radius: 5px;
   transition: background-color 0.3s ease;
-  margin-right: 15px; /* Consistent spacing */
+  margin-right: 15px;
 }
 
 .logout-btn:hover {
   background-color: #c82333;
 }
 
-
 header h1 {
   margin: 0;
   flex: 1;
   text-align: center;
 }
-
 
 .container {
   width: 80%;
@@ -72,7 +67,6 @@ h2 {
   color: #e50914;
 }
 
-
 select {
   padding: 10px;
   border: 1px solid #ddd;
@@ -80,7 +74,6 @@ select {
   font-size: 16px;
   margin-bottom: 20px;
 }
-
 
 button {
   padding: 10px 20px;
@@ -97,14 +90,12 @@ button:hover {
   background-color: #c82333;
 }
 
-
 .dashboard-container {
   display: flex;
   justify-content: space-around;
   flex-wrap: wrap;
   margin-bottom: 20px;
 }
-
 
 .card {
   background-color: #fff;
@@ -119,7 +110,6 @@ button:hover {
 .card h3 {
   margin-top: 0;
 }
-
 
 .charts-container {
   display: flex;
@@ -140,7 +130,6 @@ button:hover {
 .chart-box h3 {
   margin-top: 0;
 }
-
 
 @media (max-width: 768px) {
   header {
@@ -168,4 +157,56 @@ button:hover {
   .chart-box {
     width: 90%;
   }
+}
+
+
+
+
+/* ====== Feedback Section Styling ====== */
+div h3 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+    color: #333;
+    text-align: left;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 5px;
+}
+
+div table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+div table thead {
+    background-color: #4CAF50;
+    color: #fff;
+}
+
+div table th, div table td {
+    padding: 12px 15px;
+    text-align: left;
+}
+
+div table tbody tr {
+    background-color: #f9f9f9;
+    transition: background-color 0.3s;
+}
+
+div table tbody tr:nth-child(even) {
+    background-color: #e8f5e9;
+}
+
+div table tbody tr:hover {
+    background-color: #dcedc8;
+}
+
+div p {
+    font-size: 1rem;
+    color: #777;
+    padding: 10px 0;
 }

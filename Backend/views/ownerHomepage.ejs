@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RestoConnect - Manager Home</title>
+    <link rel="stylesheet" href="/css/owner_Homepage_dashboard.css">
+</head>
+<body>
+    <header>
+        <h1>RestoConnect - owner Home</h1>
+    </header>
+    <main>
+        <div class="container">
+            <h2>
+                Welcome to Your <br>
+                <span class="highlight">Management Portal</span>
+            </h2>
+            <p>Select your restaurant to access the dashboard</p>
+            <select id="restaurantSelect">
+                <option value="restaurant1"> <%= restaurant %> vizag</option> 
+            </select>
+            <button onclick="goToDashboard()">Go to Dashboard</button>
+            <div class="links">
+                <button><a href="/owner/menuManagement" class="link-btn" style="text-decoration: none;color:white">Menu Management</a></button>
+            </div>
+
+
+
+
+            <section class="staff-management">
+                <h2>Staff Management</h2>
+          
+                <section class="add-staff-form">
+                  <h3>Add Staff</h3>
+                  <form  method="POST" id="addStaffForm">
+                    <label for="username">Username:</label>
+                    <input type="text" name="username" id="username" required />
+                    <label for="restaurantName">Restaurant:</label>
+                    <input type="text" name="restaurantName" id="restaurantName" value="<%= restaurant %>" readonly />
+                    <label for="email">Email</label>
+                    <input type="email" name="email" id="email">
+                    <label for="password">Password:</label>
+                    <input type="password" name="password" id="password" required />
+                    <button type="submit">Add Staff</button>
+                  </form>
+                </section>
+          
+
+
+               <section id="class-list">
+                  <div id="staff">
+
+
+
+                  </div>
+               </section>
+
+
+               
+
+              <section class="task-list">
+                <div id="tasks">
+
+
+
+                </div>
+
+              </section>
+
+
+
+              <section class="table-management">
+                <h2>Table Management</h2>
+
+                <section class="add-table-form">
+                  <h3>Add Table</h3>
+                  <form  method="POST" id="addTableForm">
+                    <label for="tableNumber">Table Number:</label>
+                    <input type="text" name="number" id="tableNumber" required />
+                    <label for="seats">Number of Seats:</label>
+                    <input type="number" name="seats" id="seats" min="1" required />
+                    <button type="submit">Add Table</button>
+                  </form>
+                </section>
+
+
+
+           <section class="table-list">
+  <h3>Current Tables</h3>
+  <div id="tables"></div>
+</section>
+         
+          
+
+
+        </div>
+   </main>
+         <script src="/js/ownerHomepage.js"></script>
+</body>
+</html>

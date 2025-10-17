@@ -11,17 +11,17 @@ router.get('/', (req, res) => {
     } else if (error === 'InvalidPassword') {
         errorMessage = 'Incorrect password. Please try again.';
     }
-    res.json( {
+    res.render('login', {
         title: 'Log In',
         buttonText: 'Log In',
         toggleText: 'New user? Sign Up',
-        valid:false,
         errorMessage: errorMessage
     });
 });
 
 router.post('/', async (req, res) => {
-    const { username, password, fullName, email, mobile } = req.body;
+    // const { username, password, fullName, email, mobile } = req.body;
+    console.log(req.body);
     
     if (fullName && email && mobile) {
         // Handle sign-up logic

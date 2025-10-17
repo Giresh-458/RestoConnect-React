@@ -51,35 +51,27 @@ exports.getAdminDashboard = async (req, res) => {
 
         const totalUserCount = await User.countDocuments();
 
-       /* res.render(path.join(__dirname, '..', 'views', 'Admin_Dashboard'), { 
+        res.render(path.join(__dirname, '..', 'views', 'Admin_Dashboard'), { 
             active_user_count: 0, // You can calculate active users if needed
             total_user_count: totalUserCount,
             current_admin: currentAdminProfile,
             totalRevenue,
             restaurants_list: formattedRestaurants,
             users_list: users
-        });*/
-        res.json({ 
-            active_user_count: 0, // You can calculate active users if needed
-            total_user_count: totalUserCount,
-            current_admin: currentAdminProfile,
-            totalRevenue,
-            restaurants_list: formattedRestaurants,
-            users_list: users
-        })
+        });
     } catch (error) {
         console.error("Error in getAdminDashboard:", error);
         res.status(500).send("Internal Server Error");
     }
 };
 
-// Get all users
+
 exports.getAllUsers = async (req, res) => {
     try {
         const currentAdminUsername = req.user ? req.user.username : null;
         let users = [];
         if (currentAdminUsername) {
-            users = await User.find();
+            users = await User.find({ username: { $ne: currentAdminUsername } });
         } else {
             users = await User.find({});
         }
@@ -104,60 +96,11 @@ exports.getStatistics = async (req, res) => {
     }
 };
 
-
-//add user
-exports.addUser = async (req, res) => {
-  try {
-    let { username, fullname, password, email, role } = req.body;
-
-    // Check if username or email already exists
-    const chk = await User.findOne({
-      $or: [{ username: username }, { email: email }],
-    });
-
-    if (chk) {
-      return res.status(400).send("error: user already exists");
-    }
-
-    // If role is customer → create Person document
-    if (role === "customer") {
-      const newPerson = new Person({
-        name: fullname || username,
-        img_url: "/images/default-user.jpg",
-        email: email,
-        prev_orders: [],
-        top_dishes: {},
-        top_restaurent: {},
-        cart: [],
-      });
-      await newPerson.save();
-    }
-
-    // Create the User document
-    password = password.toString().trim();
-    const newUser = new User({
-      username,
-      email,
-      role,
-      restaurantName: role === "admin" ? fullname : null,
-      password,
-      rest_id: null,
-    });
-
-    await newUser.save();
-    console.log("User created:", newUser.username);
-
-    res.status(201).send("user added successfully");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("server error");
-  }
-};
-
 // Delete user
 exports.deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
+        console.log("jj")
         await User.deleteOne({ _id: userId });
         res.redirect('/admin/dashboard');
     } catch (error) {
@@ -290,7 +233,6 @@ exports.getaceptreq = async (req, res) => {
             name: request.name,
             location: request.location,
             amount: request.amount,
-            date: request.date_joined,
             created_at: new Date()
         });
         await newRestaurant.save();
@@ -300,7 +242,8 @@ exports.getaceptreq = async (req, res) => {
             password: request.owner_password,
             role: "owner",
             restaurantName: request.name,
-            rest_id: newRestaurant._id
+            rest_id: newRestaurant._id,
+            email:request.email
         });
         await newOwner.save();
 

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Restaurant Feedback</title>
+    <link rel="stylesheet" href="/css/feedback.css" />
+</head>
+<body>
+    <!-- Wrap the entire feedback section in a single form -->
+    <form id="feedbackForm" action="/customer/submit-feedback" method="POST">
+        <div class="feedback-wrapper">
+            <h1 class="title">Restaurant Feedback</h1>
+
+            <div class="rating-section">
+                <p>Rate your dining experience</p>
+                <div class="stars" id="starRating">
+                    <span class="star" data-value="1">&#9733;</span>
+                    <span class="star" data-value="2">&#9733;</span>
+                    <span class="star" data-value="3">&#9733;</span>
+                    <span class="star" data-value="4">&#9733;</span>
+                    <span class="star" data-value="5">&#9733;</span>
+                </div>
+                <p id="diningRatingText">Good</p>
+            </div>
+
+            <div class="feedback-container">
+                <p>What did you love? 😍</p>
+                <input type="text" id="feedbackInput" name="lovedItems" placeholder="Enter your feedback..." />
+            </div>
+
+            <div class="order-rating-container">
+                <h3>Rate your order</h3>
+                <% if (recentOrders && recentOrders.length > 0) { %>
+                    <% recentOrders.forEach(function(order) { %>
+                        <p class="order-details"><%= new Date(order.date).toLocaleString() %></p>
+                        <p class="order-details"><%= order.dishes.join(', ') %></p>
+                    <% }); %>
+                <% } else { %>
+                    <p class="order-details">No recent orders found.</p>
+                <% } %>
+                <div class="stars" id="orderStarRating">
+                    <span class="star" data-value="1">&#9733;</span>
+                    <span class="star" data-value="2">&#9733;</span>
+                    <span class="star" data-value="3">&#9733;</span>
+                    <span class="star" data-value="4">&#9733;</span>
+                    <span class="star" data-value="5">&#9733;</span>
+                </div>
+                <p id="orderRatingText">Very Good</p>
+            </div>
+
+            <!-- User's additional feedback -->
+            <textarea id="feedbackInputExtra" name="additionalFeedback" placeholder="Your words make us better..." rows="5"></textarea>
+            <button class="submit-btn" type="submit">SUBMIT FEEDBACK</button>
+
+        </div>
+    </form>
+
+    <script src="/js/feedback.js"></script>
+    <script>
+        // Dining star rating
+        const diningStars = document.querySelectorAll("#starRating .star");
+        const diningInputName = "diningRating"; 
+        diningStars.forEach(star => {
+            star.addEventListener("click", () => {
+                diningStars.forEach(s => s.classList.remove("selected"));
+                star.classList.add("selected");
+                let existingInput = document.querySelector(`input[name="${diningInputName}"]`);
+                if(!existingInput){
+                    existingInput = document.createElement("input");
+                    existingInput.type = "hidden";
+                    existingInput.name = diningInputName;
+                    document.getElementById("feedbackForm").appendChild(existingInput);
+                }
+                existingInput.value = star.dataset.value;
+            });
+        });
+
+        // Order star rating
+        const orderStars = document.querySelectorAll("#orderStarRating .star");
+        const orderInputName = "orderRating"; // name for form submission
+        orderStars.forEach(star => {
+            star.addEventListener("click", () => {
+                orderStars.forEach(s => s.classList.remove("selected"));
+                star.classList.add("selected");
+                let existingInput = document.querySelector(`input[name="${orderInputName}"]`);
+                if(!existingInput){
+                    existingInput = document.createElement("input");
+                    existingInput.type = "hidden";
+                    existingInput.name = orderInputName;
+                    document.getElementById("feedbackForm").appendChild(existingInput);
+                }
+                existingInput.value = star.dataset.value;
+            });
+        });
+    </script>
+</body>
+</html>

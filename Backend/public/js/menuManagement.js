@@ -4,7 +4,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// Removed client-side DOM manipulation for add/edit/delete since handled by server
 
 function showForm() {
   document.getElementById("formContainer").style.display = "flex";

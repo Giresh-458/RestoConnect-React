@@ -3,7 +3,6 @@ const { User } = require('./Model/userRoleModel');
 
 const auth_middleware = (role) => {
     return async (req, res, next) => {
-        
         if (!req.session.username) {
             return res.redirect('/loginPage');
         }

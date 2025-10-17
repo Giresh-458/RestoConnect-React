@@ -11,18 +11,21 @@ exports.getMenu = async (req,res)=>{
     // Set rest_id in session
     req.session.rest_id = id;
 
-    let dishes = [];
-    for(let i=0 ;i<rest.dishes.length;i++){    
-    let tm_dishes = await Dish.find_by_id(rest.dishes[i]);
-    dishes.push(tm_dishes);
+    let dishes1 = [];
+    for(let i=0 ;i<rest.dishes.length;i++){
+        let dsh = await Dish.find_by_id(rest.dishes[i])
+        if(dsh){
+            dishes1.push(dsh)
+        }
     }
 
     // Get cart from Person model for logged-in user
     const user = req.user;
     let person = await Person.findOne({ email: user.email });
     let cart = person ? person.cart : [];
+    console.log(dishes1)
 
-    res.render('menu',{ restaurant: {name:rest.name,location:rest.location,rest_id:id}, dishes: dishes, cart: cart })
+    res.render('menu',{ restaurant: {name:rest.name,location:rest.location,rest_id:id}, dishes: dishes1, cart: cart })
 }
 
 // Add dish to cart
@@ -59,20 +62,29 @@ exports.addDishToCart = async (req, res) => {
 // Increase dish quantity in cart
 exports.increaseDishQuantity = async (req, res) => {
     try {
-        const user = req.user;
+        
+        const user = req.session.username;
+       
         const dishName = req.body.dish;
+       
         if (!dishName) {
             return res.status(400).send('Dish name is required');
         }
-        let person = await Person.findOne({ email: user.email });
+        let person = await Person.findOne({ name: user });
+      
         if (!person) {
             return res.status(404).send('User not found');
         }
+     
         let cart = person.cart || [];
         let itemIndex = cart.findIndex(item => item.dish === dishName);
+      
         if (itemIndex > -1) {
+             
             cart[itemIndex].quantity += 1;
+            
             person.cart = cart;
+            person.markModified('cart');
             await person.save();
         }
         res.redirect('back');
@@ -85,12 +97,13 @@ exports.increaseDishQuantity = async (req, res) => {
 // Decrease dish quantity in cart
 exports.decreaseDishQuantity = async (req, res) => {
     try {
-        const user = req.user;
+        const user = req.session.username;
+        
         const dishName = req.body.dish;
         if (!dishName) {
             return res.status(400).send('Dish name is required');
         }
-        let person = await Person.findOne({ email: user.email });
+        let person = await Person.findOne({ name: user });
         if (!person) {
             return res.status(404).send('User not found');
         }
@@ -104,6 +117,7 @@ exports.decreaseDishQuantity = async (req, res) => {
                 cart.splice(itemIndex, 1);
             }
             person.cart = cart;
+            person.markModified('cart');
             await person.save();
         }
         res.redirect('back');
@@ -119,16 +133,14 @@ exports.orderCart = async (req, res) => {
         const user = req.user;
         let person = await Person.findOne({ email: user.email });
         if (!person) {
-            return res.status(404).send('User not found');
+            return res.redirect('/login');
         }
-        // Get current cart before clearing
+       
         const cart = person.cart || [];
         const restaurantName = req.body.restaurant || req.session.rest_name || '';
         const rest_id = req.body.rest_id || req.session.rest_id || '';
 
-        // Do NOT clear the cart here as per user request
-        // Cart will be cleared only on combined order and reservation submission
-
+      
         // Store cart and restaurant info in session for orderReservation page
         req.session.temp_cart = cart;
         req.session.rest_name = restaurantName;

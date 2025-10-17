@@ -2,14 +2,12 @@ const path = require("path");
 const Person = require("../Model/customer_model");
 const { Dish } = require("../Model/Dishes_model_test");
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
+const Feedback = require("../Model/feedback");
+const { Order } = require("../Model/Order_model");
+const bcrypt = require("bcrypt");
+const { User } = require("../Model/userRoleModel");
 
-//feedbackdata
-let feedbacks = [];
-
-//orderandreservation_data
-let orders = [];
-let reservations = [];
-
+// Validate reservation date/time
 exports.validateReservationDateTime = (date, time) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -21,12 +19,8 @@ exports.validateReservationDateTime = (date, time) => {
   twoDaysLater.setDate(today.getDate() + 2);
   twoDaysLater.setHours(0, 0, 0, 0);
 
-  // Check if date is within valid range
-  if (selectedDate < today || selectedDate > twoDaysLater) {
-    return false;
-  }
+  if (selectedDate < today || selectedDate > twoDaysLater) return false;
 
-  // Check if time is valid for today's date
   if (selectedDate.getTime() === today.getTime()) {
     const selectedDateTime = new Date(`${date}T${time}`);
     return selectedDateTime > new Date();
@@ -34,33 +28,28 @@ exports.validateReservationDateTime = (date, time) => {
 
   return true;
 };
-//dashboards
+
+
 exports.getCustomerDashboard = async (req, res) => {
   try {
-    let data = await Person.get_user_function(req.session.username);
-    if (!data) {
-      return res.status(404).send("User not found");
-    }
+    // Fetch user data
+    const data = await Person.get_user_function(req.session.username);
+    if (!data) return res.status(404).send("User not found");
 
-    // Get location filter from query parameters
+    // Filter restaurants by location if query exists
     const locationFilter = req.query.location;
+    const restaurantQuery = locationFilter
+      ? { location: { $regex: new RegExp(locationFilter.trim(), "i") } }
+      : {};
 
-    // Query restaurants based on location filter if provided
-    let restaurantQuery = {};
-    if (locationFilter) {
-      restaurantQuery.location = {
-        $regex: new RegExp(locationFilter.trim(), "i"),
-      };
-    }
-    let restaurants = await Restaurant.find(restaurantQuery);
+    const restaurants = await Restaurant.find(restaurantQuery);
 
-    // Use prev_orders from Person model for past orders
+    // Get previous orders
     const prev_order = data.prev_order || [];
 
-    // Aggregate item counts and restaurant counts from prev_orders
-    let itemCountMap = {};
-    let restaurantCountMap = {};
-
+    // Aggregate item and restaurant counts
+    const itemCountMap = {};
+    const restaurantCountMap = {};
     prev_order.forEach((order) => {
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach((dish) => {
@@ -73,14 +62,22 @@ exports.getCustomerDashboard = async (req, res) => {
       }
     });
 
-    // Prepare arrays for labels and counts
     const item_list = Object.keys(itemCountMap);
     const item_counts = Object.values(itemCountMap);
-
     const restaurent_list = Object.keys(restaurantCountMap);
     const restaurent_counts = Object.values(restaurantCountMap);
 
-    // Pass all data including filtered restaurants to view
+    // Fetch recent orders for display
+    const recentOrders = await Order.find({ customerName: req.session.username })
+      .sort({ _id: -1 })
+      .limit(5);
+
+    // ✅ Fetch the last 5 feedbacks submitted by this customer
+    const feedbackList = await Feedback.find({ customerName: req.session.username })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Render the dashboard EJS
     res.render(path.join(__dirname, "..", "views", "customerDashboard"), {
       ...data,
       item_list,
@@ -90,54 +87,73 @@ exports.getCustomerDashboard = async (req, res) => {
       prev_order,
       restaurants,
       locationFilter,
+      recentOrders,
+      feedbackList, // ✅ pass feedback to EJS
     });
   } catch (error) {
     console.error("Error fetching customer dashboard data:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).send("Internal Server Error  1");
   }
 };
 
-//feed backs
-const { Order } = require("../Model/Order_model");
 
 exports.getFeedBack = async (req, res) => {
   try {
     const username = req.session.username;
     const user = await Person.findOne({ name: username });
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
+    if (!user) return res.status(404).send("User not found");
 
-    // Fetch recent orders for the user (limit 1 for latest)
     const recentOrders = await Order.find({ customerName: username })
       .sort({ _id: -1 })
-      .limit(1);
+      .limit(5);
 
-    res.render("feedback", { user, recentOrders });
+    // ✅ Fetch the feedbacks for this user
+    const feedbacks = await Feedback.find({ username })
+      .sort({ date: -1 })
+      .limit(10);
+
+    res.render("feedback", { user, recentOrders, feedbacks }); // pass feedbacks
   } catch (error) {
     console.error("Error fetching feedback data:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).send("Internal Server Error2");
   }
-};
-exports.postSubmitFeedBack = (req, res) => {
-  const feedbackText = req.body.feedback;
-  if (feedbackText && feedbackText.trim() !== "") {
-    feedbacks.push({
-      username: req.session.username,
-      feedback: feedbackText,
-      date: new Date(),
-    });
-    console.log("Feedback received:", feedbackText);
-  }
-  res.redirect("/");
 };
 
-//order_and_reservation
+
+
+exports.submitFeedback = async (req, res) => {
+  try {
+    const { diningRating, lovedItems, orderRating, additionalFeedback } = req.body;
+    const username = req.session.username;
+
+    if (!username) return res.redirect("/customer/feedback");
+
+    await Feedback.create({
+      customerName: username,
+      diningRating: diningRating || 0,
+      lovedItems: lovedItems || "",
+      orderRating: orderRating || 0,
+      additionalFeedback: additionalFeedback || "",
+      createdAt: new Date()
+    });
+
+    // Redirect to customer dashboard after submission
+    res.redirect("/customer/customerDashboard");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
+};
+
+
+
+
+// Orders and reservations
 exports.postOrderAndReservation = async (req, res) => {
   try {
-    let restaurantName;
-    let cart;
-    let rest_id;
+    
+    let restaurantName, cart, rest_id;
+    console.log(req.session.cart);
     if (req.body.restaurant) {
       restaurantName = req.body.restaurant;
       rest_id = req.body.rest_id;
@@ -146,38 +162,23 @@ exports.postOrderAndReservation = async (req, res) => {
       req.session.rest_name = restaurantName;
       req.session.rest_id = rest_id;
     } else {
-      // Fetch restaurant name from rest_id
       rest_id = req.session.rest_id;
       if (rest_id) {
-        const Restaurant = require("../Model/Restaurents_model").Restaurant;
         const rest = await Restaurant.find_by_id(rest_id);
         restaurantName = rest ? rest.name : "";
-        req.session.rest_name = restaurantName; // Ensure rest_name is set here
-      } else {
-        restaurantName = "";
-      }
-      // Fallback if rest_id is undefined, set to null to handle gracefully
-      if (!rest_id) {
-        // Redirect to dashboard if rest_id missing to avoid invalid back link
-        return res.redirect("/customer/customerDashboard");
-      }
-      // Fetch cart from database for logged-in user
+        req.session.rest_name = restaurantName;
+      } else return res.redirect("/customer/customerDashboard");
+
       const user = req.user;
       if (user) {
-        const person = await require("../Model/customer_model").findOne({
-          email: user.email,
-        });
+        const person = await Person.findOne({ email: user.email });
         cart = person ? person.cart : [];
       } else {
         cart = req.session.temp_cart || [];
       }
     }
-    // Ensure cart is always an array
-    if (!cart) {
-      cart = [];
-    }
+    if (!cart) cart = [];
     res.render("orderReservation", { restaurantName, cart, rest_id });
-    console.log(rest_id);
   } catch (error) {
     console.error("Error in postOrderAndReservation:", error);
     res.status(500).send("Internal Server Error");
@@ -186,23 +187,15 @@ exports.postOrderAndReservation = async (req, res) => {
 
 exports.order = async (req, res) => {
   const { restaurant, specialRequests } = req.body;
-  const newOrder = {
-    id: Date.now(),
-    restaurant,
-    specialRequests,
-    status: "Pending",
-  };
-  let order_temp = newOrder;
-  req.session.tempOrder = order_temp;
-  let dishes_temp = req.session.temp_cart;
+  const newOrder = { id: Date.now(), restaurant, specialRequests, status: "Pending" };
+  req.session.tempOrder = newOrder;
+  const dishes_temp = req.session.temp_cart || [];
   let sum = 0;
   for (let a of dishes_temp) {
-    let temp = await Dish.findByName(a.dish);
-    sum = sum + parseInt(temp.price) * a.quantity;
+    const temp = await Dish.findByName(a.dish);
+    sum += parseInt(temp.price) * a.quantity;
   }
   req.session.bill = sum;
-  // Do NOT clear cart here as per user request
-  // Cart will be cleared only on combined order and reservation
   res.redirect("/customer/payments");
 };
 
@@ -224,25 +217,17 @@ exports.postOrderAndReservationCombined = async (req, res) => {
   try {
     const { restaurant, specialRequests, date, time, guests } = req.body;
 
-    // Create order object
-    const newOrder = {
-      id: Date.now(),
-      restaurant,
-      specialRequests,
-      status: "Pending",
-    };
+    const newOrder = { id: Date.now(), restaurant, specialRequests, status: "Pending" };
     req.session.tempOrder = newOrder;
 
-    // Calculate bill from session cart
-    let dishes_temp = req.session.temp_cart;
+    let dishes_temp = req.session.temp_cart || [];
     let sum = 0;
     for (let a of dishes_temp) {
-      let temp = await Dish.findByName(a.dish);
+      const temp = await Dish.findByName(a.dish);
       sum += parseInt(temp.price) * a.quantity;
     }
     req.session.bill = sum;
 
-    // Create reservation object
     const newReservation = {
       id: Date.now(),
       name: req.session.username,
@@ -253,7 +238,7 @@ exports.postOrderAndReservationCombined = async (req, res) => {
     };
     req.session.reservation = newReservation;
 
-    // Clear user's cart in database
+
     const user = await Person.findOne({ name: req.session.username });
     if (user) {
       user.cart = [];
@@ -273,52 +258,43 @@ exports.getPayments = (req, res) => {
 
 exports.postPaymentsSuccess = async (req, res) => {
   try {
-    let username = req.session.username;
-    let user = await Person.findOne({ name: username });
-    let rest_name = req.session.rest_name;
-    let rest_id = req.session.rest_id;
-    let dishes = [];
+    const username = req.session.username;
+    const user = await Person.findOne({ name: username });
+    const rest_name = req.session.rest_name;
+    const rest_id = req.session.rest_id;
+    const dishes = [];
 
-    if (req.session.reservation != undefined) {
-      let tmp_rest = await Restaurant.find_by_id(rest_id);
-      let reserv = req.session.reservation;
-      // Save reservation as subdocument
-      tmp_rest.reservations.push(reserv);
+    if (req.session.reservation) {
+      const tmp_rest = await Restaurant.find_by_id(rest_id);
+      tmp_rest.reservations.push(req.session.reservation);
       await tmp_rest.save();
     }
 
-    if (req.session.temp_cart && req.session.temp_cart.length > 0) {
-      let len = req.session.temp_cart.length;
-      for (let i = 0; i < len; i++) {
-        dishes.push(req.session.temp_cart[i].dish);
-      }
-      // Create new Order document
-      const Order = require("../Model/Order_model").Order;
+    const dishes_temp = req.session.temp_cart || [];
+    for (let i = 0; i < dishes_temp.length; i++) {
+      dishes.push(dishes_temp[i].dish);
+    }
+
+    if (dishes.length > 0) {
       const newOrder = new Order({
-        dishes: dishes,
+        dishes,
         customerName: username,
-        restaurant: rest_name, // Add restaurant name here
-        rest_id: rest_id, // Add restaurant id here
+        restaurant: rest_name,
+        rest_id,
         status: "Pending",
         totalAmount: req.session.bill,
       });
       await newOrder.save();
 
-      // Push order reference to Restaurant.orders and add payment record
-      let tmp_rest = await Restaurant.find_by_id(rest_id);
+      const tmp_rest = await Restaurant.find_by_id(rest_id);
       if (tmp_rest) {
         tmp_rest.orders.push(newOrder._id);
-        tmp_rest.payments.push({
-          amount: req.session.bill,
-          date: new Date(),
-        });
+        tmp_rest.payments.push({ amount: req.session.bill, date: new Date() });
         await tmp_rest.save();
       }
 
       if (user) {
         await user.add_order({ name: rest_name, items: dishes });
-      } else {
-        console.warn(`User with name ${username} not found in customer_model.`);
       }
     }
 
@@ -336,13 +312,11 @@ exports.postPaymentsSuccess = async (req, res) => {
   }
 };
 
+// Profile editing
 exports.getEditProfile = async (req, res) => {
   try {
-    const username = req.session.username;
-    const user = await Person.findOne({ name: username });
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
+    const user = await Person.findOne({ name: req.session.username });
+    if (!user) return res.status(404).send("User not found");
     res.render("editCustomerProfile", { user });
   } catch (error) {
     console.error("Error fetching user for edit profile:", error);
@@ -350,64 +324,63 @@ exports.getEditProfile = async (req, res) => {
   }
 };
 
-const bcrypt = require("bcrypt");
-const { User } = require("../Model/userRoleModel");
-
 exports.postEditProfile = async (req, res) => {
+
+  function sendAlert(msg){
+    res.send(`
+  <script>
+    alert(${msg});
+    window.history.back();
+  </script>
+`)
+  }
+
   try {
     const currentUsername = req.session.username;
-    const { name, email, phone, img_url, newPassword, confirmPassword } =
-      req.body;
-
+    const { name, email, phone, img_url, newPassword, confirmPassword } = req.body;
+   
     const userRole = await User.findOne({ username: currentUsername });
-    if (!userRole) {
-      return res.status(404).send("User role not found");
-    }
+    const adding = await User.findOne({username:name});
+   /* if(adding!=null){
+      return res.send(`
+  <script>
+    alert('user already exists');
+    window.history.back();
+  </script>
+`);
 
-    // Validate password change if provided
+    }*/   
+    if (!userRole) return sendAlert("user not found");
+
     if (newPassword || confirmPassword) {
-      if (!newPassword || !confirmPassword) {
-        return res
-          .status(400)
-          .send("Both new password and confirm password are required");
-      }
-      if (newPassword !== confirmPassword) {
-        return res
-          .status(400)
-          .send("New password and confirm password do not match");
-      }
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-      userRole.password = hashedPassword;
+      if (!newPassword || !confirmPassword)
+        return sendAlert("bot password are required");
+      if (newPassword !== confirmPassword)
+        return sendAlert("both passwords must be equal")
+
+      /*const hashedPassword = await bcrypt.hash(newPassword, 10);*/
+      userRole.password = newPassword;
     }
 
-    // Update User model fields
     userRole.username = name || userRole.username;
     userRole.email = email || userRole.email;
-
-    // Save User model first to ensure username update
     await userRole.save();
 
-    // Update session username if changed
-    if (name && name !== currentUsername) {
-      req.session.username = name;
-    }
 
-    // Find Person model by updated username or old username
-    const personUsername =
-      name && name !== currentUsername ? name : currentUsername;
-    const user = await Person.findOne({ name: personUsername });
-    if (!user) {
-      return res.status(404).send("User not found");
-    }
+    
 
-    // Update Person model fields
+    const personUsername = name && name !== currentUsername ? name : currentUsername;
+    const user = await Person.findOne({ name: req.session.username });
+    
+    /*if (!user) return res.status(404).send("User not found");*/
+
+    if (name && name !== currentUsername) req.session.username = name;
+   
+
     user.name = name || user.name;
     user.email = email || user.email;
     user.phone = phone || user.phone;
     user.img_url = img_url || user.img_url;
-
-    // Save Person model
     await user.save();
 
     res.redirect("/customer/customerDashboard");

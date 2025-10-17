@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resto Connect</title>
+  <link rel="stylesheet" href="/css/home_page_styles.css">
+  <style>
+    .none {
+      display: none;
+    }
+
+    body {
+      visibility: visible;
+    }
+
+    .visibilityHidden {
+      visibility: hidden;
+    }
+
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 15px;
+      background-color: #222;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .search-bar form {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+<% if (!login) { %>
+  <div class="back_ground">
+    <div class="overlay">
+      <nav class="nav-bar">
+        <div class="logo">Resto<span>Connect</span></div>
+        <div class="menu-toggle">&#9776;</div>
+      </nav>
+
+      <div class="hero">
+        <div class="hero_text_container">
+          <ul class="hero_text_title">
+            <li><span>Resto </span></li>
+            <li><span>&nbsp;</span></li>
+            <li><span>Connect</span></li>
+          </ul>
+          <div class="sub_text">Discover the best food & dining experiences</div>
+          <div>
+            <a href="/LoginPage" id="login_registerlink" class="comic-button">Login/Register</a>
+            <a href="/req_res" class="comic-button">Add Restaurant</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<% } else { %>
+  <nav class="nav-bar" style="position: sticky; top: 0; z-index: 1000; background-color: black;">
+    <div class="logo">Resto <span>Connect</span></div>
+
+    <div class="search-bar">
+
+          <select name="city_option_home" id="city-select">
+  <option value="All" <%= city_option_home === 'All' ? 'selected' : '' %>>All</option>
+  <% uniqueLocations.forEach((city)=>{ %>
+    <option value="<%= city %>" <%= city_option_home === city ? 'selected' : '' %>><%= city %></option>
+  <% }) %>
+</select>
+
+
+        <input type="text" placeholder="Search for restaurant, cuisine, or dish"
+               id="search-input" name="name_resaurent" required>
+        <button type="button" class="comic-button" id="clear-search">Clear</button>
+
+    </div>
+
+    <ul class="nav-links">
+      <% if (user === 'customer') { %>
+        <li><a href="/customer/customerDashboard">Dashboard</a></li>
+      <% } else if (user === 'staff') { %>
+        <li><a href="/staff/dashboard">Dashboard</a></li>
+      <% } else if (user === 'admin') { %>
+        <li><a href="/admin/dashboard">Dashboard</a></li>
+      <% } else if (user === 'owner') { %>
+        <li><a href="/owner/dashboard">Dashboard</a></li>
+      <% } %>
+      <li><a href="/logout">Logout</a></li>
+    </ul>
+
+    <div class="menu-toggle">&#9776;</div>
+  </nav>
+
+  <div id="restaurants-container" class="restaurants">
+   
+  </div>
+<% } %>
+
+<footer>
+  <p>&copy; 2025 Resto Connect. All rights reserved.</p>
+</footer>
+
+<script>
+ // Menu toggle
+document.addEventListener("DOMContentLoaded", () => {
+  const menuToggle = document.querySelector(".menu-toggle");
+  const navLinks = document.querySelector(".nav-links");
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      navLinks.classList.toggle("active");
+    });
+  }
+
+  const container = document.getElementById("restaurants-container");
+  const searchInput = document.getElementById("search-input");
+  const clearButton = document.getElementById("clear-search");
+  const citySelect = document.getElementById("city-select");
+
+  let allRestaurants = []; // Stores the currently fetched restaurants
+
+  // Load restaurants from server with optional city filter
+  function loadRestaurants(city = "All") {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", `/api/restaurants?city=${encodeURIComponent(city)}`, true);
+
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            allRestaurants = JSON.parse(xhr.responseText);
+            renderRestaurants();
+          } catch (error) {
+            console.error("Error parsing restaurants:", error);
+            container.innerHTML = "<p>Error loading restaurants.</p>";
+          }
+        } else {
+          console.error("Failed to fetch restaurants. Status:", xhr.status);
+          container.innerHTML = "<p>Error loading restaurants.</p>";
+        }
+      }
+    };
+
+    xhr.send();
+  }
+
+  // Render restaurants based on current city and search input
+  function renderRestaurants() {
+    if (!container) return;
+
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    const selectedCity = citySelect ? citySelect.value : "All";
+
+    const filtered = allRestaurants.filter(r => {
+      const matchesCity =
+        selectedCity === "All" || (r.location && r.location.toLowerCase() === selectedCity.toLowerCase());
+      const matchesSearch = r.name.toLowerCase().includes(query);
+      return matchesCity && matchesSearch;
+    });
+
+    container.innerHTML = "";
+
+    if (filtered.length === 0) {
+      container.innerHTML = "<p>No restaurants found.</p>";
+      return;
+    }
+
+    filtered.forEach(r => {
+      const link = document.createElement("a");
+      link.href = `/menu/${r._id}`;
+      link.classList.add("restaurant-link");
+      link.setAttribute("data-city", r.location || '');
+      link.innerHTML = `
+        <div class="restaurant">
+          <img src="${r.image || 'https://via.placeholder.com/100'}" alt="${r.name}" height="100" width="100">
+          <p class="restaurant-name">${r.name}</p>
+          <p class="restaurant-rating">Rating: ${r.rating || 'N/A'} ⭐</p>
+        </div>
+      `;
+      container.appendChild(link);
+    });
+  }
+
+  // Search input listener
+  if (searchInput) {
+    searchInput.addEventListener("input", renderRestaurants);
+  }
+
+  // Clear search button
+  if (clearButton) {
+    clearButton.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      renderRestaurants();
+    });
+  }
+
+  // City dropdown listener
+  if (citySelect) {
+    citySelect.addEventListener("change", () => {
+      loadRestaurants(citySelect.value);
+    });
+  }
+
+  // Load all restaurants on page load
+  loadRestaurants("All");
+});
+
+</script>
+
+</body>
+</html>

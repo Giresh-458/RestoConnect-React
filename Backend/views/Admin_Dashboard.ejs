@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/css/admin_dashboard_styles.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <!-- Sidebar Navigation -->
+      <div class="sidebar">
+        <div class="logo">RESTO <span class="orange-text">CONNECT</span></div>
+        <ul>
+          <li><a href="#profile">Profile</a></li>
+          <li><a href="#stats">Statistics</a></li>
+          <li><a href="#revenue">Revenue</a></li>
+          <li><a href="#restaurantlist">Restaurants</a></li>
+          <li><a href="#userlist">Users</a></li>
+          <li><a href="#requests">Requests</a></li>
+          <li class="logout"><a href="/logout">Logout</a></li>
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="content">
+        <!-- Profile Section -->
+        <section class="profile-section" id="profile">
+          <div class="profile-card">
+            <div class="profile-info" id="profileDisplay">
+              <p><strong>Name:</strong> <%= current_admin ? current_admin.username : 'N/A' %></p>
+              <p><strong>Email Id:</strong> <%= current_admin ? current_admin.email : 'N/A' %></p>
+            </div>
+            <button class="edit-btn" id="editProfileBtn">✎ Edit</button>
+            <form id="profileEditForm" action="/admin/edit_profile" method="POST" class="profile-form">
+              <label for="username">Name:</label>
+              <input type="text" id="username" name="username" value="<%= current_admin ? current_admin.username : '' %>" required />
+              <label for="email">Email Id:</label>
+              <input type="email" id="email" name="email" value="<%= current_admin ? current_admin.email : '' %>" required />
+              <label for="password">Password:</label>
+              <input type="password" id="password" name="password" placeholder="New Password" />
+              <button type="submit" class="save-btn">Save</button>
+              <button type="button" id="cancelEditBtn" class="cancel-btn">Cancel</button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section class="statistics" id="stats">
+          <h2>Statistics</h2>
+          <div class="stats-container">
+            <div class="stat-box">
+              <p>Total Users</p>
+              <h1 id="totalUsersCount"><%= total_user_count %></h1>
+            </div>
+            <div class="stat-box">
+              <p>Total Restaurants</p>
+              <h1 id="totalRestaurantsCount"></h1>
+            </div>
+          </div>
+        </section>
+
+        <!-- Revenue Section -->
+        <section class="revenue" id="revenue">
+          <h2>Revenue</h2>
+          <div class="revenue-container">
+            <div class="revenue-card">
+              <h3>Current Month Revenue</h3>
+              <div class="revenue-value">
+                <span class="trend-up">▲</span> ₹<%= totalRevenue %>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Restaurant List Section -->
+        <section class="restaurant-list" id="restaurantlist">
+          <h2>Restaurant Management</h2>
+          <div class="search-container">
+            <input type="text" list="restaurants" placeholder="Search restaurants..." id="rest-list"/>
+            <datalist id="restaurants"></datalist>
+            <button id="seerest" class="search-btn">Search</button>
+          </div>
+          <div id="diplay-rest" class="list-container"></div>
+        </section>
+
+        <!-- User List Section -->
+        <section class="user-list" id="userlist">
+          <h2>User Management</h2>
+          <div class="search-container">
+            <input type="text" list="users" placeholder="Search users..." id="users-list"/>
+            <datalist id="users"></datalist>
+            <button id="see-user" class="search-btn">Search</button>
+          </div>
+          <div id="diplay" class="list-container"></div>
+        </section>
+
+        <!-- Requests Section -->
+        <section class="requests-list" id="requests">
+          <h2>Pending Requests</h2>
+          <div id="requestslist" class="requests-container"></div>
+        </section>
+      </div>
+    </div>
+
+    <script src="/js/admin_dash_script.js"></script>
+  </body>
+</html>

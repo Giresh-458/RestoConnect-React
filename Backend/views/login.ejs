@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= locals.title %></title> 
+    <link rel="stylesheet" href="/css/login.css">
+</head> 
+<body>
+    <div class="background">
+       <div class="overlay"></div>
+    </div>
+    
+    <div class="login_container">
+        <% if (locals.errorMessage) { %>
+            <div class="error-popup" style="color: red; margin-bottom: 10px; font-weight: bold;">
+                <%= errorMessage %>
+            </div>
+        <% } %>
+        <form id="loginForm" action="/" method="POST" onsubmit="return handleSubmit(event)">
+            <h2 class="sign-in"><%= locals.title %></h2> 
+            
+            <div class="username">
+                <input class="log_input" type="text" id="username" placeholder="User name" name="username" required>
+            </div>
+
+            <div id="extraFields"></div> 
+
+            <div class="password">
+                <input class="log_input" type="password" id="password" placeholder="Password" name="password" required>
+            </div>
+
+            <button class="log_button" type="submit" id="submitBtn"><%= locals.buttonText %></button> 
+
+            <p id="toggleLink">
+                <a class="toggle_color" href="#" onclick="toggleForm(); return false;"><%= locals.toggleText %></a> 
+            </p>
+        </form> <br>
+        <a href="/req_res" class="log_button" style="text-decoration: none;">Own a Restaurant? Add It Here!</a>
+    </div>
+
+    <script>
+        function toggleForm() {
+            const form = document.getElementById('loginForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const toggleLink = document.getElementById('toggleLink');
+            const extraFieldsDiv = document.getElementById('extraFields');
+
+            if (submitBtn.innerText === "Log In") {
+                toggleLink.innerHTML = '<a class="toggle_color" href="#" onclick="toggleForm(); return false;">Already have an account? Login</a>';
+                form.querySelector('.sign-in').innerText = "Sign Up";
+                submitBtn.innerText = "Sign Up";
+                extraFieldsDiv.innerHTML = `
+                    <div class="extra-input">
+                        <input class="log_input" type="text" id="fullName" placeholder="Full Name" name="fullName" hidden="true" value="1">
+                    </div>
+                    <div class="extra-input">
+                        <input class="log_input" type="email" id="email" placeholder="Email" name="email" required>
+                    </div>
+                    <div class="extra-input">
+                        <input class="log_input" type="tel" id="mobile" placeholder="Mobile Number" name="mobile" required>
+                    </div>
+                `;
+
+            } else {
+                toggleLink.innerHTML = '<a class="toggle_color" href="#" onclick="toggleForm(); return false;">New user? Sign Up</a>';
+                form.querySelector('.sign-in').innerText = "Log In";
+                submitBtn.innerText = "Log In";
+                
+                extraFieldsDiv.innerHTML = "";
+            }
+        }
+
+        function handleSubmit(event) {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const mobile = document.getElementById('mobile')?.value.trim();
+            
+            if (!username || !password) {
+                alert('Please fill in all required fields.');
+                return false;
+            }
+
+            if (mobile && !/^\d{10}$/.test(mobile)) {
+                alert('Please enter a valid 10-digit mobile number.');
+                return false;
+            }
+
+            return true; 
+            
+        }
+    </script>
+
+</body>
+</html>

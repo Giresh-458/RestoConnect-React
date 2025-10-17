@@ -1,192 +1,309 @@
 * {
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-    font-family: 'Poppins', sans-serif;
-  }
-  
-  body {
-    background-color: #121212;
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    text-align: center;
-  }
-  
-  .dashboard {
-    display: flex;
-    height: 100vh; 
-  }
-  
-  
-  .sidebar {
-    width: 250px;
-    background-color: #333;
-    color: #fff;
-    padding: 20px;
-  }
-  
-  .sidebar ul {
-    list-style: none;
-    padding: 0;
-  }
-  
-  .sidebar ul li {
-    margin: 20px 0;
-  }
-  
-  .sidebar ul li a {
-    color: #fff;
-    text-decoration: none;
-    font-size: 18px;
-  }
-  
-  .sidebar ul li a:hover {
-    text-decoration: none;
-    color: #e50914;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
 
+body {
+  background-color: #f9f9f9;
+  color: #333;
+}
+
+.dashboard {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  background-color: #111;
+  width: 230px;
+  padding: 30px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.sidebar ul {
+  list-style: none;
+  width: 100%;
+  text-align: center;
+}
+
+.sidebar li {
+  margin: 20px 0;
+}
+
+.sidebar a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 10px 20px;
+  display: block;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar a:hover {
+  background-color: #e50914;
+}
+
+.sidebar .logout a {
+  background-color: #e50914;
+}
+
+.sidebar .logout a:hover {
+  background-color: #c82333;
+}
+
+.content {
+  margin-left: 230px;
+  width: calc(100% - 230px);
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.profile {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.profile img {
+  border-radius: 50%;
+  margin-bottom: 10px;
+}
+
+.profile h3 {
+  font-size: 20px;
+  color: #222;
+  margin-bottom: 5px;
+}
+
+.profile h4 {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 5px;
+}
+
+.profile button {
+  background-color: #e50914;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.profile button:hover {
+  background-color: #c82333;
+}
+
+.ncuseditprofileform {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.ncuseditprofileform.none {
+  display: none;
+}
+
+#cross_symbol_edit {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+}
+
+.close-btn-edit {
+  color: #e50914;
+  font-size: 22px;
+  text-decoration: none;
+}
+
+.close-btn-edit:hover {
+  color: #c82333;
+}
+
+.ncuseditprofileform h1 {
+  margin-bottom: 15px;
+  text-align: center;
+  color: #222;
+}
+
+.ncuseditprofileform form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ncuseditprofileform input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.ncuseditprofileform button {
+  background-color: #e50914;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ncuseditprofileform button:hover {
+  background-color: #c82333;
+}
+
+.ncuspastorder {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+}
+
+.ncusprevdiv h1 {
+  color: #e50914;
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.ncusprevdiv ul {
+  list-style: none;
+  margin-left: 10px;
+  margin-bottom: 20px;
+}
+
+.ncusprevdiv li {
+  background: #f8f8f8;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 5px;
+}
+
+.nadcusdashboards {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.chart-container {
+  width: 300px;
+  text-align: center;
+}
+
+.chart-container ul {
+  list-style: none;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.chart-container li {
+  background: #f8f8f8;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 5px;
+}
+
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 6px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    flex-direction: column;
   }
-  
-  .logout a {
-    color: #e50914;
-    font-weight: bold;
-  }
-  
-  .content {
-    flex: 1;
-    padding: 20px;
-    background-color: #1f1f1f;
-    color: #fff;
-    overflow-y: auto;
-    text-align: left; 
-  }
-  
-  
-  .box {
-    background-color: #2a2a2a;
-    border-radius: 5px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  
-  .profile.box {
-    text-align: center;
-  }
-  
-  .profile.box img {
-    border-radius: 50%;
-    margin-bottom: 10px;
-  }
-  
-  .nadcusdashboards.box {
-    display: flex;
-    flex-wrap: wrap;
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
     justify-content: space-around;
   }
-  
-  .chart-container {
-    width: 45%;
-    min-width: 280px;
-    background-color: #3a3a3a;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 5px;
+
+  .content {
+    margin-left: 0;
+    width: 100%;
   }
-  
-  .chart-container canvas {
-    display: block;
-    margin: 0 auto 10px auto;
+
+  .nadcusdashboards {
+    flex-direction: column;
+    align-items: center;
   }
-  
-  .chart-container ul {
-    list-style: none;
-    padding-left: 0;
-  }
-  
-  .ncuspastorder.box {
+}
+
+
+
+
+/* Feedback Section at bottom */
+.cus-feedback-bottom {
+    width: auto;
+    margin-top: 50px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Table inside feedback section */
+.cus-feedback-bottom table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cus-feedback-bottom th, .cus-feedback-bottom td {
+    padding: 12px 15px;
     text-align: left;
-  }
-  
-  .ncusprevdiv div {
-    background-color: #3a3a3a;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 10px;
-  }
-  
-  .ncusprevdiv h1 {
-    font-size: 18px;
-    margin-bottom: 8px;
-  }
-  
-  .ncusprevdiv ul {
-    list-style: none;
-    padding-left: 0;
-  }
-  
-  .ncusdasheditform.box {
-    display: none; 
-    position: relative;
-    text-align: left;
-  }
-  
-  .ncusdasheditform h1 {
-    margin-bottom: 15px;
-  }
-  
-  .ncusdasheditform label {
-    margin-bottom: 5px;
-    font-weight: bold;
-  }
-  
-  .ncusdasheditform input {
-    margin-bottom: 10px;
-    padding: 10px;
-    border: 1px solid #555;
-    border-radius: 5px;
-    background-color: #2a2a2a;
-    color: #fff;
-  }
-  
-  .close-btn {
-    text-decoration: none;
-    color: #fff;
-    font-size: 24px;
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    transition: color 0.3s;
-  }
-  
-  .close-btn:hover {
-    color: #e50914;
-  }
-  
-  .none {
-    display: none !important;
-  }
-  
-  @media (max-width: 768px) {
-    .dashboard {
-      flex-direction: column;
-      height: auto;
-    }
-  
-    .sidebar {
-      width: 100%;
-      height: auto;
-      text-align: center;
-    }
-  
-    .content {
-      margin-top: 20px;
-    }
-  
-    .nadcusdashboards.box {
-      flex-direction: column;
-      align-items: center;
-    }
-    .chart-container {
-      width: 100%;
-    }
-  }
+    border-bottom: 1px solid #ddd;
+}
+
+.cus-feedback-bottom th {
+    background-color: #4CAF50;
+    color: white;
+    position: sticky;
+    top: 0;
+}
+
+.cus-feedback-bottom tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.cus-feedback-bottom tr:hover {
+    background-color: #e8f5e9;
+}
+
+.cus-feedback-bottom h2 {
+    margin-bottom: 20px;
+    color: #333;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 5px;
+}
