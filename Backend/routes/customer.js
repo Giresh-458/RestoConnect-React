@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const path  =require('path');
@@ -11,7 +12,8 @@ const homePageController = require("../Controller/homePageController")
 router.get('/customerDashboard',customerController.getCustomerDashboard);
 
 router.get('/feedback', customerController.getFeedBack);
-router.post('/submit-feedback', customerController.postSubmitFeedBack);
+// router.post('/submit-feedback', customerController.postSubmitFeedBack);
+router.post("/submit-feedback", customerController.submitFeedback);
 
 router.get('/edit', customerController.getEditProfile);
 router.post('/edit', customerController.postEditProfile);

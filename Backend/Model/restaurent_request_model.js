@@ -25,14 +25,9 @@ const restaurantSchema = new mongoose.Schema({
     type: String,
     required: true, 
   },
-  date_joined: {
-    type: Date,
-    required: true,
-    validate:{
-      validator: function(value){
-        return value>=new Date().setHours(0,0,0,0);
-      }
-    }
+  email:{
+    type:String,
+    required:true
   },
   created_at: {
     type: Date,
@@ -40,12 +35,10 @@ const restaurantSchema = new mongoose.Schema({
   },
 });
 
-/*restaurantSchema.pre("save", function(next) {
-  if (this.isModified("owner_password")) {
-    this.owner_password = bcrypt.hashSync(this.owner_password, 10);
-  }
+restaurantSchema.pre("save", function(next) {
+ 
   next();
-});*/
+});
 
 module.exports = mongoose.model("RestaurantRequest", restaurantSchema);
 
