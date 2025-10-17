@@ -55,8 +55,6 @@ export async function action({request}){
   if(res.valid==false){
     return redirect('/login');
   }
-  console.log(res);
  
-  console.log(res.role)
     return redirect(`/${res.role}/`);
 }
