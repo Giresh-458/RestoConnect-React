@@ -1,25 +1,42 @@
+// server.js
 const express = require('express');
 const path = require('path');
 const bodyparser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const { connectDB } = require('./util/database');
-const { Restaurant } = require('./Model/Restaurents_model.js'); 
-
+const cors = require("cors");
+// Models
+const RestaurantRequest = require('./Model/restaurent_request_model.js'); // ✅ Correct spelling
+const { Restaurant } = require('./Model/Restaurents_model.js'); // ✅ Correct spelling
+const {User} = require('./Model/userRoleModel.js');
 const app = express();
 
+// Middleware
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
+app.use(cookieParser());
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 
 
 app.use(session({
-    secret: 'session',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 1000 * 60 * 30 }
+  secret: "session",
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  cookie: {
+    httpOnly: true,
+    secure: false,     
+    maxAge: 1000 * 60 * 30 * 24,
+    sameSite: "lax"    
+  }
 }));
 
 
