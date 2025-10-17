@@ -78,6 +78,24 @@ app.get('/req_res', homepageController.getRestReq);
 app.post('/req_res', homepageController.postRestReq);
 
 
+app.get("/check-session", async (req, res) => {
+  try {
+    if (req.session.username && req.session.cookie._expires > new Date()) {  
+      const user = await User.findOne({ username: req.session.username }).select("role");
+      if (!user) {
+        return res.json({ valid: false });
+      }
+      return res.json({
+        valid: true,
+        username: req.session.username,
+        role: user.role
+      });
+    }
+    res.json({ valid: false })}
+   catch (err) {
+    console.error("Error in /check-session:", err);
+    res.status(500).json({ valid: false, error: "Server error" });}})
+
 app.get('/api/restaurants', async (req, res) => {
   try {
     const { city } = req.query; // match your AJAX query param

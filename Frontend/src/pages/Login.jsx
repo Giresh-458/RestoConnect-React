@@ -52,6 +52,7 @@ export async function action({request}){
   })
 
   res = await res.json();
+  console.log(res)
   if(res.valid==false){
     return redirect('/login');
   }

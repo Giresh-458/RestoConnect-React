@@ -51,14 +51,14 @@ exports.getAdminDashboard = async (req, res) => {
 
         const totalUserCount = await User.countDocuments();
 
-        res.render(path.join(__dirname, '..', 'views', 'Admin_Dashboard'), { 
-            active_user_count: 0, // You can calculate active users if needed
+       res.json({ 
+            active_user_count: 0,
             total_user_count: totalUserCount,
             current_admin: currentAdminProfile,
             totalRevenue,
             restaurants_list: formattedRestaurants,
             users_list: users
-        });
+        })
     } catch (error) {
         console.error("Error in getAdminDashboard:", error);
         res.status(500).send("Internal Server Error");

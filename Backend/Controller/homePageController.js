@@ -97,9 +97,9 @@ exports.postRestReq = async (req, res) => {
 exports.putHomePage = async (req, res) => {
     try {
         const user = await User.findOne({ username: req.session?.username });
-        if (!user) return res.redirect('/loginPage');
+         if (!user) return res.json({valid:false});
 
-        if (user.role === "owner" || user.role === "staff") {
+       /* if (user.role === "owner" || user.role === "staff") {
             req.session.rest_id = user.rest_id;
             const redirectUrl = user.role === "owner" ? '/owner/' : '/staff/HomePage';
             return res.redirect(redirectUrl);
@@ -117,9 +117,12 @@ exports.putHomePage = async (req, res) => {
             city_option_home: 'All',  
             name_resaurent: '' ,
             uniqueLocations        
-        });
+        });*/
+                return res.json({valid:true,role:user.role});
     } catch (err) {
         console.error("Error in putHomePage:", err);
         res.status(500).send("Internal Server Error");
     }
+
+
 };

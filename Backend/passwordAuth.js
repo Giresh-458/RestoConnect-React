@@ -45,26 +45,18 @@ let validate = async (req, res, next) => {
     }
 
     let user = await User.findOne({ $or: [ { username: username }, { email: username } ] });
+
     if (!user) {
-        return res.render('login', {
-        title: 'Log In',
-        buttonText: 'Log In',
-        toggleText: 'New user? Sign Up',
-        errorMessage: "User Not Found"
-    });
+        return res.json({valid: false })
     }
     
     let passwordMatch = await bcrypt.compare(password.trim(), user.password);
     if (passwordMatch) {
+        
         req.session.username = user.username;
         next();
     } else {
-        return res.render('login', {
-        title: 'Log In',
-        buttonText: 'Log In',
-        toggleText: 'New user? Sign Up',
-        errorMessage: "Invalid Password"
-    });;
+        return res.json({valid:false})
     }
 }
 

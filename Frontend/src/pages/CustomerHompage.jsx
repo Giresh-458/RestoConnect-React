@@ -1,9 +1,15 @@
-import { useLoaderData } from "react-router-dom";
-
+import { useLoaderData,redirect } from "react-router-dom";
+import { isLogin } from "../util/auth";
 
 
 export async function loader(){
 
+
+  
+   let role =await isLogin();
+  if(role!='customer'){
+     return redirect('/login');
+  }
      return new Promise((resolve,reject)=>{
 
     const xhr = new XMLHttpRequest();
