@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from "react";
 
-
+import { RestaurantEdit } from "./RestaurantEdit"
 
 const initialState = {
 
@@ -88,7 +88,36 @@ return (
 
 <>
 
-{JSON.stringify(state,null,2)}
+{state.restaurants_list.length === 0 && state.lastaction === 'load' ? (
+                <p>Loading restaurants...</p>
+            ) : state.restaurants_list.length === 0 ? (
+                <p>No restaurants found.</p>
+            ) : (
+                state.restaurants_list.map((restaurant) => (
+                    <div 
+                        key={restaurant._id} 
+                        style={{ 
+                            border: '1px solid #ddd', 
+                            padding: '10px', 
+                            margin: '10px 0', 
+                            borderRadius: '4px' 
+                        }}
+                    >
+                        <h3>{restaurant.name}</h3>
+                        <p><strong>Rating:</strong> {restaurant.rating} | <strong>Location:</strong> {restaurant.location} | <strong>Amount:</strong> ${restaurant.amount}</p>
+                        
+                        
+                        <button 
+                            onClick={() => Dispatch({ type: "delete", payload: restaurant._id })}
+                            style={{ marginRight: '10px', backgroundColor: 'red', color: 'white' }}
+                        >
+                            Delete
+                        </button>
+                        <RestaurantEdit Dispatch={Dispatch} restaurant={restaurant} />
+                    </div>
+                ))
+            )}
+
 
 
 </>

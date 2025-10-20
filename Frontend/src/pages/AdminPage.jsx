@@ -11,6 +11,7 @@ export function AdminPage(){
 
 
     let data = useLoaderData();
+    console.log(data);
 
     const [subPage,setSubPage] = useState("dashboard");
 
@@ -27,10 +28,10 @@ return (
         <h5 onClick={()=>{setSubPage("restaurant")}}>restaurant management</h5>
         <h5 onClick={()=>{setSubPage("settings")}}>setting</h5>
 
-        {subPage=="dashboard" && <AdminDashBoard></AdminDashBoard>}
+        {subPage=="dashboard" && <AdminDashBoard totalusers = {data.total_user_count} totalrestaurants = {data.restaurants_list.length} ></AdminDashBoard>}
         {subPage=="user" && <User></User>}
         {subPage=="restaurant" && <RestaurantSubPage></RestaurantSubPage>}
-        {subPage=="settings" && <Settings></Settings>}
+        {subPage=="settings" && <Settings data={data.current_admin}></Settings>}
      
 
     

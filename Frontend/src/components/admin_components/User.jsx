@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 
-import { UserAdd } from "./UserAdd";
+
 import {UserUpdate} from "./UserUpdate"
 const initialState = {
 users_list:[],
@@ -16,14 +16,14 @@ return {users_list:[...action.payload],lastaction:'load',lastpayload:'users'};
 }
 else if(action.type=='delete'){
   
-return {users_list:[...state.users_list.filter((_id)=>{
-     return _id!=action.payload
+return {users_list:[...state.users_list.filter((user)=>{
+     return user._id!=action.payload
 })],lastaction:'delete',lastpayload:action.payload};
 }
 else if(action.type=='edit'){
    
-   return {users_list:[...state.users_list.filter((_id)=>{
-     return _id!=action.payload._id
+   return {users_list:[...state.users_list.filter((user)=>{
+     return user._id!=action.payload._id
 }),action.payload],lastaction:'edit',lastpayload:action.payload};
 }
 
@@ -67,7 +67,7 @@ return;
 if(state.lastaction=='delete'){
 
   let xhr = new XMLHttpRequest();
-    xhr.open("get",`http://localhost:3000/admin/delete_user/${state.lastpayload}`,true);
+    xhr.open("post",`http://localhost:3000/admin/delete_user/${state.lastpayload}`,true);
     xhr.withCredentials = true;
     xhr.send();
 
@@ -76,13 +76,12 @@ if(state.lastaction=='delete'){
 else if(state.lastaction=='edit'){
 
   let xhr = new XMLHttpRequest();
-    xhr.open("get",`http://localhost:3000/admin/edit_user/${state.lastpayload._id}`,true);
+    xhr.open("post",`http://localhost:3000/admin/edit_user/${state.lastpayload._id}`,true);
     xhr.withCredentials = true;
-    xhr.send(state.lastpayload);
-}
-else if(state.lastaction=='add'){
-
-    let xhr = new XMLHttpRequest();
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onload = function(){
+      if(this.status!=200){
+          let xhr = new XMLHttpRequest();
     xhr.open("get","http://localhost:3000/admin/users",true);
     xhr.onload=function(){
         if(this.status==200)
@@ -94,7 +93,12 @@ else if(state.lastaction=='add'){
     }
     xhr.withCredentials = true;
     xhr.send();
+      }
+
+    }
+    xhr.send(JSON.stringify(state.lastpayload));
 }
+
 
 },[state.lastaction]);
 
@@ -124,7 +128,7 @@ return (
 
 
 
-<UserAdd Dispatch={Dispatch}></UserAdd>
+
 {state.users_list.map((element, ind) => {
   const nameFilter = filter?.username || "";
   const roleFilter = filter?.role || "";
@@ -142,6 +146,7 @@ return (
       <p><strong>Username:</strong> {element.username}</p>
       <p><strong>Email:</strong> {element.email}</p>
       <p><strong>Role:</strong> {element.role}</p>
+      {element.restaurantName && <p><strong>Restaurant:</strong> {element.restaurantName}</p>}
 
     <button onClick={() => Dispatch({ type: "delete", payload: element._id })}>Delete</button>
     <UserUpdate Dispatch={Dispatch} element={element} ></UserUpdate>

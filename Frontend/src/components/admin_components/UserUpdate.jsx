@@ -15,12 +15,13 @@ export function UserUpdate(props){
 
         const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
+    console.log(data)
 
-        props.Dispatch({ type: "edit", payload: { ...element, ...data } });
+        props.Dispatch({ type: "edit", payload: { ...props.element, ...data } });
 
-           diagref.current.close();
-    
-        e.reset();
+
+    e.target.closest('dialog').close();
+
   };
 
 

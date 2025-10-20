@@ -43,9 +43,9 @@ let validate = async (req, res, next) => {
         res.redirect('/loginPage');
         return;
     }
-
+    
     let user = await User.findOne({ $or: [ { username: username }, { email: username } ] });
-
+    console.log(user)
     if (!user) {
         return res.json({valid: false })
     }

@@ -27,8 +27,9 @@ export function UserAdd(props){
         props.Dispatch({ type: "add" });
       } 
     };
-
-    e.reset();
+    xhr.send(JSON.stringify(data));
+    e.target.reset();
+    e.target.closest('dialog').close();
   };
 
 
@@ -40,10 +41,15 @@ return (
     <dialog ref={diagref}>
 
             <form onSubmit={closeDialog}>
+          <label htmlFor="username">username</label>
         <input type="text" name="username"/>
+        <label htmlFor="fullname">fullname</label>
         <input type="text" name="fullname"/>
+        <label htmlFor="password">password</label>
         <input type="password" name="password"/>
+        <label htmlFor="email">email</label>
         <input type="email" name="email"/>
+        <label htmlFor="role">role</label>
         <input type="text" name="role"/>
 
         <button type="submit">save</button>

@@ -66,6 +66,38 @@ exports.getAdminDashboard = async (req, res) => {
 };
 
 
+
+exports.getStatisticsGraphs= async (req,res)=>{
+
+
+        const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+
+const result = await Restaurant.aggregate([
+  { $unwind: "$payments" },
+  { $match: { "payments.date": { $gte: startOfYear } } },
+  {
+    $group: {
+      _id: { month: { $month: "$payments.date" } },
+      totalPayments: { $sum: "$payments.amount" },
+      countPayments: { $sum: 1 }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      month: "$_id.month",
+      totalPayments: 1,
+      countPayments: 1,
+      restaurantFee: { $multiply: ["$totalPayments", 0.1] } 
+    }
+  },
+  { $sort: { month: 1 } }
+]);
+
+res.json(result);
+
+}
+
 exports.getAllUsers = async (req, res) => {
     try {
         const currentAdminUsername = req.user ? req.user.username : null;
@@ -112,6 +144,7 @@ exports.deleteUser = async (req, res) => {
 // Edit user
 exports.editUser = async (req, res) => {
     try {
+       
         const userId = req.params.id;
         const { username, email, role, restaurantName, password } = req.body;
         if (!username || !role) return res.status(400).json({ error: "Missing required fields!" });
@@ -135,13 +168,20 @@ exports.editProfile = async (req, res) => {
         const currentAdminUsername = req.user ? req.user.username : null;
         if (!currentAdminUsername) return res.redirect('/loginPage');
 
-        const { username, email, password } = req.body;
-        if (!username || !email) return res.status(400).send("Missing required fields");
+        
 
-        const updateData = { username, email };
-        if (password && password.trim() !== '') {
-            updateData.password = await bcrypt.hash(password.trim(), 10);
+        const { username, email, password,newpassword } = req.body;
+        console.log(req.body)
+        if (!username || !email) return res.status(400).send("Missing required fields");
+       
+        
+        if(newpassword==null){
+             const updateData = { username, email };
         }
+        const updateData = { username, email,newpassword };
+        /*if (password && password.trim() !== '') {
+            updateData.password = await bcrypt.hash(password.trim(), 10);
+        }*/
 
         await User.updateOne({ username: currentAdminUsername }, { $set: updateData });
         if (username !== currentAdminUsername) req.session.username = username;
@@ -256,7 +296,7 @@ exports.getaceptreq = async (req, res) => {
     }
 };
 
-// Reject restaurant request
+
 exports.getrejectreq = async (req, res) => {
     try {
         const ownername = req.params.owner_username;
@@ -271,7 +311,7 @@ exports.getrejectreq = async (req, res) => {
     }
 };
 
-// Get all requests
+
 exports.getAllRequests = async (req, res) => {
     try {
         const requests = await RestaurantRequest.find();
@@ -284,11 +324,11 @@ exports.getAllRequests = async (req, res) => {
 
 
 
-// ✅ Public API for homepage (fetch restaurants via AJAX)
+
 exports.getPublicRestaurants = async (req, res) => {
     try {
-        const restaurants = await Restaurant.findAll(); // fetch all restaurants
-        res.json(restaurants); // send as JSON
+        const restaurants = await Restaurant.findAll(); 
+        res.json(restaurants); 
     } catch (error) {
         console.error("Error fetching public restaurants:", error);
         res.status(500).json({ error: "Internal Server Error" });
