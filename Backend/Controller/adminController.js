@@ -118,10 +118,37 @@ exports.getAllUsers = async (req, res) => {
 exports.getStatistics = async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
+
+        // Users joined last month
+        const now = new Date();
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        const newUsers = await User.countDocuments({
+            createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+        });
+
         const totalRestaurants = await Restaurant.countDocuments();
-        const restaurants = await Restaurant.findAll();
-        const totalRevenue = restaurants.reduce((sum, r) => sum + (r.amount || 0), 0);
-        res.json({ totalUsers, totalRestaurants, totalRevenue });
+        const activeRestaurants = await Restaurant.countDocuments({ isActive: true });
+
+        // User growth % compared to last month
+        const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const usersThisMonth = await User.countDocuments({
+            createdAt: { $gte: startOfThisMonth, $lte: now }
+        });
+        const usersLastMonth = await User.countDocuments({
+            createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+        });
+        const userGrowth = usersLastMonth
+            ? Math.round(((usersThisMonth - usersLastMonth) / usersLastMonth) * 100)
+            : 0;
+
+        res.json({
+            totalUsers,
+            newUsers,
+            totalRestaurants,
+            activeRestaurants,
+            userGrowth
+        });
     } catch (error) {
         console.error("Error in getStatistics:", error);
         res.status(500).send("Internal Server Error");
@@ -334,3 +361,43 @@ exports.getPublicRestaurants = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+
+
+
+
+
+exports.getRecentActivities = async (req, res) => {
+  try {
+    const activities = [];
+
+    // Latest 5 new users
+    const newUsers = await User.find().sort({ createdAt: -1 }).limit(5);
+    newUsers.forEach(u => {
+      activities.push({
+        time: u.createdAt.toLocaleString(),
+        description: `New user ${u.username} registered`
+      });
+    });
+
+    // Latest 5 restaurants
+    const newRestaurants = await Restaurant.find().sort({ date: -1 }).limit(5);
+    newRestaurants.forEach(r => {
+      activities.push({
+        time: r.date.toLocaleString(),
+        description: `Restaurant ${r.name} added to platform`
+      });
+    });
+
+    // Sort by most recent
+    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+    // Limit to 10 activities
+    res.json(activities.slice(0, 10));
+  } catch (error) {
+    console.error("Error fetching activities:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
