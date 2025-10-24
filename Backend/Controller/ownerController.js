@@ -193,6 +193,8 @@ exports.getMenuManagement = async (req, res) => {
   }
 };
 
+
+
 exports.addProduct = async (req, res) => {
   try {
     const { name, price, description } = req.body;
