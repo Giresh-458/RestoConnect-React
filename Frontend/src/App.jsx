@@ -26,8 +26,11 @@ import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/Staff
 import { AdminPage } from "./pages/AdminPage";
 import {loader as adminLoader} from "./pages/AdminPage";
 
-import { Login } from "./pages/Login";
-import {action as loginaction} from './pages/Login';
+import { AuthPage } from "./pages/AuthPage";
+import {action as authAction} from './pages/AuthPage';
+
+import { RestaurantApplication } from "./pages/RestaurantApplication";
+import {action as restaurantApplicationAction} from './pages/RestaurantApplication';
 
 import { logout } from "./util/auth";
 import { isLogin } from "./util/auth";
@@ -74,13 +77,23 @@ const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <Login></Login>,
-    action:loginaction
+    element: <AuthPage></AuthPage>,
+    action: authAction
+  },
+  {
+    path: "/signup",
+    element: <AuthPage></AuthPage>,
+    action: authAction
   },
   {
     path:"logout",
-    element:<Login></Login>,
+    element:<AuthPage></AuthPage>,
     loader:logout
+  },
+  {
+    path: "/restaurant-application",
+    element: <RestaurantApplication></RestaurantApplication>,
+    action: restaurantApplicationAction
   }
  
 ]
