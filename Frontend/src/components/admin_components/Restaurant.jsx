@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { RestaurantEdit } from "./RestaurantEdit";
-import styles from "./Restaurant.module.css";
+import styles from "./RestaurantSubPage.module.css";
 
 const initialState = {
   restaurants_list: [],

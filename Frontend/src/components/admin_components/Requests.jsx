@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
-import styles from "./Requests.module.css";
+import styles from "./RestaurantSubPage.module.css";
 
 const initialState = {
   requests_list: [],

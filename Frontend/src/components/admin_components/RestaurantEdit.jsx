@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import styles from "./RestaurantEdit.module.css";
+import styles from "./RestaurantSubPage.module.css";
 
 export function RestaurantEdit(props) {
   const restaurant = props.restaurant;
