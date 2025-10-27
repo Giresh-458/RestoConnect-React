@@ -14,12 +14,11 @@ const restaurantSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: true,
-    min: 0,
+    min: 0
   },
   owner_username: {
     type: String,
     required: true,
-    unique: true,
   },
   owner_password: {
     type: String,
@@ -28,6 +27,20 @@ const restaurantSchema = new mongoose.Schema({
   email:{
     type:String,
     required:true
+  },
+  contactNumber: {
+    type: String,
+    required: false
+  },
+  cuisineTypes: {
+    type: [String],
+    required: false,
+    default: []
+  },
+  additionalNotes: {
+    type: String,
+    required: false,
+    default: ''
   },
   created_at: {
     type: Date,

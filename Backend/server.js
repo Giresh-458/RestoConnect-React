@@ -40,6 +40,7 @@ app.use(session({
 }));
 
 
+const authRoutes = require('./routes/authRoutes.js');
 const loginPage = require('./routes/loginPage.js');
 const customerRouter = require('./routes/customer.js');
 const adminRouter = require('./routes/adminroutes.js');
@@ -51,6 +52,9 @@ const authentication = require('./authenticationMiddleWare.js');
 const validation = require('./passwordAuth.js');
 
 connectDB();
+
+// Mount auth routes
+app.use('/api/auth', authRoutes);
 
 app.get('/logout', (req, res) => {
     req.session.destroy(err => {
