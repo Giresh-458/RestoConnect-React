@@ -23,6 +23,10 @@ router.get('/accept_request/:owner_username', admincontroller.getaceptreq);
 router.get('/reject_request/:owner_username', admincontroller.getrejectreq);
 router.get('/requests', admincontroller.getAllRequests);
 
+router.get('/activities', admincontroller.getRecentActivities);
+
+
+
 
 // ✅ Public API for homepage (fetch restaurants via AJAX)
 router.get('/public/restaurants', admincontroller.getPublicRestaurants);
