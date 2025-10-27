@@ -51,45 +51,103 @@ exports.getRestReq=async (req,res)=>{
 
 exports.postRestReq = async (req, res) => {
   try {
-    const { name, location, amount, owner_username, owner_password, date_joined, email } = req.body;
+    const { 
+      ownerName, 
+      ownerEmail, 
+      password, 
+      restaurantName, 
+      location, 
+      contactNumber,
+      amount,
+      cuisineTypes,
+      additionalNotes 
+    } = req.body;
 
-    const existingRestaurantName = await Restaurant.findOne({ name });
-    const existingRestaurantUsername = await User.findOne({ username:owner_username });
-    const existingRestaurantEmail = await Restaurant.findOne({ email });
+    // Validation
+    if (!ownerName || !ownerEmail || !password || !restaurantName || !location || !contactNumber || amount === undefined) {
+      return res.status(400).json({ 
+        error: 'All required fields must be filled' 
+      });
+    }
 
-    const existingReqName = await restaurantReq.findOne({ name });
-    const existingReqUsername = await restaurantReq.findOne({ owner_username });
-    const existingReqEmail = await restaurantReq.findOne({ email });
+    if (amount < 0) {
+      return res.status(400).json({ 
+        error: 'Registration fee must be a positive number' 
+      });
+    }
+
+    if (!cuisineTypes || cuisineTypes.length === 0) {
+      return res.status(400).json({ 
+        error: 'Please select at least one cuisine type' 
+      });
+    }
+
+    // Check if restaurant name already exists
+    const existingRestaurantName = await Restaurant.findOne({ name: restaurantName });
+    const existingReqName = await restaurantReq.findOne({ name: restaurantName });
 
     if (existingRestaurantName || existingReqName) {
-      return res.send("<script>alert('❌ Restaurant name already exists!'); window.history.back();</script>");
+      return res.status(409).json({ 
+        error: 'Restaurant name already exists' 
+      });
     }
 
-    if (existingRestaurantUsername || existingReqUsername) {
-      return res.send("<script>alert('❌ Owner username already exists!'); window.history.back();</script>");
-    }
+    // Check if email already exists
+    const existingRestaurantEmail = await Restaurant.findOne({ email: ownerEmail });
+    const existingReqEmail = await restaurantReq.findOne({ email: ownerEmail });
 
     if (existingRestaurantEmail || existingReqEmail) {
-      return res.send("<script>alert('❌ Email already exists!'); window.history.back();</script>");
+      return res.status(409).json({ 
+        error: 'Email already registered' 
+      });
     }
 
+    // Check if user with this email exists
+    const existingUser = await User.findOne({ email: ownerEmail });
+    
+    // Create restaurant request
     const restreq = new restaurantReq({
-      name,
-      location,
-      amount,
-      owner_username,
-      owner_password,
-      date_joined,
-      email,
+      name: restaurantName,
+      location: location,
+      amount: amount, // Registration fee to be paid to admin
+      owner_username: existingUser ? existingUser.username : ownerEmail.split('@')[0],
+      owner_password: password,
+      date_joined: new Date(),
+      email: ownerEmail,
+      contactNumber: contactNumber,
+      cuisineTypes: cuisineTypes, // Store array of cuisine types
+      additionalNotes: additionalNotes || ''
     });
 
     await restreq.save();
 
-    res.send("<script>alert('✅ Restaurant request submitted successfully!'); window.location.href='/loginPage';</script>");
+    // If user doesn't exist, create owner account
+    if (!existingUser) {
+      const bcrypt = require('bcrypt');
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      const newUser = new User({
+        username: ownerEmail.split('@')[0],
+        email: ownerEmail,
+        role: 'owner',
+        restaurantName: null, // Will be set when admin approves
+        password: hashedPassword,
+        rest_id: null
+      });
+      
+      await newUser.save();
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Restaurant application submitted successfully! Our team will review and contact you soon.' 
+    });
 
   } catch (error) {
     console.error("Error submitting restaurant request:", error);
-    res.status(500).send("<script>alert('⚠️ Server error. Please try again later.'); window.history.back();</script>");
+    return res.status(500).json({ 
+      error: 'Server error. Please try again later.' 
+    });
   }
 };
 

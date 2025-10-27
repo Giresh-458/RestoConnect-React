@@ -67,20 +67,20 @@ async function seed() {
 
     // 3. Users
     const users = [
-      { username:'admin1', email:'admin1@example.com', role:'admin', password:bcrypt.hashSync('123',10) }
+      { username:'admin1', email:'admin1@example.com', role:'admin', password:bcrypt.hashSync('123456',10) }
     ];
 
     createdRestaurants.forEach((rest, idx)=>{
       users.push(
-        { username:`owner${idx+1}`, email:`owner${idx+1}@example.com`, role:'owner', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123',10) },
-        { username:`staff${idx+1}`, email:`staff${idx+1}@example.com`, role:'staff', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123',10) }
+        { username:`owner${idx+1}`, email:`owner${idx+1}@example.com`, role:'owner', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123456',10) },
+        { username:`staff${idx+1}`, email:`staff${idx+1}@example.com`, role:'staff', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123456',10) }
       );
     });
 
     users.push(
-      { username:'customer1', email:'customer1@example.com', role:'customer', password:bcrypt.hashSync('123',10) },
-      { username:'customer2', email:'customer2@example.com', role:'customer', password:bcrypt.hashSync('123',10) },
-      { username:'customer3', email:'customer3@example.com', role:'customer', password:bcrypt.hashSync('123',10) }
+      { username:'customer1', email:'customer1@example.com', role:'customer', password:bcrypt.hashSync('123456',10) },
+      { username:'customer2', email:'customer2@example.com', role:'customer', password:bcrypt.hashSync('123456',10) },
+      { username:'customer3', email:'customer3@example.com', role:'customer', password:bcrypt.hashSync('123456',10) }
     );
 
     await User.insertMany(users);
