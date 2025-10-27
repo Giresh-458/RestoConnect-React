@@ -2,8 +2,8 @@
 const path = require('path');
 const bcrypt = require('bcrypt');
 const { User } = require('../Model/userRoleModel');
-const { Restaurant } = require('../Model/Restaurents_model'); // ✅ Correct spelling
-const RestaurantRequest = require('../Model/restaurent_request_model'); // ✅ Correct spelling
+const { Restaurant } = require('../Model/Restaurents_model'); 
+const RestaurantRequest = require('../Model/restaurent_request_model'); 
 const { Dish } = require('../Model/Dishes_model_test');
 
 // Admin Dashboard
@@ -31,7 +31,9 @@ exports.getAdminDashboard = async (req, res) => {
             return sum;
         }, 0);
 
-        const currentAdminUsername = req.user ? req.user.username : null;
+        // NOTE: req.user is often set by an authentication system. 
+        // If not using it, ensure you rely on req.session.username for identity.
+        const currentAdminUsername = req.user ? req.user.username : req.session.username; 
         let currentAdminProfile = null;
         if (currentAdminUsername) {
             currentAdminProfile = await User.findOne({ username: currentAdminUsername });
@@ -66,41 +68,36 @@ exports.getAdminDashboard = async (req, res) => {
 };
 
 
-
 exports.getStatisticsGraphs= async (req,res)=>{
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
 
-
-        const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-
-const result = await Restaurant.aggregate([
-  { $unwind: "$payments" },
-  { $match: { "payments.date": { $gte: startOfYear } } },
-  {
-    $group: {
-      _id: { month: { $month: "$payments.date" } },
-      totalPayments: { $sum: "$payments.amount" },
-      countPayments: { $sum: 1 }
-    }
-  },
-  {
-    $project: {
-      _id: 0,
-      month: "$_id.month",
-      totalPayments: 1,
-      countPayments: 1,
-      restaurantFee: { $multiply: ["$totalPayments", 0.1] } 
-    }
-  },
-  { $sort: { month: 1 } }
-]);
-
-res.json(result);
-
+    const result = await Restaurant.aggregate([
+        { $unwind: "$payments" },
+        { $match: { "payments.date": { $gte: startOfYear } } },
+        {
+            $group: {
+            _id: { month: { $month: "$payments.date" } },
+            totalPayments: { $sum: "$payments.amount" },
+            countPayments: { $sum: 1 }
+            }
+        },
+        {
+            $project: {
+            _id: 0,
+            month: "$_id.month",
+            totalPayments: 1,
+            countPayments: 1,
+            restaurantFee: { $multiply: ["$totalPayments", 0.1] } 
+            }
+        },
+        { $sort: { month: 1 } }
+    ]);
+    res.json(result);
 }
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const currentAdminUsername = req.user ? req.user.username : null;
+        const currentAdminUsername = req.user ? req.user.username : req.session.username;
         let users = [];
         if (currentAdminUsername) {
             users = await User.find({ username: { $ne: currentAdminUsername } });
@@ -132,9 +129,9 @@ exports.getStatistics = async (req, res) => {
 exports.deleteUser = async (req, res) => {
     try {
         const userId = req.params.id;
-        console.log("jj")
         await User.deleteOne({ _id: userId });
-        res.redirect('/admin/dashboard');
+        // Changed from redirect to JSON response for API
+        res.status(200).json({ message: "User deleted successfully." }); 
     } catch (error) {
         console.error("Error in deleteUser:", error);
         res.status(500).send("Internal Server Error");
@@ -144,7 +141,6 @@ exports.deleteUser = async (req, res) => {
 // Edit user
 exports.editUser = async (req, res) => {
     try {
-       
         const userId = req.params.id;
         const { username, email, role, restaurantName, password } = req.body;
         if (!username || !role) return res.status(400).json({ error: "Missing required fields!" });
@@ -155,43 +151,103 @@ exports.editUser = async (req, res) => {
         }
 
         await User.updateOne({ _id: userId }, { $set: updateData });
-        res.redirect('/admin/dashboard');
+        // Changed from redirect to JSON response for API
+        res.status(200).json({ message: "User updated successfully." }); 
     } catch (error) {
         console.error("Error in editUser:", error);
         res.status(500).send("Internal Server Error");
     }
 };
 
-// Edit admin profile
+// 🌟 FIX: Edit admin profile
 exports.editProfile = async (req, res) => {
     try {
-        const currentAdminUsername = req.user ? req.user.username : null;
-        if (!currentAdminUsername) return res.redirect('/loginPage');
-
-        
-
-        const { username, email, password,newpassword } = req.body;
-        console.log(req.body)
-        if (!username || !email) return res.status(400).send("Missing required fields");
-       
-        
-        if(newpassword==null){
-             const updateData = { username, email };
+        // Rely on req.session.username as the authenticated identifier
+        const currentAdminUsername = req.session.username; 
+        if (!currentAdminUsername) {
+            return res.status(401).json({ error: "Unauthorized" }); 
         }
-        const updateData = { username, email,newpassword };
-        /*if (password && password.trim() !== '') {
-            updateData.password = await bcrypt.hash(password.trim(), 10);
-        }*/
 
+        // The frontend sends 'fullname' and 'email'
+        const { fullname, email } = req.body; 
+
+        if (!fullname || !email) {
+             return res.status(400).json({ error: "Missing full name or email" });
+        }
+       
+        // Update data: Map 'fullname' from frontend to 'username' in the database
+        const updateData = { 
+            username: fullname, 
+            email: email 
+        };
+        
         await User.updateOne({ username: currentAdminUsername }, { $set: updateData });
-        if (username !== currentAdminUsername) req.session.username = username;
+        
+        // Update the session username if it was changed
+        if (fullname !== currentAdminUsername) {
+            req.session.username = fullname;
+        }
 
-        res.redirect('/admin/dashboard');
+        // Send success response
+        res.status(200).json({ message: "Profile updated successfully!" }); 
+        
     } catch (error) {
         console.error("Error in editProfile:", error);
-        res.status(500).send("Internal Server Error");
+        res.status(500).json({ error: "Internal Server Error" });
     }
 };
+
+// 🌟 FIX: Change Admin Password
+exports.changePassword = async (req, res) => {
+    const currentAdminUsername = req.session.username; // Use session for identity
+    if (!currentAdminUsername) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) return res.status(400).json({ error: "Missing password fields" });
+
+        const user = await User.findOne({ username: currentAdminUsername });
+        if (!user) return res.status(404).json({ error: "Admin not found" });
+
+        // 1. Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return res.status(401).json({ error: "Incorrect current password" });
+
+        // 2. Hash and update new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await User.updateOne({ username: currentAdminUsername }, { $set: { password: hashedPassword } });
+
+        res.status(200).json({ message: "Password changed successfully!" });
+    } catch (error) {
+        console.error("Error in changePassword:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+// 🌟 FIX: Delete Admin Account
+exports.deleteAccount = async (req, res) => {
+    const currentAdminUsername = req.session.username; // Use session for identity
+    if (!currentAdminUsername) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+        // Find the admin user to be sure
+        const user = await User.findOne({ username: currentAdminUsername, role: 'admin' });
+        if (!user) return res.status(404).json({ error: "Admin account not found" });
+
+        await User.deleteOne({ username: currentAdminUsername });
+
+        // Destroy the session to log the admin out
+        req.session.destroy(err => {
+            if (err) console.error("Error destroying session:", err);
+            // After successful deletion and session destruction
+            res.status(200).json({ message: "Account deleted successfully." });
+        });
+    } catch (error) {
+        console.error("Error in deleteAccount:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
 
 // Add restaurant
 exports.postAddRestaurent = async (req, res) => {
@@ -202,9 +258,12 @@ exports.postAddRestaurent = async (req, res) => {
         const newRestaurant = new Restaurant({ name, location, amount, date: new Date(), image: '', rating: 4 });
         await newRestaurant.save();
 
+        // Hash password before saving new owner
+        const hashedPassword = await bcrypt.hash(owner_password || 'defaultpassword', 10);
+
         const ownerUser = new User({
             username: owner_username || `${name.toLowerCase().replace(/\s/g, '')}_owner`,
-            password: owner_password || 'defaultpassword',
+            password: hashedPassword,
             email: owner_email || '',
             role: 'owner',
             restaurantName: name,
@@ -212,7 +271,7 @@ exports.postAddRestaurent = async (req, res) => {
         });
         await ownerUser.save();
 
-        res.redirect('/admin/dashboard');
+        res.status(200).json({ message: "Restaurant and owner added successfully." });
     } catch (error) {
         console.error("Error in postAddRestaurent:", error);
         res.status(500).send("Internal Server Error");
@@ -227,7 +286,7 @@ exports.postEditRestaurent = async (req, res) => {
         if (!name || !location || !amount) return res.status(400).json({ error: "Missing required fields!" });
 
         await Restaurant.updateFull({ _id: id, name, location, amount });
-        res.redirect('/admin/dashboard');
+        res.status(200).json({ message: "Restaurant updated successfully." });
     } catch (error) {
         console.error("Error in postEditRestaurent:", error);
         res.status(500).send("Internal Server Error");
@@ -244,7 +303,7 @@ exports.postDeleteRestaurent = async (req, res) => {
             await User.deleteMany({ rest_id: id });
         }
         await Restaurant.deleteOne({ _id: id });
-        res.redirect('/admin/dashboard');
+        res.status(200).json({ message: "Restaurant deleted successfully." });
     } catch (error) {
         console.error("Error in postDeleteRestaurent:", error);
         res.status(500).send("Internal Server Error");
@@ -276,10 +335,13 @@ exports.getaceptreq = async (req, res) => {
             created_at: new Date()
         });
         await newRestaurant.save();
+        
+        // Hash password before saving new owner
+        const hashedPassword = await bcrypt.hash(request.owner_password, 10);
 
         const newOwner = new User({
             username: request.owner_username,
-            password: request.owner_password,
+            password: hashedPassword,
             role: "owner",
             restaurantName: request.name,
             rest_id: newRestaurant._id,
@@ -321,8 +383,6 @@ exports.getAllRequests = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 };
-
-
 
 
 exports.getPublicRestaurants = async (req, res) => {
