@@ -424,10 +424,10 @@ exports.getRecentActivities = async (req, res) => {
     const activities = [];
 
     // Latest 5 new users
-    const newUsers = await User.find().sort({ createdAt: -1 }).limit(5);
+    const newUsers = await User.find().sort({ _id: -1 }).limit(5); // Use _id as proxy for creation time since no createdAt
     newUsers.forEach(u => {
       activities.push({
-        time: u.createdAt.toLocaleString(),
+        time: u._id.getTimestamp().toLocaleString(),
         description: `New user ${u.username} registered`
       });
     });
@@ -436,7 +436,7 @@ exports.getRecentActivities = async (req, res) => {
     const newRestaurants = await Restaurant.find().sort({ date: -1 }).limit(5);
     newRestaurants.forEach(r => {
       activities.push({
-        time: r.date.toLocaleString(),
+        time: (r.date && !isNaN(new Date(r.date).getTime()) ? new Date(r.date).toLocaleString() : new Date().toLocaleString()),
         description: `Restaurant ${r.name} added to platform`
       });
     });
