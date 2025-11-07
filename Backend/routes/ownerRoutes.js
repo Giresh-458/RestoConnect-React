@@ -4,6 +4,7 @@ const ownerController = require('../Controller/ownerController');
 
 router.get("/", ownerController.getOwnerHomepage);
 router.get("/dashboard", ownerController.getDashboard);
+router.get("/dashboard/ownerdashboard",ownerController.getownerDashboard_dashboard);
 router.get('/menuManagement', ownerController.getMenuManagement);
 router.post('/menuManagement/add', ownerController.addProduct);
 router.post('/menuManagement/edit/:id', ownerController.editProduct);

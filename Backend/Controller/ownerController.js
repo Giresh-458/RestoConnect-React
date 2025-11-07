@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { User } = require("../Model/userRoleModel");
 let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
+const { Order } = require("../Model/Order_model");
 
 exports.getOwnerHomepage = async (req, res) => {
   try {
@@ -165,6 +166,143 @@ exports.getDashboard = async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 };
+
+
+exports.getownerDashboard_dashboard  = async (req, res) => {
+  
+  try {
+    // Get user from session
+    let username = req.session.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    let user = await User.findOne({ username });
+    if (!user || !user.rest_id) {
+      return res.status(404).json({ error: 'User or restaurant not found' });
+    }
+
+    let restaurant = user.restaurantName;
+    let rest = await Restaurant.findById(user.rest_id).populate('dishes');
+
+    if (!rest) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+
+    const restaurantId = user.rest_id;
+
+    // 1. Total Revenue (This Month)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthlyOrders = await Order.find({
+      rest_id: restaurantId,
+      date: { $gte: startOfMonth }
+    });
+
+    const totalRevenue = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+    // 2. Total Orders Today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayOrders = await Order.countDocuments({
+      rest_id: restaurantId,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    // 3. Staff Count (users with role 'staff' for this restaurant)
+    const staffCount = await User.countDocuments({
+      rest_id: restaurantId,
+      role: 'staff'
+    });
+
+    // 4. Low Stock Items (from inventoryData)
+    const lowStockThreshold = 10;
+    const lowStockItems = rest.inventoryData?.values?.filter(val => val < lowStockThreshold).length || 0;
+
+    // 5. Revenue Chart Data (Last 7 days)
+    const last7Days = [];
+    const revenueByDay = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      const dayOrders = await Order.find({
+        rest_id: restaurantId,
+        date: { $gte: date, $lt: nextDate }
+      });
+      
+      const dayRevenue = dayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      
+      last7Days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      revenueByDay.push(dayRevenue);
+    }
+
+    // 6. Popular Dishes (Top 5)
+    const allOrders = await Order.find({ rest_id: restaurantId });
+    
+    const dishCount = {};
+    allOrders.forEach(order => {
+      if (order.dishes && Array.isArray(order.dishes)) {
+        order.dishes.forEach(dishId => {
+          dishCount[dishId] = (dishCount[dishId] || 0) + 1;
+        });
+      }
+    });
+
+    const sortedDishes = Object.entries(dishCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    const popularDishes = await Promise.all(
+      sortedDishes.map(async ([dishId, count]) => {
+        const dish = await Dish.findOne({ _id: dishId });
+        return {
+          name: dish?.name || 'Unknown',
+          orders: count,
+          price: dish?.price || 0
+        };
+      })
+    );
+
+    // Response
+    res.json({
+      success: true,
+      data: {
+        restaurantName: restaurant,
+        totalRevenue,
+        totalOrdersToday: todayOrders,
+        staffCount,
+        lowStockItems,
+        revenueChart: {
+          labels: last7Days,
+          values: revenueByDay
+        },
+        popularDishes,
+        inventoryData: rest.inventoryData || { labels: [], values: [] }
+      }
+    });
+
+  } catch (error) {
+    console.error('Dashboard Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch dashboard data',
+      message: error.message
+    });
+  }
+};
+
 
 
 // UTILITY
