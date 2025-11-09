@@ -11,6 +11,8 @@ router.post('/menuManagement/delete/:id', ownerController.deleteProduct);
 
 router.get('/orders', ownerController.getOrders);
 
+router.get("/reservations", ownerController.getReservations);
+
 // Staff management routes for owner
 router.get('/staffManagement', ownerController.getStaffList);
 router.post('/staffManagement/add', ownerController.addStaff);
