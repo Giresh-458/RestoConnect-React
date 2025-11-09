@@ -4,6 +4,7 @@ const Person = require('../Model/customer_model');
 const { Order } = require('../Model/Order_model');
 const { Restaurant } = require('../Model/Restaurents_model');
 const { Dish } = require('../Model/Dishes_model_test');
+const { Inventory } = require('../Model/Inventory_model');
 const Feedback = require('../Model/feedback.js');
 const bcrypt = require('bcrypt');
 
@@ -18,6 +19,7 @@ async function seed() {
       Order.deleteMany({}),
       Restaurant.deleteMany({}),
       Dish.deleteMany({}),
+      Inventory.deleteMany({}),
       Feedback.deleteMany({})
     ]);
 
@@ -34,17 +36,17 @@ async function seed() {
 
     // 2. Seed Restaurants
     const restaurantsData = [
-      { name:'Tasty Bites', image:'/images/Tasty_Bites.png', rating:4.5, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[1]._id,dishes[2]._id] },
-      { name:'Spice Hub', image:'/images/SpiceHub.png', rating:4.7, location:'Tirupati', amount:120, dishes:[dishes[3]._id,dishes[4]._id] },
-      { name:'South Delight', image:'/images/SouthDelight.jpeg', rating:4.3, location:'Hyderabad', amount:90, dishes:[dishes[5]._id] },
-      { name:'Green Garden', image:'/images/Green Garden.jpeg', rating:4.6, location:'Chennai', amount:110, dishes:[dishes[0]._id,dishes[2]._id] },
-      { name:'Ocean Breeze', image:'/images/Ocean Breeze.jpeg', rating:4.8, location:'Tirupati', amount:130, dishes:[dishes[3]._id,dishes[4]._id] },
-      { name:'Spicy Fiesta', image:'/images/Spicy Fiesta.jpeg', rating:4.4, location:'Hyderabad', amount:95, dishes:[dishes[1]._id,dishes[5]._id] },
-      { name:'Urban Eats', image:'/images/Urban Eats.jpeg', rating:4.2, location:'Chennai', amount:105, dishes:[dishes[0]._id,dishes[1]._id] },
-      { name:'Cozy Corner', image:'/images/Cozy Corner.jpeg', rating:4.0, location:'Tirupati', amount:85, dishes:[dishes[2]._id,dishes[5]._id] },
-      { name:'The Spice Route', image:'/images/Spicy Route.jpeg', rating:4.5, location:'Hyderabad', amount:115, dishes:[dishes[1]._id,dishes[3]._id] },
-      { name:'Garden Fresh', image:'/images/Garden Fresh.jpeg', rating:4.3, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[2]._id] },
-      { name:'Sunset Grill', image:'/images/Sunset Grill.avif', rating:4.6, location:'Tirupati', amount:125, dishes:[dishes[3]._id,dishes[4]._id] }
+      { name:'Tasty Bites', image:'/images/Tasty_Bites.png', rating:4.5, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[1]._id,dishes[2]._id], cuisine:['Indian', 'Vegetarian'], isOpen:true, operatingHours:{open:'09:00', close:'22:00'}, distance:2.5 },
+      { name:'Spice Hub', image:'/images/SpiceHub.png', rating:4.7, location:'Tirupati', amount:120, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['Indian', 'Non-Veg'], isOpen:true, operatingHours:{open:'10:00', close:'23:00'}, distance:3.2 },
+      { name:'South Delight', image:'/images/SouthDelight.jpeg', rating:4.3, location:'Hyderabad', amount:90, dishes:[dishes[5]._id], cuisine:['South Indian', 'Vegetarian'], isOpen:true, operatingHours:{open:'08:00', close:'21:00'}, distance:1.8 },
+      { name:'Green Garden', image:'/images/Green Garden.jpeg', rating:4.6, location:'Chennai', amount:110, dishes:[dishes[0]._id,dishes[2]._id], cuisine:['Vegan', 'Vegetarian'], isOpen:true, operatingHours:{open:'09:00', close:'22:00'}, distance:4.1 },
+      { name:'Ocean Breeze', image:'/images/Ocean Breeze.jpeg', rating:4.8, location:'Tirupati', amount:130, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['Seafood', 'Non-Veg'], isOpen:true, operatingHours:{open:'11:00', close:'23:00'}, distance:2.9 },
+      { name:'Spicy Fiesta', image:'/images/Spicy Fiesta.jpeg', rating:4.4, location:'Hyderabad', amount:95, dishes:[dishes[1]._id,dishes[5]._id], cuisine:['Mexican', 'Vegetarian'], isOpen:false, operatingHours:{open:'12:00', close:'22:00'}, distance:5.5 },
+      { name:'Urban Eats', image:'/images/Urban Eats.jpeg', rating:4.2, location:'Chennai', amount:105, dishes:[dishes[0]._id,dishes[1]._id], cuisine:['Italian', 'Fast Food'], isOpen:true, operatingHours:{open:'10:00', close:'22:00'}, distance:3.7 },
+      { name:'Cozy Corner', image:'/images/Cozy Corner.jpeg', rating:4.0, location:'Tirupati', amount:85, dishes:[dishes[2]._id,dishes[5]._id], cuisine:['Cafe', 'Vegetarian'], isOpen:true, operatingHours:{open:'07:00', close:'20:00'}, distance:1.2 },
+      { name:'The Spice Route', image:'/images/Spicy Route.jpeg', rating:4.5, location:'Hyderabad', amount:115, dishes:[dishes[1]._id,dishes[3]._id], cuisine:['Indian', 'Chinese'], isOpen:true, operatingHours:{open:'11:00', close:'23:00'}, distance:4.8 },
+      { name:'Garden Fresh', image:'/images/Garden Fresh.jpeg', rating:4.3, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[2]._id], cuisine:['Vegan', 'Organic'], isOpen:true, operatingHours:{open:'09:00', close:'21:00'}, distance:2.3 },
+      { name:'Sunset Grill', image:'/images/Sunset Grill.avif', rating:4.6, location:'Tirupati', amount:125, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['BBQ', 'Non-Veg'], isOpen:true, operatingHours:{open:'17:00', close:'23:00'}, distance:6.2 }
     ];
 
     // Add tables and revenue fields
@@ -106,11 +108,11 @@ async function seed() {
     }
 
     const tastyBitesOrders = [
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Veg Biryani'], totalAmount:300, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() }
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '05', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', tableNumber: '02', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Veg Biryani'], totalAmount:300, status:'preparing', tableNumber: '08', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '03', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', tableNumber: '01', date:randomDateInLastMonth() }
     ];
 
     await Order.insertMany(tastyBitesOrders);
@@ -153,7 +155,31 @@ async function seed() {
 
     await firstRestaurant.save();
 
-    // 6. Feedback
+    // 6. Inventory items for first restaurant (Spice Hub)
+    const spiceHubRestaurant = createdRestaurants.find(r => r.name === 'Spice Hub') || createdRestaurants[1];
+    const inventoryItems = [
+      { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: spiceHubRestaurant._id },
+      { name: 'Paneer', unit: 'Kg', quantity: 0.5, minStock: 0.2, rest_id: spiceHubRestaurant._id },
+      { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: spiceHubRestaurant._id },
+      { name: 'Chicken', unit: 'Kg', quantity: 5, minStock: 1, rest_id: spiceHubRestaurant._id },
+      { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: spiceHubRestaurant._id }
+    ];
+    await Inventory.insertMany(inventoryItems);
+
+    // Add inventory for all restaurants
+    for (const restaurant of createdRestaurants) {
+      const defaultInventory = [
+        { name: 'Tomato Sauce', unit: 'L', quantity: 2, minStock: 0.5, rest_id: restaurant._id },
+        { name: 'Paneer', unit: 'Kg', quantity: 1, minStock: 0.2, rest_id: restaurant._id },
+        { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: restaurant._id }
+      ];
+      // Only add if not already added (for Spice Hub)
+      if (restaurant._id !== spiceHubRestaurant._id) {
+        await Inventory.insertMany(defaultInventory.map(item => ({ ...item, rest_id: restaurant._id })));
+      }
+    }
+
+    // 7. Feedback
     const feedbacks = [
       { customerName:'customer1', diningRating:5, lovedItems:'Paneer Tikka, Veg Biryani', orderRating:4, additionalFeedback:'Loved the ambiance!' },
       { customerName:'customer2', diningRating:4, lovedItems:'Fish Fry', orderRating:5, additionalFeedback:'Tasty food!' },
@@ -161,7 +187,7 @@ async function seed() {
     ];
     await Feedback.insertMany(feedbacks);
 
-    console.log('Seed completed successfully with tables, weekly & monthly revenue, and payments!');
+    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, and inventory!');
   } catch(err){
     console.error('Seeding error:', err);
   } finally{

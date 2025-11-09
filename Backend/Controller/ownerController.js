@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const { User } = require("../Model/userRoleModel");
 let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
+const { Order } = require("../Model/Order_model");
+const { Inventory } = require("../Model/Inventory_model");
 
 exports.getOwnerHomepage = async (req, res) => {
   try {
@@ -91,6 +93,273 @@ exports.deleteTable = async (req, res) => {
   } catch (error) {
     console.error("Error in deleteTable:", error);
     res.status(500).send("Internal Server Error");
+  }
+};
+
+// API endpoint to get user and restaurant info
+exports.getOwnerInfo = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    res.json({
+      username: user.username,
+      restaurantName: user.restaurantName || rest.name
+    });
+  } catch (error) {
+    console.error("Error in getOwnerInfo:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for dashboard stats (KPIs)
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Get current month's start and end dates
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Calculate total revenue this month
+    let totalRevenueThisMonth = 0;
+    const payments = rest.payments || [];
+    payments.forEach((payment) => {
+      if (payment.date && payment.date >= startOfMonth && payment.date <= endOfMonth) {
+        totalRevenueThisMonth += payment.amount || 0;
+      }
+    });
+
+    // Get orders today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const ordersToday = await Order.countDocuments({
+      rest_id: user.rest_id,
+      date: { $gte: today, $lt: tomorrow }
+    });
+
+    // Get active staff count
+    const activeStaff = await User.countDocuments({
+      rest_id: user.rest_id,
+      role: "staff"
+    });
+
+    // Calculate stock status (percentage of items above minimum stock)
+    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
+    let stockStatus = 0;
+    if (inventoryItems.length > 0) {
+      const itemsAboveMin = inventoryItems.filter(item => item.quantity >= item.minStock).length;
+      stockStatus = Math.round((itemsAboveMin / inventoryItems.length) * 100);
+    } else {
+      // If no inventory items, default to 100%
+      stockStatus = 100;
+    }
+
+    res.json({
+      totalRevenueThisMonth: totalRevenueThisMonth,
+      ordersToday: ordersToday,
+      activeStaff: activeStaff,
+      stockStatus: stockStatus
+    });
+  } catch (error) {
+    console.error("Error in getDashboardStats:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for revenue & orders trend (last 7 days)
+exports.getRevenueOrdersTrend = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Get last 7 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    // Initialize data for last 7 days
+    const days = [];
+    const revenueData = [];
+    const ordersData = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      // Get day name (Mon, Tue, etc.)
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      days.push(dayNames[date.getDay()]);
+
+      // Calculate revenue for this day
+      let dayRevenue = 0;
+      const payments = rest.payments || [];
+      payments.forEach((payment) => {
+        if (payment.date && payment.date >= date && payment.date < nextDate) {
+          dayRevenue += payment.amount || 0;
+        }
+      });
+      revenueData.push(dayRevenue);
+
+      // Count orders for this day
+      const dayOrders = await Order.countDocuments({
+        rest_id: user.rest_id,
+        date: { $gte: date, $lt: nextDate }
+      });
+      ordersData.push(dayOrders);
+    }
+
+    res.json({
+      days: days,
+      revenue: revenueData,
+      orders: ordersData
+    });
+  } catch (error) {
+    console.error("Error in getRevenueOrdersTrend:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for recent orders
+exports.getRecentOrders = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const recentOrders = await Order.find({ rest_id: user.rest_id })
+      .sort({ date: -1 })
+      .limit(10)
+      .select('_id customerName totalAmount status tableNumber date');
+
+    // Format orders for frontend
+    const formattedOrders = recentOrders.map((order, index) => {
+      // Generate a numeric order ID (OR123, OR124, etc.)
+      // Use a simple hash of the order ID to get consistent 3-digit number
+      let hash = 0;
+      for (let i = 0; i < order._id.length; i++) {
+        const char = order._id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      // Convert to positive 3-digit number (100-999)
+      const orderNumber = (Math.abs(hash) % 900 + 100).toString();
+      
+      return {
+        id: order._id,
+        orderId: `OR${orderNumber}`,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || 'N/A',
+        totalAmount: order.totalAmount,
+        status: order.status || 'pending',
+        date: order.date
+      };
+    });
+
+    res.json({ orders: formattedOrders });
+  } catch (error) {
+    console.error("Error in getRecentOrders:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to get inventory
+exports.getInventory = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
+
+    res.json({ inventory: inventoryItems });
+  } catch (error) {
+    console.error("Error in getInventory:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to update inventory quantity
+exports.updateInventoryQuantity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { change } = req.body; // change can be +1 or -1
+
+    if (!change || (change !== 1 && change !== -1)) {
+      return res.status(400).json({ error: "Invalid change value. Must be 1 or -1" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Verify the inventory item belongs to this restaurant
+    const inventoryItem = await Inventory.findById(id);
+    if (!inventoryItem) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    if (inventoryItem.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Update quantity
+    await Inventory.updateQuantity(id, change);
+    const updatedItem = await Inventory.findById(id);
+
+    res.json({ 
+      success: true, 
+      inventory: updatedItem 
+    });
+  } catch (error) {
+    console.error("Error in updateInventoryQuantity:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to create inventory item
+exports.createInventoryItem = async (req, res) => {
+  try {
+    const { name, unit, quantity, minStock } = req.body;
+
+    if (!name || !unit) {
+      return res.status(400).json({ error: "Name and unit are required" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const inventoryItem = new Inventory({
+      name,
+      unit,
+      quantity: quantity || 0,
+      minStock: minStock || 0,
+      rest_id: user.rest_id
+    });
+
+    await inventoryItem.save();
+
+    res.json({ 
+      success: true, 
+      inventory: inventoryItem 
+    });
+  } catch (error) {
+    console.error("Error in createInventoryItem:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

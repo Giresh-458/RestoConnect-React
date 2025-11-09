@@ -25,4 +25,13 @@ router.delete('/restaurant/delete/:id', ownerController.deleteRestaurant);
 
 router.get("/staffManagement/task", ownerController.getTasks);
 
+// API routes for owner homepage dashboard
+router.get("/api/info", ownerController.getOwnerInfo);
+router.get("/api/dashboard/stats", ownerController.getDashboardStats);
+router.get("/api/dashboard/trend", ownerController.getRevenueOrdersTrend);
+router.get("/api/orders/recent", ownerController.getRecentOrders);
+router.get("/api/inventory", ownerController.getInventory);
+router.post("/api/inventory", ownerController.createInventoryItem);
+router.patch("/api/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+
 module.exports = router;

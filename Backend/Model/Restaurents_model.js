@@ -15,6 +15,22 @@ const restaurantSchema = new mongoose.Schema({
   rating: Number,
   location: String,
   amount: Number,
+  cuisine: {
+    type: [String],
+    default: []
+  },
+  isOpen: {
+    type: Boolean,
+    default: true
+  },
+  operatingHours: {
+    open: { type: String, default: '09:00' },
+    close: { type: String, default: '22:00' }
+  },
+  distance: {
+    type: Number,
+    default: 0 // distance in km
+  },
   date: {
     type: Date,
     default: Date.now

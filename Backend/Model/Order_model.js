@@ -28,6 +28,10 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  tableNumber: {
+    type: String,
+    default: null
+  },
   date: {
     type: Date,
     default: Date.now

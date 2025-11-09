@@ -389,3 +389,144 @@ exports.postEditProfile = async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 };
+
+// Search and filter restaurants for customer homepage
+exports.searchRestaurants = async (req, res) => {
+  try {
+    const { 
+      search, 
+      cuisine, 
+      openNow, 
+      maxDistance, 
+      sortBy,
+      location 
+    } = req.query;
+
+    let query = {};
+
+    // Search by name or location
+    if (search) {
+      query.$or = [
+        { name: { $regex: new RegExp(search.trim(), 'i') } },
+        { location: { $regex: new RegExp(search.trim(), 'i') } }
+      ];
+    }
+
+    // Filter by location
+    if (location && location !== 'All') {
+      query.location = { $regex: new RegExp(location.trim(), 'i') };
+    }
+
+    // Filter by cuisine
+    if (cuisine && cuisine !== 'All') {
+      query.cuisine = { $in: [cuisine] };
+    }
+
+    // Filter by distance (if distance field exists)
+    if (maxDistance) {
+      query.distance = { $lte: parseFloat(maxDistance) };
+    }
+
+    let restaurants = await Restaurant.find(query);
+
+    // Filter by open now (simplified - check isOpen field and operating hours)
+    if (openNow === 'true') {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      restaurants = restaurants.filter(restaurant => {
+        if (!restaurant.isOpen) return false;
+        
+        // Check operating hours if they exist
+        if (restaurant.operatingHours && restaurant.operatingHours.open && restaurant.operatingHours.close) {
+          try {
+            const [openHour, openMin] = restaurant.operatingHours.open.split(':').map(Number);
+            const [closeHour, closeMin] = restaurant.operatingHours.close.split(':').map(Number);
+            const openTime = openHour * 60 + openMin;
+            const closeTime = closeHour * 60 + closeMin;
+            const currentTime = currentHour * 60 + currentMinute;
+            
+            return currentTime >= openTime && currentTime <= closeTime;
+          } catch (e) {
+            // If parsing fails, just check isOpen
+            return restaurant.isOpen;
+          }
+        }
+        
+        return restaurant.isOpen;
+      });
+    }
+
+    // Sort results
+    if (sortBy) {
+      switch (sortBy) {
+        case 'rating':
+          restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          break;
+        case 'name':
+          restaurants.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+        case 'distance':
+          restaurants.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+          break;
+        default:
+          restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      }
+    } else {
+      restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+
+    // Format response with open/closed status
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const restaurantsWithStatus = restaurants.map(restaurant => {
+      let isCurrentlyOpen = restaurant.isOpen;
+      
+      if (restaurant.operatingHours && restaurant.operatingHours.open && restaurant.operatingHours.close) {
+        try {
+          const [openHour, openMin] = restaurant.operatingHours.open.split(':').map(Number);
+          const [closeHour, closeMin] = restaurant.operatingHours.close.split(':').map(Number);
+          const openTime = openHour * 60 + openMin;
+          const closeTime = closeHour * 60 + closeMin;
+          const currentTime = currentHour * 60 + currentMinute;
+          
+          isCurrentlyOpen = restaurant.isOpen && (currentTime >= openTime && currentTime <= closeTime);
+        } catch (e) {
+          isCurrentlyOpen = restaurant.isOpen;
+        }
+      }
+
+      return {
+        _id: restaurant._id,
+        name: restaurant.name,
+        image: restaurant.image,
+        rating: restaurant.rating,
+        location: restaurant.location,
+        cuisine: restaurant.cuisine || [],
+        isOpen: isCurrentlyOpen,
+        distance: restaurant.distance || 0,
+        operatingHours: restaurant.operatingHours
+      };
+    });
+
+    // Get all unique cuisines from all restaurants
+    const allRestaurants = await Restaurant.find({});
+    const allCuisines = new Set();
+    allRestaurants.forEach(rest => {
+      if (rest.cuisine && Array.isArray(rest.cuisine)) {
+        rest.cuisine.forEach(c => allCuisines.add(c));
+      }
+    });
+
+    res.json({ 
+      restaurants: restaurantsWithStatus,
+      availableCuisines: Array.from(allCuisines).sort()
+    });
+  } catch (error) {
+    console.error("Error in searchRestaurants:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
