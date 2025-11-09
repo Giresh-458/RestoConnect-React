@@ -4,6 +4,7 @@ const Person = require('../Model/customer_model');
 const { Order } = require('../Model/Order_model');
 const { Restaurant } = require('../Model/Restaurents_model');
 const { Dish } = require('../Model/Dishes_model_test');
+const { Reservation } = require('../Model/Reservation_model'); // Add this
 const Feedback = require('../Model/feedback.js');
 const bcrypt = require('bcrypt');
 
@@ -18,7 +19,8 @@ async function seed() {
       Order.deleteMany({}),
       Restaurant.deleteMany({}),
       Dish.deleteMany({}),
-      Feedback.deleteMany({})
+      Feedback.deleteMany({}),
+      Reservation.deleteMany({}) // 🆕 Clear old reservations
     ]);
 
     // 1. Seed Dishes
@@ -106,14 +108,26 @@ async function seed() {
     }
 
     const tastyBitesOrders = [
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Veg Biryani'], totalAmount:300, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() }
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T1', dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T2', dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T3', dishes: ['Veg Biryani'], totalAmount:300, status:'completed', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T4', dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T5', dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() }
     ];
 
     await Order.insertMany(tastyBitesOrders);
+
+
+    //  6️ Seed Reservations for first restaurant
+    const tastyBitesReservations = [
+      { customerName: customerA.name, time: '7:30 PM', table_id: 'T1', guests: 4, status: 'confirmed', rest_id: firstRestaurant._id },
+      { customerName: customerB.name, time: '8:00 PM', table_id: 'T2', guests: 2, status: 'pending', rest_id: firstRestaurant._id },
+      { customerName: createdCustomers[2].name, time: '9:00 PM', table_id: 'T3', guests: 3, status: 'completed', rest_id: firstRestaurant._id }
+    ];
+
+
+    await Reservation.insertMany(tastyBitesReservations); //  Add sample reservations
+
 
     // Map orders by customer to avoid ParallelSaveError
     const customerOrdersMap = {};
@@ -153,7 +167,7 @@ async function seed() {
 
     await firstRestaurant.save();
 
-    // 6. Feedback
+    // 7. Feedback
     const feedbacks = [
       { customerName:'customer1', diningRating:5, lovedItems:'Paneer Tikka, Veg Biryani', orderRating:4, additionalFeedback:'Loved the ambiance!' },
       { customerName:'customer2', diningRating:4, lovedItems:'Fish Fry', orderRating:5, additionalFeedback:'Tasty food!' },
@@ -161,7 +175,7 @@ async function seed() {
     ];
     await Feedback.insertMany(feedbacks);
 
-    console.log('Seed completed successfully with tables, weekly & monthly revenue, and payments!');
+    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, ordres and reservations!');
   } catch(err){
     console.error('Seeding error:', err);
   } finally{
