@@ -371,3 +371,21 @@ exports.getOrders = async (req, res) => {
   }
 };
 
+
+exports.getReservations = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const rest_id = user.rest_id;
+    const reservations = await Reservation.find({ rest_id })
+      .sort({ date: -1 })
+      .select("-rest_id -__v");
+
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error in getReservations:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
