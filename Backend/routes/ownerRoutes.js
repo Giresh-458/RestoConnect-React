@@ -9,6 +9,8 @@ router.post('/menuManagement/add', ownerController.addProduct);
 router.post('/menuManagement/edit/:id', ownerController.editProduct);
 router.post('/menuManagement/delete/:id', ownerController.deleteProduct);
 
+router.get('/orders', ownerController.getOrders);
+
 // Staff management routes for owner
 router.get('/staffManagement', ownerController.getStaffList);
 router.post('/staffManagement/add', ownerController.addStaff);
@@ -24,5 +26,8 @@ router.post('/tables/delete/:number', ownerController.deleteTable);
 router.delete('/restaurant/delete/:id', ownerController.deleteRestaurant);
 
 router.get("/staffManagement/task", ownerController.getTasks);
+
+// Orders route for owner
+// router.get('/orders', ownerController.getOrders);
 
 module.exports = router;
