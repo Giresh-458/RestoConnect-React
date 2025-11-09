@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 const { User } = require("../Model/userRoleModel");
 let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
+const { Order } = require("../Model/Order_model");
+const { Reservation } = require("../Model/Reservation_model");
+
+
 
 exports.getOwnerHomepage = async (req, res) => {
   try {
@@ -345,3 +349,25 @@ exports.deleteRestaurant = async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 };
+
+
+exports.getOrders = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const rest_id = user.rest_id;
+
+    // ✅ Fetch only that restaurant's orders, excluding rest_id and __v
+    const orders = await Order.find({ rest_id })
+      .sort({ date: -1 })
+      .select("-rest_id -__v"); // <-- Exclude internal fields
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error in getOrders:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
