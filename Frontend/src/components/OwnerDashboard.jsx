@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
 
 const OwnerDashboard = () => {
 const [dashboardData, setDashboardData] = useState(null);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState(null);
 
+
 useEffect(() => {
 fetchDashboardData();
 }, []);
+
 
 const fetchDashboardData = async () => {
 try {
@@ -17,11 +19,14 @@ const response = await fetch('http://localhost:3000/owner/dashboard/ownerdashboa
 credentials: 'include'
 });
 
+
 if (!response.ok) {
 throw new Error('Failed to fetch dashboard data');
 }
 
+
 const result = await response.json();
+
 
 if (result.success) {
 setDashboardData(result.data);
@@ -35,6 +40,7 @@ console.error('Dashboard fetch error:', err);
 setLoading(false);
 }
 };
+
 
 // Inline styles
 const styles = {
@@ -162,30 +168,6 @@ fontSize: '1.875rem',
 fontWeight: 700,
 color: '#111827',
 },
-chartsGrid: {
-display: 'grid',
-gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-gap: '1.5rem',
-marginBottom: '2rem',
-},
-chartCard: {
-backgroundColor: 'white',
-borderRadius: '0.5rem',
-boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-padding: '1.5rem',
-},
-chartTitle: {
-fontSize: '1.125rem',
-fontWeight: 600,
-color: '#111827',
-marginBottom: '1rem',
-},
-inventoryCard: {
-backgroundColor: 'white',
-borderRadius: '0.5rem',
-boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-padding: '1.5rem',
-},
 overviewCard: {
 backgroundColor: 'white',
 borderRadius: '0.5rem',
@@ -214,6 +196,7 @@ fontSize: '0.875rem',
 },
 };
 
+
 if (loading) {
 return (
 <div style={styles.loadingContainer}>
@@ -232,6 +215,7 @@ to { transform: rotate(360deg); }
 </div>
 );
 }
+
 
 if (error) {
 return (
@@ -252,16 +236,6 @@ Retry
 );
 }
 
-// Prepare chart data
-const revenueChartData = dashboardData.revenueChart.labels.map((label, index) => ({
-day: label,
-revenue: dashboardData.revenueChart.values[index]
-}));
-
-const popularDishesData = dashboardData.popularDishes.map(dish => ({
-name: dish.name.length > 15 ? dish.name.substring(0, 15) + '...' : dish.name,
-orders: dish.orders
-}));
 
 return (
 <div style={styles.dashboardWrapper}>
@@ -273,6 +247,7 @@ to { transform: rotate(360deg); }
 }
 `}
 </style>
+
 
 {/* Header */}
 <header style={styles.header}>
@@ -289,6 +264,7 @@ to { transform: rotate(360deg); }
 </div>
 </header>
 
+
 {/* Main Content */}
 <main style={styles.mainContainer}>
 {/* Stats Grid */}
@@ -301,6 +277,7 @@ to { transform: rotate(360deg); }
 </p>
 </div>
 
+
 {/* Total Orders Today */}
 <div style={styles.statCard}>
 <p style={styles.statLabel}>Total Orders Today</p>
@@ -309,6 +286,7 @@ to { transform: rotate(360deg); }
 </p>
 </div>
 
+
 {/* Staff On Duty */}
 <div style={styles.statCard}>
 <p style={styles.statLabel}>Staff On Duty</p>
@@ -316,6 +294,7 @@ to { transform: rotate(360deg); }
 {dashboardData.staffCount}
 </p>
 </div>
+
 
 {/* Low Stock Items */}
 <div style={styles.statCard}>
@@ -326,80 +305,6 @@ to { transform: rotate(360deg); }
 </div>
 </div>
 
-{/* Charts Section */}
-<div style={styles.chartsGrid}>
-{/* Revenue Chart */}
-<div style={styles.chartCard}>
-<h2 style={styles.chartTitle}>
-Revenue Overview (Last 7 Days)
-</h2>
-<ResponsiveContainer width="100%" height={300}>
-<LineChart data={revenueChartData}>
-<CartesianGrid strokeDasharray="3 3" />
-<XAxis dataKey="day" />
-<YAxis />
-<Tooltip
-formatter={(value) => `₹${value.toLocaleString('en-IN')}`}
-/>
-<Legend />
-<Line
-type="monotone"
-dataKey="revenue"
-stroke="#3b82f6"
-strokeWidth={2}
-name="Revenue"
-/>
-</LineChart>
-</ResponsiveContainer>
-</div>
-
-{/* Popular Dishes */}
-<div style={styles.chartCard}>
-<h2 style={styles.chartTitle}>
-Popular Dishes (Top 5)
-</h2>
-<ResponsiveContainer width="100%" height={300}>
-<BarChart data={popularDishesData}>
-<CartesianGrid strokeDasharray="3 3" />
-<XAxis dataKey="name" />
-<YAxis />
-<Tooltip />
-<Legend />
-<Bar
-dataKey="orders"
-fill="#10b981"
-name="Orders"
-/>
-</BarChart>
-</ResponsiveContainer>
-</div>
-</div>
-
-{/* Inventory Status */}
-{dashboardData.inventoryData.labels.length > 0 && (
-<div style={styles.inventoryCard}>
-<h2 style={styles.chartTitle}>
-Inventory Status
-</h2>
-<ResponsiveContainer width="100%" height={300}>
-<BarChart data={dashboardData.inventoryData.labels.map((label, idx) => ({
-item: label,
-quantity: dashboardData.inventoryData.values[idx]
-}))}>
-<CartesianGrid strokeDasharray="3 3" />
-<XAxis dataKey="item" />
-<YAxis />
-<Tooltip />
-<Legend />
-<Bar
-dataKey="quantity"
-fill="#f59e0b"
-name="Quantity"
-/>
-</BarChart>
-</ResponsiveContainer>
-</div>
-)}
 
 {/* Overview Text */}
 <div style={styles.overviewCard}>
@@ -408,6 +313,7 @@ Overview of your restaurant performance.
 </p>
 </div>
 </main>
+
 
 {/* Footer */}
 <footer style={styles.footer}>
@@ -420,5 +326,6 @@ Overview of your restaurant performance.
 </div>
 );
 };
+
 
 export default OwnerDashboard;
