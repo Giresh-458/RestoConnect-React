@@ -16,6 +16,8 @@ router.get('/users', admincontroller.getAllUsers);
 router.post('/delete_user/:id', admincontroller.deleteUser);
 router.post('/edit_user/:id', admincontroller.editUser);
 router.post('/edit_profile', admincontroller.editProfile);
+router.post('/change_password', admincontroller.changePassword); // <-- NEW ROUTE
+router.delete('/delete_account', admincontroller.deleteAccount);
 router.get('/statistics', admincontroller.getStatistics);
 router.get('/accept_request/:owner_username', admincontroller.getaceptreq);
 router.get('/reject_request/:owner_username', admincontroller.getrejectreq);

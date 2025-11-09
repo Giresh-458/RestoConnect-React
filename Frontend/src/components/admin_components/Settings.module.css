@@ -1,0 +1,129 @@
+/* Main container */
+.container {
+  max-width: 800px;
+  margin: 2rem auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #333;
+}
+
+.container h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+/* Card-like sections */
+.section {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+/* Section Headings and Subtext */
+.sectionHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sectionHeader h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+}
+
+.sectionHeader p {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Form body */
+.formBody {
+  padding: 1.5rem;
+}
+
+/* Form elements */
+.formGroup {
+  margin-bottom: 1.25rem;
+}
+
+.formGroup label {
+  display: block;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.formGroup input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f4f4f5; /* Light grey background for inputs */
+  box-sizing: border-box; 
+  color: #000;/* Important for padding to work with width: 100% */
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: #007bff;
+  background-color: #fff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,.25);
+}
+
+/* Buttons */
+.btn {
+  padding: 0.7rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btnPrimary {
+  background-color: #0d6efd; /* Blue from screenshot */
+  color: white;
+}
+
+.btnPrimary:hover {
+  background-color: #0b5ed7;
+}
+
+/* Danger Zone */
+.dangerZone {
+  border: 1px solid #f5c6cb; /* Red border */
+  border-radius: 8px;
+  background: #fef7f7; /* Very light red background */
+  padding: 1.5rem;
+}
+
+.dangerHeader h3 {
+  color: #dc3545; /* Red text */
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+}
+
+.dangerHeader p {
+  font-size: 0.9rem;
+  color: #721c24; /* Darker red text for subtext */
+  margin: 0;
+  margin-bottom: 1.5rem;
+}
+
+.btnDanger {
+  background-color: #dc3545;
+  color: white;
+  display: inline-flex; /* To align icon and text */
+  align-items: center;
+  gap: 0.5rem; /* Space between icon and text */
+}
+
+.btnDanger:hover {
+  background-color: #c82333;
+}
