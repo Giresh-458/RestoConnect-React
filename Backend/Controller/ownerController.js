@@ -654,6 +654,8 @@ exports.getReservations = async (req, res) => {
   } catch (error) {
     console.error("Error in getReservations:", error);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 exports.getInventory = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.session.username });
