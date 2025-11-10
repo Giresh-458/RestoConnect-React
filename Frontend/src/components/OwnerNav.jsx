@@ -37,7 +37,13 @@ export function OwnerNav() {
         >
           Reservations
         </NavLink>
-
+        
+        <NavLink
+          to={"/owner/feedback"}
+          className={({ isActive }) => (isActive ? styles.active : "")}
+        >
+          Feedback
+        </NavLink>
 
       </nav>
       <Outlet />

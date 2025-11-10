@@ -5,7 +5,7 @@ let Dish = require("../Model/Dishes_model_test").Dish;
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { Inventory } = require("../Model/Inventory_model");
-
+const Feedback = require('../Model/feedback');
 exports.getOwnerHomepage = async (req, res) => {
   try {
     let username = req.session.username;
@@ -97,6 +97,76 @@ exports.deleteTable = async (req, res) => {
   } catch (error) {
     console.error("Error in deleteTable:", error);
     res.status(500).send("Internal Server Error");
+  }
+};
+// Add this to ownerController.js
+exports.getFeedback = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+
+    if (!user || !user.rest_id) {
+      return res.status(404).json({ message: "User or Restaurant not found" });
+    }
+
+    const rest_id = user.rest_id;
+
+    const feedbackList = await Feedback.find({ rest_id })
+      .sort({ createdAt: -1 })
+      .select("-rest_id -__v");
+
+    // Format the data to match the dashboard table columns (ID, Customer, Rating, Comment, Status)
+    const formattedFeedback = feedbackList.map(item => ({
+        id: item._id, 
+        customer: item.customerName,
+        // Use diningRating as the main rating, or orderRating if dining is not set.
+        rating: item.diningRating || item.orderRating || 'N/A', 
+        // Use additionalFeedback as the main comment.
+        comment: item.additionalFeedback || (item.lovedItems ? `Liked: ${item.lovedItems}` : 'No specific comment'),
+        status: item.status, 
+        date: item.createdAt
+    }));
+    
+    res.json(formattedFeedback);
+  } catch (error) {
+    console.error("Error in getFeedback:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+// Add this to ownerController.js
+exports.updateFeedbackStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // Feedback ID
+    const { status } = req.body; // New status (e.g., 'Resolved')
+    
+    if (!status || (status !== 'Resolved' && status !== 'Pending')) {
+        return res.status(400).json({ error: "Invalid status. Must be 'Resolved' or 'Pending'" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user || !user.rest_id) {
+        return res.status(404).json({ message: "User or Restaurant not found" });
+    }
+
+    // Find and update the item, ensuring it belongs to the correct restaurant for security
+    const updatedFeedback = await Feedback.findOneAndUpdate(
+        { _id: id, rest_id: user.rest_id }, 
+        { $set: { status: status } },
+        { new: true } // Return the updated document
+    );
+
+    if (!updatedFeedback) {
+      return res.status(404).json({ message: "Feedback item not found or unauthorized" });
+    }
+
+    res.json({ 
+        success: true, 
+        feedback: updatedFeedback
+    });
+
+  } catch (error) {
+    console.error("Error in updateFeedbackStatus:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 

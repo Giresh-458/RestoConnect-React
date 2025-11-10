@@ -64,6 +64,7 @@ const router = createBrowserRouter([
       { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
       { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
       { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
+      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
 
     ],
     loader:isLogin

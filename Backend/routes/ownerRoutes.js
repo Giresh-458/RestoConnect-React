@@ -45,4 +45,6 @@ router.get("/api/inventory", ownerController.getInventoryAPI);
 router.post("/api/inventory", ownerController.createInventoryItem);
 router.patch("/api/inventory/:id/quantity", ownerController.updateInventoryQuantity);
 
+router.get("/api/feedback", ownerController.getFeedback);
+router.put("/api/feedback/:id/status", ownerController.updateFeedbackStatus);
 module.exports = router;
