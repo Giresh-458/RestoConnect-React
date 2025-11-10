@@ -3,7 +3,7 @@ const router = express.Router();
 const ownerController = require("../Controller/ownerController");
 
 router.get("/", ownerController.getOwnerHomepage);
-router.get("/dashboard", ownerController.getDashboard);
+router.get("/dashboard", ownerController.getownerDashboard_dashboard);
 router.get("/dashboard/ownerdashboard", ownerController.getownerDashboard_dashboard);
 router.get("/menuManagement", ownerController.getMenuManagement);
 router.post("/menuManagement/add", ownerController.addProduct);

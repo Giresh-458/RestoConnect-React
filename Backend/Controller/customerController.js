@@ -106,10 +106,10 @@ exports.validateReservationDateTime = (date, time) => {
 
 exports.getCustomerDashboard = async (req, res) => {
   try {
-    const customerName = req.params.customerName || req.query.customerName;
+    const customerName = req.session.username || req.params.customerName || req.query.customerName;
 
     if (!customerName) {
-      return res.status(400).json({ error: 'Customer name is required' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
 
     // =================== USER DATA ===================
