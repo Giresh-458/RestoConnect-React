@@ -1,0 +1,121 @@
+.inventoryContainer {
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+.noItems {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+.inventoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.inventoryTable th {
+  background-color: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 14px;
+}
+
+.inventoryTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 14px;
+}
+
+.inventoryTable tr:last-child td {
+  border-bottom: none;
+}
+
+.inventoryTable tr:hover {
+  background-color: #f8f9fa;
+}
+
+.itemName {
+  font-weight: 500;
+  color: #333;
+}
+
+.quantity {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.unit {
+  color: #666;
+}
+
+.supplier {
+  color: #666;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.increaseBtn,
+.decreaseBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.increaseBtn {
+  background-color: #28a745;
+  color: white;
+}
+
+.increaseBtn:hover {
+  background-color: #218838;
+}
+
+.decreaseBtn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.decreaseBtn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.decreaseBtn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}

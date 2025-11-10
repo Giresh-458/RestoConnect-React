@@ -6,6 +6,7 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 
 
+const { Inventory } = require("../Model/Inventory_model");
 
 exports.getOwnerHomepage = async (req, res) => {
   try {
@@ -56,7 +57,10 @@ exports.getTables = async (req, res) => {
 exports.addTable = async (req, res) => {
   try {
     const { number, seats } = req.body;
-    if (!number || !seats) return res.status(400).send("Table number and number of seats are required");
+    if (!number || !seats)
+      return res
+        .status(400)
+        .send("Table number and number of seats are required");
 
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).send("User not found");
@@ -98,13 +102,278 @@ exports.deleteTable = async (req, res) => {
   }
 };
 
+// API endpoint to get user and restaurant info
+exports.getOwnerInfo = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    res.json({
+      username: user.username,
+      restaurantName: user.restaurantName || rest.name
+    });
+  } catch (error) {
+    console.error("Error in getOwnerInfo:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for dashboard stats (KPIs)
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Get current month's start and end dates
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Calculate total revenue this month
+    let totalRevenueThisMonth = 0;
+    const payments = rest.payments || [];
+    payments.forEach((payment) => {
+      if (payment.date && payment.date >= startOfMonth && payment.date <= endOfMonth) {
+        totalRevenueThisMonth += payment.amount || 0;
+      }
+    });
+
+    // Get orders today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const ordersToday = await Order.countDocuments({
+      rest_id: user.rest_id,
+      date: { $gte: today, $lt: tomorrow }
+    });
+
+    // Get active staff count
+    const activeStaff = await User.countDocuments({
+      rest_id: user.rest_id,
+      role: "staff"
+    });
+
+    // Calculate stock status (percentage of items above minimum stock)
+    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
+    let stockStatus = 0;
+    if (inventoryItems.length > 0) {
+      const itemsAboveMin = inventoryItems.filter(item => item.quantity >= item.minStock).length;
+      stockStatus = Math.round((itemsAboveMin / inventoryItems.length) * 100);
+    } else {
+      // If no inventory items, default to 100%
+      stockStatus = 100;
+    }
+
+    res.json({
+      totalRevenueThisMonth: totalRevenueThisMonth,
+      ordersToday: ordersToday,
+      activeStaff: activeStaff,
+      stockStatus: stockStatus
+    });
+  } catch (error) {
+    console.error("Error in getDashboardStats:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for revenue & orders trend (last 7 days)
+exports.getRevenueOrdersTrend = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Get last 7 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    // Initialize data for last 7 days
+    const days = [];
+    const revenueData = [];
+    const ordersData = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      // Get day name (Mon, Tue, etc.)
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      days.push(dayNames[date.getDay()]);
+
+      // Calculate revenue for this day
+      let dayRevenue = 0;
+      const payments = rest.payments || [];
+      payments.forEach((payment) => {
+        if (payment.date && payment.date >= date && payment.date < nextDate) {
+          dayRevenue += payment.amount || 0;
+        }
+      });
+      revenueData.push(dayRevenue);
+
+      // Count orders for this day
+      const dayOrders = await Order.countDocuments({
+        rest_id: user.rest_id,
+        date: { $gte: date, $lt: nextDate }
+      });
+      ordersData.push(dayOrders);
+    }
+
+    res.json({
+      days: days,
+      revenue: revenueData,
+      orders: ordersData
+    });
+  } catch (error) {
+    console.error("Error in getRevenueOrdersTrend:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint for recent orders
+exports.getRecentOrders = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const recentOrders = await Order.find({ rest_id: user.rest_id })
+      .sort({ date: -1 })
+      .limit(10)
+      .select('_id customerName totalAmount status tableNumber date');
+
+    // Format orders for frontend
+    const formattedOrders = recentOrders.map((order, index) => {
+      // Generate a numeric order ID (OR123, OR124, etc.)
+      // Use a simple hash of the order ID to get consistent 3-digit number
+      let hash = 0;
+      for (let i = 0; i < order._id.length; i++) {
+        const char = order._id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      // Convert to positive 3-digit number (100-999)
+      const orderNumber = (Math.abs(hash) % 900 + 100).toString();
+
+      return {
+        id: order._id,
+        orderId: `OR${orderNumber}`,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || 'N/A',
+        totalAmount: order.totalAmount,
+        status: order.status || 'pending',
+        date: order.date
+      };
+    });
+
+    res.json({ orders: formattedOrders });
+  } catch (error) {
+    console.error("Error in getRecentOrders:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to get inventory (new system)
+exports.getInventoryAPI = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
+
+    res.json({ inventory: inventoryItems });
+  } catch (error) {
+    console.error("Error in getInventoryAPI:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to update inventory quantity
+exports.updateInventoryQuantity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { change } = req.body; // change can be +1 or -1
+
+    if (!change || (change !== 1 && change !== -1)) {
+      return res.status(400).json({ error: "Invalid change value. Must be 1 or -1" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Verify the inventory item belongs to this restaurant
+    const inventoryItem = await Inventory.findById(id);
+    if (!inventoryItem) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    if (inventoryItem.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Update quantity
+    await Inventory.updateQuantity(id, change);
+    const updatedItem = await Inventory.findById(id);
+
+    res.json({
+      success: true,
+      inventory: updatedItem
+    });
+  } catch (error) {
+    console.error("Error in updateInventoryQuantity:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// API endpoint to create inventory item
+exports.createInventoryItem = async (req, res) => {
+  try {
+    const { name, unit, quantity, minStock } = req.body;
+
+    if (!name || !unit) {
+      return res.status(400).json({ error: "Name and unit are required" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const inventoryItem = new Inventory({
+      name,
+      unit,
+      quantity: quantity || 0,
+      minStock: minStock || 0,
+      rest_id: user.rest_id
+    });
+
+    await inventoryItem.save();
+
+    res.json({
+      success: true,
+      inventory: inventoryItem
+    });
+  } catch (error) {
+    console.error("Error in createInventoryItem:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 exports.getDashboard = async (req, res) => {
   try {
     let username = req.session.username;
     let user = await User.findOne({ username });
-    const Feedback = require("../Model/feedback"); 
+    const Feedback = require("../Model/feedback");
     if (!user) return res.status(404).send("User not found");
 
     let restaurant = user.restaurantName;
@@ -113,7 +382,9 @@ exports.getDashboard = async (req, res) => {
     let totalOrders = rest.orders ? rest.orders.length : 0;
 
     const Order = require("../Model/Order_model").Order;
-    let customers = await Order.distinct("customerName", { _id: { $in: rest.orders } });
+    let customers = await Order.distinct("customerName", {
+      _id: { $in: rest.orders },
+    });
     let totalCustomers = customers.length;
 
     let totalRevenue = 0;
@@ -129,10 +400,12 @@ exports.getDashboard = async (req, res) => {
       if (!payment.date) return;
 
       let day = payment.date.toISOString().slice(0, 10);
-      dailyRevenueMap[day] = (dailyRevenueMap[day] || 0) + (payment.amount || 0);
+      dailyRevenueMap[day] =
+        (dailyRevenueMap[day] || 0) + (payment.amount || 0);
 
       let week = getWeekNumber(payment.date);
-      weeklyRevenueMap[week] = (weeklyRevenueMap[week] || 0) + (payment.amount || 0);
+      weeklyRevenueMap[week] =
+        (weeklyRevenueMap[week] || 0) + (payment.amount || 0);
     });
 
     let dailyLabels = Object.keys(dailyRevenueMap).sort();
@@ -149,9 +422,9 @@ exports.getDashboard = async (req, res) => {
       weeklyValues = weeklyValues.slice(-12);
     }
 
-  const feedbackList = await Feedback.find({
-  restaurantName: req.session.restaurant,
-}).sort({ createdAt: -1 });
+    const feedbackList = await Feedback.find({
+      restaurantName: req.session.restaurant,
+    }).sort({ createdAt: -1 });
 
     res.render("ownerDashboard", {
       restaurant,
@@ -162,7 +435,7 @@ exports.getDashboard = async (req, res) => {
       weeklyRevenueValues: weeklyValues,
       dailyRevenueLabels: dailyLabels,
       dailyRevenueValues: dailyValues,
-      feedbackList, 
+      feedbackList,
     });
   } catch (error) {
     console.error("Error in getDashboard:", error);
@@ -170,17 +443,17 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
-
 // UTILITY
 function getWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, "0")}`;
 }
-
 
 exports.getMenuManagement = async (req, res) => {
   try {
@@ -197,12 +470,10 @@ exports.getMenuManagement = async (req, res) => {
   }
 };
 
-
-
 exports.addProduct = async (req, res) => {
   try {
     const { name, price, description } = req.body;
-    let dish = new Dish({ name, price, description:description });
+    let dish = new Dish({ name, price, description: description });
     await dish.addDish(req.session.rest_id);
     res.redirect("/owner");
   } catch (error) {
@@ -211,13 +482,10 @@ exports.addProduct = async (req, res) => {
   }
 };
 
-
-
-
 exports.editProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price,imageUrl } = req.body;
+    const { name, description, price, imageUrl } = req.body;
 
     let dish = await Dish.find_by_id(id);
     if (!dish) {
@@ -245,12 +513,11 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
-
 exports.getStaffList = async (req, res) => {
   try {
     const rest_id = req.session.rest_id;
     const staffList = await User.find({ rest_id: rest_id, role: "staff" });
-   res.json(staffList);
+    res.json(staffList);
   } catch (error) {
     console.error("Error in getStaffList:", error);
     res.status(500).send("Internal Server Error");
@@ -343,7 +610,7 @@ exports.deleteRestaurant = async (req, res) => {
       return res.status(404).send("Restaurant not found");
     }
     await User.deleteMany({ rest_id: restaurantId });
-    res.redirect("/owner"); 
+    res.redirect("/owner");
   } catch (error) {
     console.error("Error deleting restaurant and related users:", error);
     res.status(500).send("Internal Server Error");
@@ -387,5 +654,159 @@ exports.getReservations = async (req, res) => {
   } catch (error) {
     console.error("Error in getReservations:", error);
     res.status(500).json({ message: "Internal Server Error" });
+exports.getInventory = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
+
+    // Return inventory data
+    res.json({
+      inventory: restaurant.inventoryData || {
+        labels: [],
+        values: [],
+        units: [],
+        suppliers: [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in getInventory:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.updateInventory = async (req, res) => {
+  try {
+    const { item, action } = req.body;
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant || !restaurant.inventoryData)
+      return res.status(404).json({ error: "Restaurant not found" });
+
+    const index = restaurant.inventoryData.labels.indexOf(item);
+    if (index === -1) return res.status(404).json({ error: "Item not found" });
+
+    // Safe quantity update
+    if (action === "increase") {
+      restaurant.inventoryData.values[index] += 1;
+    } else if (
+      action === "decrease" &&
+      restaurant.inventoryData.values[index] > 0
+    ) {
+      restaurant.inventoryData.values[index] -= 1;
+    }
+
+    await restaurant.save();
+    res.json({
+      success: true,
+      inventory: restaurant.inventoryData,
+    });
+  } catch (error) {
+    console.error("Error updating inventory:", error);
+    res.status(500).json({ error: "Error updating inventory" });
+  }
+};
+
+exports.getReportsData = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
+
+    let totalRevenue = 0;
+    let payments = restaurant.payments || [];
+    payments.forEach((payment) => {
+      totalRevenue += payment.amount || 0;
+    });
+
+    let dailyRevenueMap = {};
+    let weeklyRevenueMap = {};
+
+    payments.forEach((payment) => {
+      if (!payment.date) return;
+
+      let day = payment.date.toISOString().slice(0, 10);
+      dailyRevenueMap[day] =
+        (dailyRevenueMap[day] || 0) + (payment.amount || 0);
+
+      let week = getWeekNumber(payment.date);
+      weeklyRevenueMap[week] =
+        (weeklyRevenueMap[week] || 0) + (payment.amount || 0);
+    });
+
+    let dailyLabels = Object.keys(dailyRevenueMap).sort();
+    let dailyValues = dailyLabels.map((label) => dailyRevenueMap[label]);
+    if (dailyLabels.length > 14) {
+      dailyLabels = dailyLabels.slice(-14);
+      dailyValues = dailyValues.slice(-14);
+    }
+
+    let weeklyLabels = Object.keys(weeklyRevenueMap).sort();
+    let weeklyValues = weeklyLabels.map((label) => weeklyRevenueMap[label]);
+    if (weeklyLabels.length > 12) {
+      weeklyLabels = weeklyLabels.slice(-12);
+      weeklyValues = weeklyValues.slice(-12);
+    }
+
+    const Order = require("../Model/Order_model").Order;
+    const orders = await Order.find({ rest_id: user.rest_id });
+
+    const hourCounts = {};
+    const dayCounts = {};
+
+    orders.forEach((order) => {
+      if (order.date) {
+        const orderDate = new Date(order.date);
+
+        const hour = orderDate.getHours();
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+
+        const day = orderDate.getDay();
+        dayCounts[day] = (dayCounts[day] || 0) + 1;
+      }
+    });
+
+    const hourLabels = Array.from({ length: 24 }, (_, i) => {
+      const hour = i % 12 || 12;
+      const period = i < 12 ? "AM" : "PM";
+      return `${hour} ${period}`;
+    });
+
+    const hourValues = hourLabels.map((_, index) => hourCounts[index] || 0);
+
+    const dayLabels = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const dayValues = dayLabels.map((_, index) => dayCounts[index] || 0);
+
+    res.json({
+      revenue: {
+        daily: { labels: dailyLabels, values: dailyValues },
+        weekly: { labels: weeklyLabels, values: weeklyValues },
+        total: totalRevenue,
+      },
+      peakHours: {
+        byHour: { labels: hourLabels, values: hourValues },
+        byDay: { labels: dayLabels, values: dayValues },
+      },
+      totalOrders: orders.length,
+    });
+  } catch (error) {
+    console.error("Error in getReportsData:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };

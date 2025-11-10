@@ -5,6 +5,7 @@ const { Order } = require('../Model/Order_model');
 const { Restaurant } = require('../Model/Restaurents_model');
 const { Dish } = require('../Model/Dishes_model_test');
 const { Reservation } = require('../Model/Reservation_model'); // Add this
+const { Inventory } = require('../Model/Inventory_model');
 const Feedback = require('../Model/feedback.js');
 const bcrypt = require('bcrypt');
 
@@ -21,77 +22,224 @@ async function seed() {
       Dish.deleteMany({}),
       Feedback.deleteMany({}),
       Reservation.deleteMany({}) // 🆕 Clear old reservations
+      Inventory.deleteMany({}),
+      Feedback.deleteMany({})
     ]);
 
     // 1. Seed Dishes
     const dishesData = [
-      { name: 'Paneer Tikka', price: 250, description: 'Delicious grilled paneer cubes marinated in spices' },
-      { name: 'Chicken Curry', price: 350, description: 'Spicy and flavorful chicken curry cooked with herbs' },
-      { name: 'Veg Biryani', price: 300, description: 'Aromatic basmati rice cooked with mixed vegetables and spices' },
-      { name: 'Fish Fry', price: 400, description: 'Crispy fried fish with special spices' },
-      { name: 'Mutton Korma', price: 450, description: 'Rich and creamy mutton curry with aromatic spices' },
-      { name: 'Masala Dosa', price: 150, description: 'Crispy dosa filled with spicy potato masala' }
+      {
+        name: "Paneer Tikka",
+        price: 250,
+        description: "Delicious grilled paneer cubes marinated in spices",
+      },
+      {
+        name: "Chicken Curry",
+        price: 350,
+        description: "Spicy and flavorful chicken curry cooked with herbs",
+      },
+      {
+        name: "Veg Biryani",
+        price: 300,
+        description:
+          "Aromatic basmati rice cooked with mixed vegetables and spices",
+      },
+      {
+        name: "Fish Fry",
+        price: 400,
+        description: "Crispy fried fish with special spices",
+      },
+      {
+        name: "Mutton Korma",
+        price: 450,
+        description: "Rich and creamy mutton curry with aromatic spices",
+      },
+      {
+        name: "Masala Dosa",
+        price: 150,
+        description: "Crispy dosa filled with spicy potato masala",
+      },
     ];
     const dishes = await Dish.insertMany(dishesData);
 
     // 2. Seed Restaurants
     const restaurantsData = [
-      { name:'Tasty Bites', image:'/images/Tasty_Bites.png', rating:4.5, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[1]._id,dishes[2]._id] },
-      { name:'Spice Hub', image:'/images/SpiceHub.png', rating:4.7, location:'Tirupati', amount:120, dishes:[dishes[3]._id,dishes[4]._id] },
-      { name:'South Delight', image:'/images/SouthDelight.jpeg', rating:4.3, location:'Hyderabad', amount:90, dishes:[dishes[5]._id] },
-      { name:'Green Garden', image:'/images/Green Garden.jpeg', rating:4.6, location:'Chennai', amount:110, dishes:[dishes[0]._id,dishes[2]._id] },
-      { name:'Ocean Breeze', image:'/images/Ocean Breeze.jpeg', rating:4.8, location:'Tirupati', amount:130, dishes:[dishes[3]._id,dishes[4]._id] },
-      { name:'Spicy Fiesta', image:'/images/Spicy Fiesta.jpeg', rating:4.4, location:'Hyderabad', amount:95, dishes:[dishes[1]._id,dishes[5]._id] },
-      { name:'Urban Eats', image:'/images/Urban Eats.jpeg', rating:4.2, location:'Chennai', amount:105, dishes:[dishes[0]._id,dishes[1]._id] },
-      { name:'Cozy Corner', image:'/images/Cozy Corner.jpeg', rating:4.0, location:'Tirupati', amount:85, dishes:[dishes[2]._id,dishes[5]._id] },
-      { name:'The Spice Route', image:'/images/Spicy Route.jpeg', rating:4.5, location:'Hyderabad', amount:115, dishes:[dishes[1]._id,dishes[3]._id] },
-      { name:'Garden Fresh', image:'/images/Garden Fresh.jpeg', rating:4.3, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[2]._id] },
-      { name:'Sunset Grill', image:'/images/Sunset Grill.avif', rating:4.6, location:'Tirupati', amount:125, dishes:[dishes[3]._id,dishes[4]._id] }
+      { name:'Tasty Bites', image:'/images/Tasty_Bites.png', rating:4.5, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[1]._id,dishes[2]._id], cuisine:['Indian', 'Vegetarian'], isOpen:true, operatingHours:{open:'09:00', close:'22:00'}, distance:2.5 },
+      { name:'Spice Hub', image:'/images/SpiceHub.png', rating:4.7, location:'Tirupati', amount:120, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['Indian', 'Non-Veg'], isOpen:true, operatingHours:{open:'10:00', close:'23:00'}, distance:3.2 },
+      { name:'South Delight', image:'/images/SouthDelight.jpeg', rating:4.3, location:'Hyderabad', amount:90, dishes:[dishes[5]._id], cuisine:['South Indian', 'Vegetarian'], isOpen:true, operatingHours:{open:'08:00', close:'21:00'}, distance:1.8 },
+      { name:'Green Garden', image:'/images/Green Garden.jpeg', rating:4.6, location:'Chennai', amount:110, dishes:[dishes[0]._id,dishes[2]._id], cuisine:['Vegan', 'Vegetarian'], isOpen:true, operatingHours:{open:'09:00', close:'22:00'}, distance:4.1 },
+      { name:'Ocean Breeze', image:'/images/Ocean Breeze.jpeg', rating:4.8, location:'Tirupati', amount:130, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['Seafood', 'Non-Veg'], isOpen:true, operatingHours:{open:'11:00', close:'23:00'}, distance:2.9 },
+      { name:'Spicy Fiesta', image:'/images/Spicy Fiesta.jpeg', rating:4.4, location:'Hyderabad', amount:95, dishes:[dishes[1]._id,dishes[5]._id], cuisine:['Mexican', 'Vegetarian'], isOpen:false, operatingHours:{open:'12:00', close:'22:00'}, distance:5.5 },
+      { name:'Urban Eats', image:'/images/Urban Eats.jpeg', rating:4.2, location:'Chennai', amount:105, dishes:[dishes[0]._id,dishes[1]._id], cuisine:['Italian', 'Fast Food'], isOpen:true, operatingHours:{open:'10:00', close:'22:00'}, distance:3.7 },
+      { name:'Cozy Corner', image:'/images/Cozy Corner.jpeg', rating:4.0, location:'Tirupati', amount:85, dishes:[dishes[2]._id,dishes[5]._id], cuisine:['Cafe', 'Vegetarian'], isOpen:true, operatingHours:{open:'07:00', close:'20:00'}, distance:1.2 },
+      { name:'The Spice Route', image:'/images/Spicy Route.jpeg', rating:4.5, location:'Hyderabad', amount:115, dishes:[dishes[1]._id,dishes[3]._id], cuisine:['Indian', 'Chinese'], isOpen:true, operatingHours:{open:'11:00', close:'23:00'}, distance:4.8 },
+      { name:'Garden Fresh', image:'/images/Garden Fresh.jpeg', rating:4.3, location:'Chennai', amount:100, dishes:[dishes[0]._id,dishes[2]._id], cuisine:['Vegan', 'Organic'], isOpen:true, operatingHours:{open:'09:00', close:'21:00'}, distance:2.3 },
+      { name:'Sunset Grill', image:'/images/Sunset Grill.avif', rating:4.6, location:'Tirupati', amount:125, dishes:[dishes[3]._id,dishes[4]._id], cuisine:['BBQ', 'Non-Veg'], isOpen:true, operatingHours:{open:'17:00', close:'23:00'}, distance:6.2 }
     ];
 
     // Add tables and revenue fields
-    restaurantsData.forEach(rest => {
+    restaurantsData.forEach((rest) => {
       rest.tables = [
-        { number:'1', status:'available', seats:2 },
-        { number:'2', status:'available', seats:3 },
-        { number:'3', status:'available', seats:4 },
-        { number:'4', status:'available', seats:5 },
-        { number:'5', status:'available', seats:6 }
+        { number: "1", status: "available", seats: 2 },
+        { number: "2", status: "available", seats: 3 },
+        { number: "3", status: "available", seats: 4 },
+        { number: "4", status: "available", seats: 5 },
+        { number: "5", status: "available", seats: 6 },
       ];
       rest.totalTables = rest.tables.length;
       rest.weeklyRevenue = 0;
       rest.monthlyRevenue = 0;
       rest.totalOrders = 0;
       rest.payments = [];
+
+      rest.inventoryData = {
+        labels: [
+          "Tomatoes",
+          "Onions",
+          "Chicken Breast",
+          "Paneer",
+          "Rice",
+          "Cooking Oil",
+          "Flour",
+          "Cheese",
+          "Milk",
+          "Potatoes",
+          "Spices Mix",
+          "Fish",
+        ],
+        values: [
+          50, // Tomatoes
+          30, // Onions
+          25, // Chicken Breast
+          20, // Paneer
+          100, // Rice
+          15, // Cooking Oil
+          40, // Flour
+          20, // Cheese
+          35, // Milk
+          45, // Potatoes
+          10, // Spices Mix
+          18, // Fish
+        ],
+        units: [
+          "kg",
+          "kg",
+          "kg",
+          "kg",
+          "kg",
+          "L",
+          "kg",
+          "kg",
+          "L",
+          "kg",
+          "kg",
+          "kg",
+        ],
+        suppliers: [
+          "Fresh Farms",
+          "Local Market",
+          "Meat World",
+          "Dairy Fresh",
+          "Grain Co",
+          "Oil Mill",
+          "Bakery Supply",
+          "Dairy Fresh",
+          "Dairy Fresh",
+          "Fresh Farms",
+          "Spice Traders",
+          "Ocean Fresh",
+        ],
+      };
     });
 
     const createdRestaurants = await Restaurant.insertMany(restaurantsData);
 
     // 3. Users
     const users = [
-      { username:'admin1', email:'admin1@example.com', role:'admin', password:bcrypt.hashSync('123456',10) }
+      {
+        username: "admin1",
+        email: "admin1@example.com",
+        role: "admin",
+        password: bcrypt.hashSync("123456", 10),
+      },
     ];
 
-    createdRestaurants.forEach((rest, idx)=>{
+    createdRestaurants.forEach((rest, idx) => {
       users.push(
-        { username:`owner${idx+1}`, email:`owner${idx+1}@example.com`, role:'owner', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123456',10) },
-        { username:`staff${idx+1}`, email:`staff${idx+1}@example.com`, role:'staff', restaurantName:rest.name, rest_id:rest._id, password:bcrypt.hashSync('123456',10) }
+        {
+          username: `owner${idx + 1}`,
+          email: `owner${idx + 1}@example.com`,
+          role: "owner",
+          restaurantName: rest.name,
+          rest_id: rest._id,
+          password: bcrypt.hashSync("123456", 10),
+        },
+        {
+          username: `staff${idx + 1}`,
+          email: `staff${idx + 1}@example.com`,
+          role: "staff",
+          restaurantName: rest.name,
+          rest_id: rest._id,
+          password: bcrypt.hashSync("123456", 10),
+        }
       );
     });
 
     users.push(
-      { username:'customer1', email:'customer1@example.com', role:'customer', password:bcrypt.hashSync('123456',10) },
-      { username:'customer2', email:'customer2@example.com', role:'customer', password:bcrypt.hashSync('123456',10) },
-      { username:'customer3', email:'customer3@example.com', role:'customer', password:bcrypt.hashSync('123456',10) }
+      {
+        username: "customer1",
+        email: "customer1@example.com",
+        role: "customer",
+        password: bcrypt.hashSync("123456", 10),
+      },
+      {
+        username: "customer2",
+        email: "customer2@example.com",
+        role: "customer",
+        password: bcrypt.hashSync("123456", 10),
+      },
+      {
+        username: "customer3",
+        email: "customer3@example.com",
+        role: "customer",
+        password: bcrypt.hashSync("123456", 10),
+      }
     );
 
     await User.insertMany(users);
 
     // 4. Customers
     const customers = [
-      { name:'customer1', img_url:'customer1.jpg', email:'customer1@example.com', phone:'1234567890', prev_orders:[], top_dishes:{}, top_restaurent:{}, cart:[] },
-      { name:'customer2', img_url:'customer2.jpg', email:'customer2@example.com', phone:'1234562890', prev_orders:[], top_dishes:{}, top_restaurent:{}, cart:[] },
-      { name:'customer3', img_url:'customer3.jpg', email:'customer3@example.com', phone:'1224567890', prev_orders:[], top_dishes:{}, top_restaurent:{}, cart:[] }
+      {
+        name: "customer1",
+        img_url: "customer1.jpg",
+        email: "customer1@example.com",
+        phone: "1234567890",
+        prev_orders: [],
+        top_dishes: {},
+        top_restaurent: {},
+        cart: [],
+      },
+      {
+        name: "customer2",
+        img_url: "customer2.jpg",
+        email: "customer2@example.com",
+        phone: "1234562890",
+        prev_orders: [],
+        top_dishes: {},
+        top_restaurent: {},
+        cart: [],
+      },
+      {
+        name: "customer3",
+        img_url: "customer3.jpg",
+        email: "customer3@example.com",
+        phone: "1224567890",
+        prev_orders: [],
+        top_dishes: {},
+        top_restaurent: {},
+        cart: [],
+      },
     ];
     const createdCustomers = await Person.insertMany(customers);
 
@@ -108,11 +256,11 @@ async function seed() {
     }
 
     const tastyBitesOrders = [
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T1', dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T2', dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T3', dishes: ['Veg Biryani'], totalAmount:300, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T4', dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T5', dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', date:randomDateInLastMonth() }
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '05', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', tableNumber: '02', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Veg Biryani'], totalAmount:300, status:'preparing', tableNumber: '08', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '03', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', tableNumber: '01', date:randomDateInLastMonth() }
     ];
 
     await Order.insertMany(tastyBitesOrders);
@@ -131,9 +279,13 @@ async function seed() {
 
     // Map orders by customer to avoid ParallelSaveError
     const customerOrdersMap = {};
-    tastyBitesOrders.forEach(order => {
-      if (!customerOrdersMap[order.customerName]) customerOrdersMap[order.customerName] = [];
-      customerOrdersMap[order.customerName].push({ name: order.restaurant, items: order.dishes });
+    tastyBitesOrders.forEach((order) => {
+      if (!customerOrdersMap[order.customerName])
+        customerOrdersMap[order.customerName] = [];
+      customerOrdersMap[order.customerName].push({
+        name: order.restaurant,
+        items: order.dishes,
+      });
     });
 
     for (let custName in customerOrdersMap) {
@@ -144,38 +296,84 @@ async function seed() {
 
     // Update first restaurant revenue & payments
     const now = new Date();
-    const oneWeekAgo = new Date(now); oneWeekAgo.setDate(now.getDate()-7);
-    const oneMonthAgo = new Date(now); oneMonthAgo.setMonth(now.getMonth()-1);
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(now.getDate() - 7);
+    const oneMonthAgo = new Date(now);
+    oneMonthAgo.setMonth(now.getMonth() - 1);
 
     firstRestaurant.totalOrders = 0;
     firstRestaurant.weeklyRevenue = 0;
     firstRestaurant.monthlyRevenue = 0;
     firstRestaurant.payments = [];
 
-    tastyBitesOrders.forEach(order => {
+    tastyBitesOrders.forEach((order) => {
       const orderDate = new Date(order.date);
-      if(orderDate >= oneWeekAgo) firstRestaurant.weeklyRevenue += order.totalAmount;
-      if(orderDate >= oneMonthAgo) firstRestaurant.monthlyRevenue += order.totalAmount;
+      if (orderDate >= oneWeekAgo)
+        firstRestaurant.weeklyRevenue += order.totalAmount;
+      if (orderDate >= oneMonthAgo)
+        firstRestaurant.monthlyRevenue += order.totalAmount;
       firstRestaurant.totalOrders += 1;
 
       firstRestaurant.payments.push({
         amount: order.totalAmount,
         date: order.date,
-        _id: new mongoose.Types.ObjectId()
+        _id: new mongoose.Types.ObjectId(),
       });
     });
 
     await firstRestaurant.save();
 
+    // 6. Inventory items for first restaurant (Spice Hub)
+    const spiceHubRestaurant = createdRestaurants.find(r => r.name === 'Spice Hub') || createdRestaurants[1];
+    const inventoryItems = [
+      { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: spiceHubRestaurant._id },
+      { name: 'Paneer', unit: 'Kg', quantity: 0.5, minStock: 0.2, rest_id: spiceHubRestaurant._id },
+      { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: spiceHubRestaurant._id },
+      { name: 'Chicken', unit: 'Kg', quantity: 5, minStock: 1, rest_id: spiceHubRestaurant._id },
+      { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: spiceHubRestaurant._id }
+    ];
+    await Inventory.insertMany(inventoryItems);
+
+    // Add inventory for all restaurants
+    for (const restaurant of createdRestaurants) {
+      const defaultInventory = [
+        { name: 'Tomato Sauce', unit: 'L', quantity: 2, minStock: 0.5, rest_id: restaurant._id },
+        { name: 'Paneer', unit: 'Kg', quantity: 1, minStock: 0.2, rest_id: restaurant._id },
+        { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: restaurant._id }
+      ];
+      // Only add if not already added (for Spice Hub)
+      if (restaurant._id !== spiceHubRestaurant._id) {
+        await Inventory.insertMany(defaultInventory.map(item => ({ ...item, rest_id: restaurant._id })));
+      }
+    }
+
     // 7. Feedback
     const feedbacks = [
-      { customerName:'customer1', diningRating:5, lovedItems:'Paneer Tikka, Veg Biryani', orderRating:4, additionalFeedback:'Loved the ambiance!' },
-      { customerName:'customer2', diningRating:4, lovedItems:'Fish Fry', orderRating:5, additionalFeedback:'Tasty food!' },
-      { customerName:'customer3', diningRating:5, lovedItems:'Masala Dosa', orderRating:5, additionalFeedback:'Perfect breakfast!' }
+      {
+        customerName: "customer1",
+        diningRating: 5,
+        lovedItems: "Paneer Tikka, Veg Biryani",
+        orderRating: 4,
+        additionalFeedback: "Loved the ambiance!",
+      },
+      {
+        customerName: "customer2",
+        diningRating: 4,
+        lovedItems: "Fish Fry",
+        orderRating: 5,
+        additionalFeedback: "Tasty food!",
+      },
+      {
+        customerName: "customer3",
+        diningRating: 5,
+        lovedItems: "Masala Dosa",
+        orderRating: 5,
+        additionalFeedback: "Perfect breakfast!",
+      },
     ];
     await Feedback.insertMany(feedbacks);
 
-    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, ordres and reservations!');
+    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, and inventory!');
   } catch(err){
     console.error('Seeding error:', err);
   } finally{
