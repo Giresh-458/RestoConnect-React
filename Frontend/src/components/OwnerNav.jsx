@@ -23,6 +23,22 @@ export function OwnerNav() {
         >
           Management
         </NavLink>
+
+        <NavLink 
+          to="/owner/orders"
+          className={({ isActive }) => (isActive ? styles.active : "")}
+        >
+          Orders
+        </NavLink>
+
+        <NavLink
+          to={"/owner/reservations"}
+          className={({ isActive }) => (isActive ? styles.active : "")}
+        >
+          Reservations
+        </NavLink>
+
+
       </nav>
       <Outlet />
     </>

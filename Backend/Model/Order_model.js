@@ -28,6 +28,8 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  table_id: {
+    type: String
   tableNumber: {
     type: String,
     default: null

@@ -17,6 +17,10 @@ import { OwnerNav } from "./components/OwnerNav";
 import { OwnerDashBoard,loader as OwnerDashBoardLoader } from "./pages/OwnerDashBoard";
 import { OwnerManagement,loader as OwnerManagementLoader } from "./pages/OwnerManagement";
 import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePage";
+import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
+import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
+
+
 
 import { StaffNav } from "./components/StaffNav";
 import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePage";
@@ -57,7 +61,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <OwnerHomePage></OwnerHomePage>,loader:OwnerHomePageLoader },
       { path: "dashboard", element: <OwnerDashBoard></OwnerDashBoard>,loader:OwnerDashBoardLoader },
-      { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader }
+      { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
+      { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
+      { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
+
     ],
     loader:isLogin
   },

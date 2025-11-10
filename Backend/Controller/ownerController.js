@@ -3,6 +3,9 @@ const { User } = require("../Model/userRoleModel");
 let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
 const { Order } = require("../Model/Order_model");
+const { Reservation } = require("../Model/Reservation_model");
+
+
 const { Inventory } = require("../Model/Inventory_model");
 
 exports.getOwnerHomepage = async (req, res) => {
@@ -614,6 +617,43 @@ exports.deleteRestaurant = async (req, res) => {
   }
 };
 
+
+exports.getOrders = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const rest_id = user.rest_id;
+
+    // ✅ Fetch only that restaurant's orders, excluding rest_id and __v
+    const orders = await Order.find({ rest_id })
+      .sort({ date: -1 })
+      .select("-rest_id -__v"); // <-- Exclude internal fields
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error in getOrders:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+exports.getReservations = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const rest_id = user.rest_id;
+    const reservations = await Reservation.find({ rest_id })
+      .sort({ date: -1 })
+      .select("-rest_id -__v");
+
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error in getReservations:", error);
+    res.status(500).json({ message: "Internal Server Error" });
 exports.getInventory = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.session.username });
