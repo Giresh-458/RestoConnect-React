@@ -30,6 +30,7 @@ const orderSchema = new mongoose.Schema({
   },
   table_id: {
     type: String
+  },
   tableNumber: {
     type: String,
     default: null
