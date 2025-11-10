@@ -256,11 +256,11 @@ async function seed() {
     }
 
     const tastyBitesOrders = [
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '05', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', tableNumber: '02', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Veg Biryani'], totalAmount:300, status:'preparing', tableNumber: '08', date:randomDateInLastMonth() },
-      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '03', date:randomDateInLastMonth() },
-      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', tableNumber: '01', date:randomDateInLastMonth() }
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T1',  dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '05', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T2',  dishes: ['Paneer Tikka'], totalAmount:250, status:'pending', tableNumber: '02', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T3',  dishes: ['Veg Biryani'], totalAmount:300, status:'preparing', tableNumber: '08', date:randomDateInLastMonth() },
+      { customerName: customerB.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T4',  dishes: ['Paneer Tikka','Veg Biryani'], totalAmount:550, status:'completed', tableNumber: '03', date:randomDateInLastMonth() },
+      { customerName: customerA.name, restaurant: firstRestaurant.name, rest_id: firstRestaurant._id, table_id: 'T5',  dishes: ['Paneer Tikka'], totalAmount:250, status:'completed', tableNumber: '01', date:randomDateInLastMonth() }
     ];
 
     await Order.insertMany(tastyBitesOrders);
@@ -373,7 +373,7 @@ async function seed() {
     ];
     await Feedback.insertMany(feedbacks);
 
-    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, and inventory!');
+    console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, inventory ordres and reservations!');
   } catch(err){
     console.error('Seeding error:', err);
   } finally{
