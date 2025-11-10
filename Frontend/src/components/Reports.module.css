@@ -1,0 +1,339 @@
+Section Titles .sectionTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin: 30px 0 20px 0;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 8px;
+}
+
+/* Pie Charts Grid */
+.pieChartsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.pieChartCard {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* Pie Chart Container */
+.pieChartContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.pieChart {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: #f8f9fa;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.pieSegment {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%);
+  transform: rotate(calc(var(--accumulated) * 3.6deg));
+  background: conic-gradient(
+    from 0deg,
+    var(--color) 0deg,
+    var(--color) calc(var(--percentage) * 3.6deg),
+    transparent calc(var(--percentage) * 3.6deg),
+    transparent 360deg
+  );
+}
+
+/* Pie Chart Legend */
+.pieLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid var(--color, #007bff);
+}
+
+.legendColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  min-width: 60px;
+  text-align: left;
+}
+
+.legendValue {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Scrollbar for legend */
+.pieLegend::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pieLegend::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.pieLegend::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.pieLegend::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Responsive Design for Pie Charts */
+@media (max-width: 768px) {
+  .pieChartsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pieChartContainer {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .pieChart {
+    width: 180px;
+    height: 180px;
+  }
+
+  .pieLegend {
+    max-height: 150px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .legendItem {
+    flex: 0 0 calc(50% - 10px);
+  }
+}
+
+@media (max-width: 480px) {
+  .pieChart {
+    width: 150px;
+    height: 150px;
+  }
+
+  .legendItem {
+    flex: 0 0 100%;
+  }
+}
+.reportsContainer {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+}
+.loading,
+.error {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+.error {
+  color: #dc3545;
+} /* Overview Cards */
+.overviewCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+.overviewCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-left: 4px solid #007bff;
+}
+.cardIcon {
+  font-size: 32px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 50%;
+}
+.cardContent {
+  flex: 1;
+}
+.cardLabel {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 5px;
+}
+.cardValue {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+} /* Charts Grid */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+.chartCard {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.chartTitle {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+} /* Bar Charts */
+.barChart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  height: 200px;
+  padding: 15px 0;
+}
+.barItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+}
+.barWrapper {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 35px;
+}
+.revenueBar {
+  width: 100%;
+  background: linear-gradient(to top, #007bff, #0056b3);
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  min-height: 8px;
+}
+.peakBar {
+  width: 100%;
+  background: linear-gradient(to top, #28a745, #1e7e34);
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  min-height: 8px;
+}
+.barLabel {
+  font-size: 11px;
+  color: #666;
+  margin-top: 8px;
+  text-align: center;
+  font-weight: 500;
+}
+.barValue {
+  font-size: 10px;
+  color: #333;
+  margin-top: 5px;
+  text-align: center;
+  font-weight: 600;
+} /* Insights Section */
+.insightsSection {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.insightsTitle {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+.insightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+.insightItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #007bff;
+}
+.insightLabel {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+.insightValue {
+  font-size: 14px;
+  color: #333;
+  font-weight: bold;
+} /* Responsive Design */
+@media (max-width: 768px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+  .overviewCards {
+    grid-template-columns: 1fr;
+  }
+  .insightsGrid {
+    grid-template-columns: 1fr;
+  }
+  .barChart {
+    height: 150px;
+  }
+}
