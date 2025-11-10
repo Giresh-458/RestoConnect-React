@@ -4,8 +4,6 @@ let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
-
-
 const { Inventory } = require("../Model/Inventory_model");
 
 exports.getOwnerHomepage = async (req, res) => {
@@ -145,14 +143,14 @@ exports.getDashboardStats = async (req, res) => {
     });
 
     // Get orders today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(startOfToday);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const ordersToday = await Order.countDocuments({
       rest_id: user.rest_id,
-      date: { $gte: today, $lt: tomorrow }
+      date: { $gte: startOfToday, $lt: tomorrow }
     });
 
     // Get active staff count
@@ -194,9 +192,9 @@ exports.getRevenueOrdersTrend = async (req, res) => {
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
     // Get last 7 days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const sevenDaysAgo = new Date(today);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(todayStart);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
     // Initialize data for last 7 days
@@ -205,7 +203,7 @@ exports.getRevenueOrdersTrend = async (req, res) => {
     const ordersData = [];
 
     for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
+      const date = new Date(todayStart);
       date.setDate(date.getDate() - i);
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
@@ -369,77 +367,138 @@ exports.createInventoryItem = async (req, res) => {
   }
 };
 
-exports.getDashboard = async (req, res) => {
+exports.getownerDashboard_dashboard = async (req, res) => {
+
   try {
+    // Get user from session
     let username = req.session.username;
+    if (!username) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
     let user = await User.findOne({ username });
-    const Feedback = require("../Model/feedback");
-    if (!user) return res.status(404).send("User not found");
+    if (!user || !user.rest_id) {
+      return res.status(404).json({ error: 'User or restaurant not found' });
+    }
 
     let restaurant = user.restaurantName;
-    let rest = await Restaurant.findById(user.rest_id);
+    let rest = await Restaurant.findById(user.rest_id).populate('dishes');
 
-    let totalOrders = rest.orders ? rest.orders.length : 0;
-
-    const Order = require("../Model/Order_model").Order;
-    let customers = await Order.distinct("customerName", {
-      _id: { $in: rest.orders },
-    });
-    let totalCustomers = customers.length;
-
-    let totalRevenue = 0;
-    let payments = rest.payments || [];
-    payments.forEach((payment) => {
-      totalRevenue += payment.amount || 0;
-    });
-
-    let dailyRevenueMap = {};
-    let weeklyRevenueMap = {};
-
-    payments.forEach((payment) => {
-      if (!payment.date) return;
-
-      let day = payment.date.toISOString().slice(0, 10);
-      dailyRevenueMap[day] =
-        (dailyRevenueMap[day] || 0) + (payment.amount || 0);
-
-      let week = getWeekNumber(payment.date);
-      weeklyRevenueMap[week] =
-        (weeklyRevenueMap[week] || 0) + (payment.amount || 0);
-    });
-
-    let dailyLabels = Object.keys(dailyRevenueMap).sort();
-    let dailyValues = dailyLabels.map((label) => dailyRevenueMap[label]);
-    if (dailyLabels.length > 14) {
-      dailyLabels = dailyLabels.slice(-14);
-      dailyValues = dailyValues.slice(-14);
+    if (!rest) {
+      return res.status(404).json({ error: 'Restaurant not found' });
     }
 
-    let weeklyLabels = Object.keys(weeklyRevenueMap).sort();
-    let weeklyValues = weeklyLabels.map((label) => weeklyRevenueMap[label]);
-    if (weeklyLabels.length > 12) {
-      weeklyLabels = weeklyLabels.slice(-12);
-      weeklyValues = weeklyValues.slice(-12);
+    const restaurantId = user.rest_id;
+
+    // 1. Total Revenue (This Month)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthlyOrders = await Order.find({
+      rest_id: restaurantId,
+      date: { $gte: startOfMonth }
+    });
+
+    const totalRevenue = monthlyOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+    // 2. Total Orders Today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const todayOrders = await Order.countDocuments({
+      rest_id: restaurantId,
+      date: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    // 3. Staff Count (users with role 'staff' for this restaurant)
+    const staffCount = await User.countDocuments({
+      rest_id: restaurantId,
+      role: 'staff'
+    });
+
+    // 4. Low Stock Items (from inventoryData)
+    const lowStockThreshold = 10;
+    const lowStockItems = rest.inventoryData?.values?.filter(val => val < lowStockThreshold).length || 0;
+
+    // 5. Revenue Chart Data (Last 7 days)
+    const last7Days = [];
+    const revenueByDay = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      const dayOrders = await Order.find({
+        rest_id: restaurantId,
+        date: { $gte: date, $lt: nextDate }
+      });
+
+      const dayRevenue = dayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+      last7Days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      revenueByDay.push(dayRevenue);
     }
 
-    const feedbackList = await Feedback.find({
-      restaurantName: req.session.restaurant,
-    }).sort({ createdAt: -1 });
+    // 6. Popular Dishes (Top 5)
+    const allOrders = await Order.find({ rest_id: restaurantId });
 
-    res.render("ownerDashboard", {
-      restaurant,
-      totalOrders,
-      totalCustomers,
-      totalRevenue,
-      weeklyRevenueLabels: weeklyLabels,
-      weeklyRevenueValues: weeklyValues,
-      dailyRevenueLabels: dailyLabels,
-      dailyRevenueValues: dailyValues,
-      feedbackList,
+    const dishCount = {};
+    allOrders.forEach(order => {
+      if (order.dishes && Array.isArray(order.dishes)) {
+        order.dishes.forEach(dishId => {
+          dishCount[dishId] = (dishCount[dishId] || 0) + 1;
+        });
+      }
     });
+
+    const sortedDishes = Object.entries(dishCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    const popularDishes = await Promise.all(
+      sortedDishes.map(async ([dishId, count]) => {
+        const dish = await Dish.findOne({ _id: dishId });
+        return {
+          name: dish?.name || 'Unknown',
+          orders: count,
+          price: dish?.price || 0
+        };
+      })
+    );
+
+    // Response
+    res.json({
+      success: true,
+      data: {
+        restaurantName: restaurant,
+        totalRevenue,
+        totalOrdersToday: todayOrders,
+        staffCount,
+        lowStockItems,
+        revenueChart: {
+          labels: last7Days,
+          values: revenueByDay
+        },
+        popularDishes,
+        inventoryData: rest.inventoryData || { labels: [], values: [] }
+      }
+    });
+
   } catch (error) {
-    console.error("Error in getDashboard:", error);
-    res.status(500).send("Internal Server Error");
+    console.error('Dashboard Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard data',
+      message: error.message
+    });
   }
 };
 
@@ -617,7 +676,6 @@ exports.deleteRestaurant = async (req, res) => {
   }
 };
 
-
 exports.getOrders = async (req, res) => {
   try {
     const username = req.session.username;
@@ -638,7 +696,6 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-
 exports.getReservations = async (req, res) => {
   try {
     const username = req.session.username;
@@ -656,6 +713,7 @@ exports.getReservations = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 exports.getInventory = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.session.username });

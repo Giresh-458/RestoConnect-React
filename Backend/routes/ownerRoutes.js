@@ -4,13 +4,13 @@ const ownerController = require("../Controller/ownerController");
 
 router.get("/", ownerController.getOwnerHomepage);
 router.get("/dashboard", ownerController.getDashboard);
+router.get("/dashboard/ownerdashboard", ownerController.getownerDashboard_dashboard);
 router.get("/menuManagement", ownerController.getMenuManagement);
 router.post("/menuManagement/add", ownerController.addProduct);
 router.post("/menuManagement/edit/:id", ownerController.editProduct);
 router.post("/menuManagement/delete/:id", ownerController.deleteProduct);
 
 router.get('/orders', ownerController.getOrders);
-
 router.get("/reservations", ownerController.getReservations);
 
 // Staff management routes for owner
