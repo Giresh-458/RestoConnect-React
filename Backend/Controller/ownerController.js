@@ -282,8 +282,8 @@ exports.getRecentOrders = async (req, res) => {
   }
 };
 
-// API endpoint to get inventory
-exports.getInventory = async (req, res) => {
+// API endpoint to get inventory (new system)
+exports.getInventoryAPI = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -292,7 +292,7 @@ exports.getInventory = async (req, res) => {
 
     res.json({ inventory: inventoryItems });
   } catch (error) {
-    console.error("Error in getInventory:", error);
+    console.error("Error in getInventoryAPI:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
