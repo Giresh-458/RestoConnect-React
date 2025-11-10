@@ -21,7 +21,7 @@ async function seed() {
       Restaurant.deleteMany({}),
       Dish.deleteMany({}),
       Feedback.deleteMany({}),
-      Reservation.deleteMany({}) // 🆕 Clear old reservations
+      Reservation.deleteMany({}), // 🆕 Clear old reservations
       Inventory.deleteMany({}),
       Feedback.deleteMany({})
     ]);
