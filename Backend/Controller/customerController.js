@@ -7,6 +7,9 @@ const { Order } = require("../Model/Order_model");
 const bcrypt = require("bcrypt");
 const { User } = require("../Model/userRoleModel");
 
+
+
+
 // Validate reservation date/time
 exports.validateReservationDateTime = (date, time) => {
   const today = new Date();
@@ -30,7 +33,7 @@ exports.validateReservationDateTime = (date, time) => {
 };
 
 
-exports.getCustomerDashboard = async (req, res) => {
+/*exports.getCustomerDashboard = async (req, res) => {
   try {
     // Fetch user data
     const data = await Person.get_user_function(req.session.username);
@@ -94,7 +97,193 @@ exports.getCustomerDashboard = async (req, res) => {
     console.error("Error fetching customer dashboard data:", error);
     res.status(500).send("Internal Server Error  1");
   }
+};*/
+
+
+
+
+
+
+exports.getCustomerDashboard = async (req, res) => {
+  try {
+    const customerName = req.session.username || req.params.customerName || req.query.customerName;
+
+    if (!customerName) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // =================== USER DATA ===================
+    const userData = await Person.get_user_function(customerName);
+    if (!userData) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // =================== RECENT ORDERS ===================
+    const orders = await Order.find({ customerName })
+      .sort({ date: -1 })
+      .limit(5)
+      .populate('dishes');
+
+    const recentOrders = await Promise.all(
+      orders.map(async (order) => {
+        const dish = await Dish.findOne({ _id: order.dishes[0] });
+        return {
+          orderId: order._id,
+          dishName: dish ? dish.name : 'Unknown Dish',
+          price: order.totalAmount,
+          status: order.status,
+          date: order.date,
+          image: '/dish-placeholder.png',
+          restaurant: order.restaurant
+        };
+      })
+    );
+
+    // =================== FAVORITE RESTAURANTS ===================
+    const topRestaurants = userData.restaurent_list.slice(0, 3);
+    const favoriteRestaurants = (
+      await Promise.all(
+        topRestaurants.map(async (restaurantName) => {
+          const restaurant = await Restaurant.findOne({ name: restaurantName });
+          if (!restaurant) return null;
+          const dish =
+            restaurant.dishes.length > 0
+              ? await Dish.findOne({ _id: restaurant.dishes[0] })
+              : null;
+          return {
+            name: dish ? dish.name : restaurantName,
+            restaurant: restaurantName,
+            image: restaurant.image || '/dish-placeholder.png'
+          };
+        })
+      )
+    ).filter((r) => r !== null);
+
+    // =================== RESERVATIONS ===================
+    const restaurants = await Restaurant.find({});
+    const allReservations = [];
+
+    restaurants.forEach((restaurant) => {
+      if (restaurant.reservations && restaurant.reservations.length > 0) {
+        restaurant.reservations.forEach((reservation) => {
+          if (reservation.name === customerName) {
+            allReservations.push({
+              restaurant: restaurant.name,
+              date: reservation.date,
+              time: reservation.time,
+              guests: reservation.guests,
+              id: reservation.id,
+              reservationDate: new Date(reservation.date)
+            });
+          }
+        });
+      }
+    });
+
+    const now = new Date();
+    const upcoming = allReservations
+      .filter((r) => r.reservationDate >= now)
+      .sort((a, b) => a.reservationDate - b.reservationDate)
+      .slice(0, 3);
+    const past = allReservations
+      .filter((r) => r.reservationDate < now)
+      .sort((a, b) => b.reservationDate - a.reservationDate)
+      .slice(0, 3);
+
+    // =================== WEEKLY SPENDING ===================
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const weekOrders = await Order.find({
+      customerName,
+      date: { $gte: sevenDaysAgo }
+    });
+    const weeklySpending = [0, 0, 0, 0, 0, 0, 0];
+    weekOrders.forEach((order) => {
+      const orderDate = new Date(order.date);
+      const dayIndex = orderDate.getDay();
+      const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+      weeklySpending[adjustedIndex] += order.totalAmount;
+    });
+
+    // =================== USER STATS ===================
+    const allOrders = await Order.find({ customerName });
+    const totalOrders = allOrders.length;
+    const totalSpent = allOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const avgSpend = totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : '0.00';
+    const totalVisits = totalOrders;
+
+    // =================== FEEDBACK STATS ===================
+    const feedbacks = await Feedback.find({ customerName });
+    const totalReviews = feedbacks.length;
+
+    let satisfactionRate = 0;
+    let recentReviews = [];
+
+    if (totalReviews > 0) {
+      const avgRating =
+        feedbacks.reduce((sum, fb) => sum + (fb.orderRating || 0), 0) / totalReviews;
+      satisfactionRate = Math.round((avgRating / 5) * 100);
+
+      recentReviews = feedbacks
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 2)
+        .map((fb) => ({
+          restaurant: 'Restaurant Name', // Can join with order for actual name
+          rating: fb.orderRating,
+          comment: fb.additionalFeedback,
+          lovedItems: fb.lovedItems
+        }));
+    }
+
+    // =================== VISIT FREQUENCY ===================
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const monthOrders = await Order.find({
+      customerName,
+      date: { $gte: thirtyDaysAgo }
+    });
+    const visitFrequency = [0, 0, 0, 0];
+    monthOrders.forEach((order) => {
+      const orderDate = new Date(order.date);
+      const daysDiff = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
+      const weekIndex = Math.floor(daysDiff / 7);
+      if (weekIndex < 4) visitFrequency[weekIndex]++;
+    });
+
+    // =================== FINAL RESPONSE ===================
+    return res.status(200).json({
+      user: {
+        name: userData.name,
+        img_url: userData.img_url,
+        email: userData.email,
+        phone: userData.phone,
+        totalOrders: userData.prev_order.length,
+        totalVisits,
+        avgSpend,
+        topRestaurant: userData.restaurent_list[0] || 'N/A'
+      },
+      recentOrders,
+      favoriteRestaurants,
+      upcomingReservations: upcoming,
+      pastReservations: past,
+      weeklySpending,
+      feedbackStats: {
+        satisfactionRate,
+        totalReviews,
+        recentReviews
+      },
+      visitFrequency
+    });
+  } catch (error) {
+    console.error('Error in getCustomerDashboard:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 };
+
+
+
+
+
 
 
 exports.getFeedBack = async (req, res) => {
