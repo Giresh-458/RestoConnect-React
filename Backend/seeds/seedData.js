@@ -267,14 +267,49 @@ async function seed() {
 
 
     //  6️ Seed Reservations for first restaurant
+    // 6️ Reservations (linked to first restaurant)
     const tastyBitesReservations = [
-      { customerName: customerA.name, time: '7:30 PM', table_id: 'T1', guests: 4, status: 'confirmed', rest_id: firstRestaurant._id },
-      { customerName: customerB.name, time: '8:00 PM', table_id: 'T2', guests: 2, status: 'pending', rest_id: firstRestaurant._id },
-      { customerName: createdCustomers[2].name, time: '9:00 PM', table_id: 'T3', guests: 3, status: 'completed', rest_id: firstRestaurant._id }
+      {
+        customerName: customerA.name,
+        time: '7:30 PM',
+        table_id: 'T1',
+        guests: 4,
+        status: 'confirmed',
+        rest_id: firstRestaurant._id,
+        date: new Date(), // ✅ optional
+      },
+      {
+        customerName: customerB.name,
+        time: '8:00 PM',
+        table_id: 'T2',
+        guests: 2,
+        status: 'pending',
+        rest_id: firstRestaurant._id,
+        date: new Date(),
+      },
+      {
+        customerName: createdCustomers[2].name,
+        time: '9:00 PM',
+        table_id: 'T3',
+        guests: 3,
+        status: 'completed',
+        rest_id: firstRestaurant._id,
+        date: new Date(),
+      },
+      // ✅ add more sample reservations if you want
+      {
+        customerName: customerA.name,
+        time: '6:45 PM',
+        table_id: 'T4',
+        guests: 5,
+        status: 'pending',
+        rest_id: firstRestaurant._id,
+        date: new Date(),
+      },
     ];
+    await Reservation.insertMany(tastyBitesReservations);
+    console.log("✅ Reservations seeded successfully");
 
-
-    await Reservation.insertMany(tastyBitesReservations); //  Add sample reservations
 
 
     // Map orders by customer to avoid ParallelSaveError
@@ -323,54 +358,63 @@ async function seed() {
 
     await firstRestaurant.save();
 
-    // 6. Inventory items for first restaurant (Spice Hub)
-    const spiceHubRestaurant = createdRestaurants.find(r => r.name === 'Spice Hub') || createdRestaurants[1];
-    const inventoryItems = [
-      { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: spiceHubRestaurant._id },
-      { name: 'Paneer', unit: 'Kg', quantity: 0.5, minStock: 0.2, rest_id: spiceHubRestaurant._id },
-      { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: spiceHubRestaurant._id },
-      { name: 'Chicken', unit: 'Kg', quantity: 5, minStock: 1, rest_id: spiceHubRestaurant._id },
-      { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: spiceHubRestaurant._id }
-    ];
-    await Inventory.insertMany(inventoryItems);
+    // // 6. Inventory items for first restaurant (Spice Hub)
 
-    // Add inventory for all restaurants
-    for (const restaurant of createdRestaurants) {
-      const defaultInventory = [
-        { name: 'Tomato Sauce', unit: 'L', quantity: 2, minStock: 0.5, rest_id: restaurant._id },
-        { name: 'Paneer', unit: 'Kg', quantity: 1, minStock: 0.2, rest_id: restaurant._id },
-        { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: restaurant._id }
-      ];
-      // Only add if not already added (for Spice Hub)
-      if (restaurant._id !== spiceHubRestaurant._id) {
-        await Inventory.insertMany(defaultInventory.map(item => ({ ...item, rest_id: restaurant._id })));
+        // 6️⃣ Inventory items for all restaurants (including Spice Hub & Tasty Bites)
+    for (const rest of createdRestaurants) {
+      let inventoryItems;
+
+      // Give Spice Hub a few extra inventory items for variety
+      if (rest.name === 'Spice Hub') {
+        inventoryItems = [
+          { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: rest._id },
+          { name: 'Paneer', unit: 'Kg', quantity: 0.5, minStock: 0.2, rest_id: rest._id },
+          { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: rest._id },
+          { name: 'Chicken', unit: 'Kg', quantity: 5, minStock: 1, rest_id: rest._id },
+          { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: rest._id }
+        ];
+      } else {
+        // Default inventory for all other restaurants (including Tasty Bites)
+        inventoryItems = [
+          { name: 'Tomato Sauce', unit: 'L', quantity: 0.2, minStock: 0.5, rest_id: rest._id },
+          { name: 'Paneer', unit: 'Kg', quantity: 0, minStock: 0.2, rest_id: rest._id },
+          { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: rest._id },
+        ];
       }
+
+      await Inventory.insertMany(inventoryItems);
     }
 
+
     // 7. Feedback
-    const feedbacks = [
-      {
-        customerName: "customer1",
-        diningRating: 5,
-        lovedItems: "Paneer Tikka, Veg Biryani",
-        orderRating: 4,
-        additionalFeedback: "Loved the ambiance!",
-      },
-      {
-        customerName: "customer2",
-        diningRating: 4,
-        lovedItems: "Fish Fry",
-        orderRating: 5,
-        additionalFeedback: "Tasty food!",
-      },
-      {
-        customerName: "customer3",
-        diningRating: 5,
-        lovedItems: "Masala Dosa",
-        orderRating: 5,
-        additionalFeedback: "Perfect breakfast!",
-      },
-    ];
+// 7. Feedback
+const feedbacks = [
+  {
+    customerName: "customer1",
+    restaurantName: "Tasty Bites", // ✅ added
+    diningRating: 5,
+    lovedItems: "Paneer Tikka, Veg Biryani",
+    orderRating: 4,
+    additionalFeedback: "Loved the ambiance!",
+  },
+  {
+    customerName: "customer2",
+    restaurantName: "Tasty Bites", // ✅ added
+    diningRating: 4,
+    lovedItems: "Fish Fry",
+    orderRating: 5,
+    additionalFeedback: "Tasty food!",
+  },
+  {
+    customerName: "customer3",
+    restaurantName: "Spice Hub", // ✅ added
+    diningRating: 5,
+    lovedItems: "Masala Dosa",
+    orderRating: 5,
+    additionalFeedback: "Perfect breakfast!",
+  },
+];
+
     await Feedback.insertMany(feedbacks);
 
     console.log('Seed completed successfully with tables, weekly & monthly revenue, payments, inventory ordres and reservations!');
