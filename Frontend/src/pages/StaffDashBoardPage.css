@@ -1,0 +1,453 @@
+/* ===========================================================
+ 🌟 RestoConnect Staff Dashboard — Exact Cool Blue Glow Version
+=========================================================== */
+
+/* ---- GLOBAL LAYOUT ---- */
+.staff-dashboard {
+  background: linear-gradient(180deg, #dce9ff 0%, #eef4ff 100%);
+  font-family: "Poppins", sans-serif;
+  color: #9bc1ff;
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+/* ---- SETTINGS MODAL ---- */
+
+.absolute {
+  position: absolute;
+  top: 180px;               /* below navbar */
+  right: 40px;             /* aligned to right end */
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.3s ease-in-out;
+  width: 300px;
+  height: auto;
+  padding: 20px;
+  z-index: 999;
+  color: #000;             /* all text black */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+.absolute input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #000;
+  font-size: 0.95rem;
+}
+
+.absolute input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* ---- Buttons inside modal ---- */
+.absolute button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+/* Close button (gray) */
+.absolute button:nth-child(1) {
+  background: #e5e7eb;
+  color: #000;
+}
+
+.absolute button:nth-child(1):hover {
+  background: #d1d5db;
+}
+
+/* Save button (black) */
+.absolute button:nth-child(2) {
+  background: #000;
+  color: #fff;
+}
+
+.absolute button:nth-child(2):hover {
+  background: #1f2937;
+}
+
+
+.absolute h2 {
+  font-weight: 600;
+}
+
+
+
+
+
+/* ===========================================
+  NAVBAR & WELCOME BAR STYLING
+=========================================== */
+
+.dashboard-navbar {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 14px 28px;
+  margin: 40px auto 25px auto;
+  width: 95%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Left Section (Logo + Title) */
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-left h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.nav-icon {
+  font-size: 1.8rem;
+  color: #2563eb;
+}
+
+/* Right Section (Settings + Logout) */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Settings Button */
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f3f4f6;
+  color: #1f2937;
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.settings-btn:hover {
+  background: #e0e7ff;
+  color: #2563eb;
+}
+
+/* Logout Button */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+/* ===========================================
+  WELCOME BAR STYLING
+=========================================== */
+
+.welcome-card {
+  width: 95%;
+  background: transparent;
+  border-radius: 16px;
+  padding: 16px 28px;
+  margin: 0 auto 25px auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06); */
+}
+
+.welcome-text {
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.branch-text {
+  font-size: 1.1rem;
+  color: #4338ca;
+}
+
+.branch-text strong {
+  color: #312e81;
+}
+
+
+
+
+/* ===========================================
+   SUMMARY STAT BLOCKS (Active Orders, etc.)
+=========================================== */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 25px;
+  margin: 0 auto 35px auto;
+  width: 95%;
+}
+
+/* Base card style */
+.summary-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease-in-out;
+  border-top-width: 6px;
+  border-top-style: solid;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+/* Text inside card */
+.summary-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.summary-card p {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Color variants */
+ .summary-card.blue {
+  border-top-color: #ffffff; /* Light Blue */
+}
+
+.summary-card.blue p {
+  color: #2563eb;
+}
+
+.summary-card.green {
+  border-top-color: #ffffff; /* Green */
+}
+
+.summary-card.green p {
+  color: #16a34a;
+}
+
+.summary-card.yellow {
+  border-top-color: #ffffff; /* Yellow */
+}
+
+.summary-card.yellow p {
+  color: #ca8a04;
+}
+
+.summary-card.red {
+  border-top-color: #ffffff; /* Red */
+}
+
+.summary-card.red p {
+  color: #dc2626;
+} 
+
+
+
+/* =======================================
+   ACTIVE ORDERS & TABLE ASSIGNMENTS CARDS
+======================================= */
+
+.dashboard-section {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 28px;
+  width: 95%;
+  margin: 0 auto 30px auto;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Active Orders Card (Blue Shadow Glow) */
+.dashboard-section.active-orders {
+  box-shadow: 0px -4px 8px rgba(59, 130, 246, 0.5),
+              0px 3px 5px rgba(0, 0, 0, 0.08);
+  border-top: 4px solid #3b82f6;
+}
+
+/* Table Assignments Card (Green Shadow Glow) */
+.dashboard-section.table-assignments {
+  box-shadow: 0px -4px 8px rgba(34, 197, 94, 0.5),
+              0px 3px 5px rgba(0, 0, 0, 0.08);
+  border-top: 4px solid #22c55e;
+}
+
+/* Section Title */
+.dashboard-section h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* Table */
+.dashboard-section table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard-section th,
+.dashboard-section td {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.dashboard-section thead {
+  background-color: #f9fafb;
+  color: #475569;
+  font-weight: 600;
+}
+
+.dashboard-section tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.2s ease;
+}
+
+.dashboard-section tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Buttons */
+.dashboard-section button {
+  background: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease-in-out;
+}
+
+.dashboard-section button:hover {
+  background: #2563eb;
+  color: white;
+}
+
+/* Status Text */
+.status-cooking {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.status-served {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+
+/* =======================================
+   INVENTORY & CUSTOMER FEEDBACK SECTIONS
+======================================= */
+
+/* Inventory Status Card (Gold Shadow) */
+.dashboard-section.inventory-status {
+  box-shadow: 0px -4px 8px rgba(234, 179, 8, 0.4), /* top gold glow */
+              0px 3px 5px rgba(0, 0, 0, 0.08);     /* soft base */
+  border-top: 4px solid #eab308;
+}
+
+/* Customer Feedback Card (Dark Blue Shadow) */
+.dashboard-section.customer-feedback {
+  box-shadow: 0px -4px 8px rgba(59, 130, 246, 0.4),
+              0px 3px 5px rgba(0, 0, 0, 0.08);
+  border-top: 4px solid #3b82f6;
+}
+
+/* Inventory Table */
+.dashboard-section.inventory-status table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard-section.inventory-status th,
+.dashboard-section.inventory-status td {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.95rem;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Inventory Badge Styles */
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.badge-red {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.badge-yellow {
+  background: #fef08a;
+  color: #92400e;
+}
+
+.badge-green {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+/* Feedback Section */
+.feedback-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-item {
+  font-size: 1rem;
+  color: #374151;
+  background: #f9fafb;
+  border-left: 4px solid #3b82f6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-style: italic;
+  transition: background 0.3s ease;
+}
+
+.feedback-item:hover {
+  background: #f1f5f9;
+}

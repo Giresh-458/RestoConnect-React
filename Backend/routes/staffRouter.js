@@ -3,6 +3,9 @@ const router = express.Router();
 
 const staffController = require("../Controller/staffController");
 
+router.get("/DashboardData", staffController.getDashBoardData);
+
+
 router.get("/Dashboard", staffController.getDashBoard);
 
 router.post("/Dashboard/update-order", staffController.postUpdateOrder);

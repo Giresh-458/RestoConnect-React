@@ -46,6 +46,10 @@ const customerRouter = require('./routes/customer.js');
 const adminRouter = require('./routes/adminroutes.js');
 const ownerRouter = require('./routes/ownerRoutes.js');
 const staffRouter = require('./routes/staffRouter.js');
+
+const reservationRouter = require('./routes/reservationRoutes.js');
+
+
 const homepageController = require('./Controller/homePageController.js');
 const menuController = require('./Controller/menuController.js');
 const authentication = require('./authenticationMiddleWare.js');
@@ -68,6 +72,9 @@ app.use('/customer', authentication('customer'), customerRouter);
 app.use('/admin', authentication('admin'), adminRouter);
 app.use('/owner', authentication('owner'), ownerRouter);
 app.use('/staff', authentication('staff'), staffRouter);
+
+app.use('/reservations', authentication('owner'), reservationRouter);
+
 
 app.get('/', homepageController.getHomePage);
 app.post('/', validation, homepageController.putHomePage);

@@ -530,3 +530,107 @@ function calculateEfficiencyScore(orders) {
   });
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+exports.getDashBoardData = async (req, res) => {
+  try {
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { User } = require("../Model/userRoleModel");
+    const Feedback = require("../Model/feedback");
+    const { Order } = require("../Model/Order_model");
+    const { Reservation } = require("../Model/Reservation_model");
+    const { Inventory } = require("../Model/Inventory_model"); // ✅ include inventory
+
+    console.log("------ STAFF DASHBOARD DEBUG START ------");
+    console.log("Session data:", req.session);
+
+    // Recover rest_id if missing
+    if (!req.session.rest_id && req.session.username) {
+      const staffUser = await User.findOne({ username: req.session.username });
+      if (staffUser && staffUser.rest_id) {
+        req.session.rest_id = staffUser.rest_id;
+        console.log("Recovered rest_id:", req.session.rest_id);
+      }
+    }
+
+    if (!req.session.rest_id) {
+      return res.status(400).json({ error: "No restaurant ID in session" });
+    }
+
+    // ✅ Fetch restaurant
+    const rest = await Restaurant.findById(req.session.rest_id)
+      .populate("orders")
+      .lean();
+
+    if (!rest) {
+      console.log("❌ Restaurant not found for ID:", req.session.rest_id);
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    // ✅ Get Orders
+    let orders = rest.orders || [];
+    if (!orders.length) {
+      orders = await Order.find({ rest_id: req.session.rest_id });
+    }
+
+    // ✅ Get Reservations
+    const reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+
+    // ✅ Get Feedback
+    const feedback = await Feedback.find({ restaurantName: rest.name })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    // ✅ Get Inventory
+    const rawInventory = await Inventory.find({ rest_id: req.session.rest_id }).lean();
+    const inventoryStatus = rawInventory.map((item) => {
+      let status = "Available";
+      if (item.quantity <= 0) status = "Out of Stock";
+      else if (item.quantity <= item.minStock) status = "Low Stock";
+
+      return {
+        item: item.name,
+        quantity: `${item.quantity} ${item.unit}`,
+        status,
+      };
+    });
+
+    console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
+
+    // ✅ Send data
+    res.json({
+      rest_name: rest.name,
+      orders,
+      reservations,
+      feedback,
+      inventoryStatus, // 👈 add this field for frontend
+    });
+
+    console.log("------ STAFF DASHBOARD DEBUG END ------");
+  } catch (error) {
+    console.error("🔥 Error in getDashBoardData:", error.message);
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: error.message,
+    });
+  }
+};
+
+
