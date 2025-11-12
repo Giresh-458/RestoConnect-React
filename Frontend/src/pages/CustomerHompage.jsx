@@ -11,7 +11,7 @@ export async function loader() {
   
   // Fetch restaurants on load
   try {
-    const response = await fetch("http://localhost:3000/customer/api/restaurants/search", {
+    const response = await fetch("http://localhost:3000/api/customer/restaurants/search", {
       credentials: "include"
     });
     const data = await response.json();
@@ -61,7 +61,7 @@ export function CustomerHomepage() {
       if (location && location !== "All") params.append("location", location);
 
       const response = await fetch(
-        `http://localhost:3000/customer/api/restaurants/search?${params.toString()}`,
+        `http://localhost:3000/api/customer/restaurants/search?${params.toString()}`,
         {
           credentials: "include"
         }

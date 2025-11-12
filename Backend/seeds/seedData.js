@@ -13,6 +13,7 @@ async function seed() {
   try {
     await connectDB();
 
+    console.log('Clearing existing data...');
     // Clear existing data
     await Promise.all([
       User.deleteMany({}),
@@ -21,9 +22,8 @@ async function seed() {
       Restaurant.deleteMany({}),
       Dish.deleteMany({}),
       Feedback.deleteMany({}),
-      Reservation.deleteMany({}), // 🆕 Clear old reservations
-      Inventory.deleteMany({}),
-      Feedback.deleteMany({}),
+      Reservation.deleteMany({}),
+      Inventory.deleteMany({})
     ]);
 
     // 1. Seed Dishes
@@ -458,13 +458,14 @@ async function seed() {
       const perDishTime = 3;
       return baseTime + dishCount * perDishTime;
     }
+    // Use dish IDs instead of names
     const tastyBitesOrders = [
       {
         customerName: customerA.name,
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T1",
-        dishes: ["Paneer Tikka", "Veg Biryani"],
+        dishes: [dishes[0]._id, dishes[2]._id], // Paneer Tikka, Veg Biryani
         totalAmount: 550,
         status: "completed",
         tableNumber: "05",
@@ -484,7 +485,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T2",
-        dishes: ["Paneer Tikka"],
+        dishes: [dishes[0]._id], // Paneer Tikka
         totalAmount: 250,
         status: "pending",
         tableNumber: "02",
@@ -504,7 +505,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T3",
-        dishes: ["Veg Biryani"],
+        dishes: [dishes[2]._id], // Veg Biryani
         totalAmount: 300,
         status: "preparing",
         tableNumber: "08",
@@ -524,7 +525,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T4",
-        dishes: ["Paneer Tikka", "Veg Biryani"],
+        dishes: [dishes[0]._id, dishes[2]._id], // Paneer Tikka, Veg Biryani
         totalAmount: 550,
         status: "completed",
         tableNumber: "03",
@@ -544,7 +545,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T5",
-        dishes: ["Paneer Tikka"],
+        dishes: [dishes[0]._id], // Paneer Tikka
         totalAmount: 250,
         status: "completed",
         tableNumber: "01",
@@ -567,7 +568,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T10",
-        dishes: ["Paneer Tikka"],
+        dishes: [dishes[0]._id], // Paneer Tikka
         totalAmount: 250,
         status: "completed",
         tableNumber: "10",
@@ -584,7 +585,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T11",
-        dishes: ["Veg Biryani", "Masala Dosa"],
+        dishes: [dishes[2]._id, dishes[5]._id], // Veg Biryani, Masala Dosa
         totalAmount: 450,
         status: "completed",
         tableNumber: "11",
@@ -601,7 +602,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T12",
-        dishes: ["Chicken Curry"],
+        dishes: [dishes[1]._id], // Chicken Curry
         totalAmount: 350,
         status: "completed",
         tableNumber: "12",
@@ -618,7 +619,7 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T13",
-        dishes: ["Fish Fry"],
+        dishes: [dishes[3]._id], // Fish Fry
         totalAmount: 400,
         status: "completed",
         tableNumber: "13",
@@ -635,8 +636,8 @@ async function seed() {
         restaurant: firstRestaurant.name,
         rest_id: firstRestaurant._id,
         table_id: "T14",
-        dishes: ["Mutton Korma", "Rice"],
-        totalAmount: 500,
+        dishes: [dishes[4]._id], // Mutton Korma (no "Rice" dish in seed, using Mutton Korma only)
+        totalAmount: 450,
         status: "completed",
         tableNumber: "14",
         date: new Date(),
@@ -701,7 +702,7 @@ async function seed() {
 
     // Map orders by customer to avoid ParallelSaveError
     const customerOrdersMap = {};
-    tastyBitesOrders.forEach((order) => {
+    allOrders.forEach((order) => {
       if (!customerOrdersMap[order.customerName])
         customerOrdersMap[order.customerName] = [];
       customerOrdersMap[order.customerName].push({
@@ -728,7 +729,7 @@ async function seed() {
     firstRestaurant.monthlyRevenue = 0;
     firstRestaurant.payments = [];
 
-    tastyBitesOrders.forEach((order) => {
+    allOrders.forEach((order) => {
       const orderDate = new Date(order.date);
       if (orderDate >= oneWeekAgo)
         firstRestaurant.weeklyRevenue += order.totalAmount;
@@ -739,7 +740,6 @@ async function seed() {
       firstRestaurant.payments.push({
         amount: order.totalAmount,
         date: order.date,
-        _id: new mongoose.Types.ObjectId(),
       });
     });
 
@@ -773,40 +773,60 @@ async function seed() {
     }
 
 
-    // 7. Feedback
-// 7. Feedback
-const feedbacks = [
-  {
-    customerName: "customer1",
-    restaurantName: "Tasty Bites", // ✅ added
-    diningRating: 5,
-    lovedItems: "Paneer Tikka, Veg Biryani",
-    orderRating: 4,
-    additionalFeedback: "Loved the ambiance!",
-  },
-  {
-    customerName: "customer2",
-    restaurantName: "Tasty Bites", // ✅ added
-    diningRating: 4,
-    lovedItems: "Fish Fry",
-    orderRating: 5,
-    additionalFeedback: "Tasty food!",
-  },
-  {
-    customerName: "customer3",
-    restaurantName: "Spice Hub", // ✅ added
-    diningRating: 5,
-    lovedItems: "Masala Dosa",
-    orderRating: 5,
-    additionalFeedback: "Perfect breakfast!",
-  },
-];
+    console.log('Seeding feedback...');
+    // 7. Feedback - Must include rest_id (String) matching Restaurant._id
+    const feedbacks = [
+      {
+        customerName: "customer1",
+        rest_id: firstRestaurant._id, // Tasty Bites
+        diningRating: 5,
+        lovedItems: "Paneer Tikka, Veg Biryani",
+        orderRating: 4,
+        additionalFeedback: "Loved the ambiance!",
+        status: 'Pending',
+        createdAt: randomDateInLastMonth()
+      },
+      {
+        customerName: "customer2",
+        rest_id: firstRestaurant._id, // Tasty Bites
+        diningRating: 4,
+        lovedItems: "Paneer Tikka",
+        orderRating: 5,
+        additionalFeedback: "Tasty food!",
+        status: 'Resolved',
+        createdAt: randomDateInLastMonth()
+      },
+      {
+        customerName: "customer3",
+        rest_id: createdRestaurants[1]._id, // Spice Hub
+        diningRating: 5,
+        lovedItems: "Masala Dosa",
+        orderRating: 5,
+        additionalFeedback: "Perfect breakfast!",
+        status: 'Pending',
+        createdAt: randomDateInLastMonth()
+      },
+    ];
 
     await Feedback.insertMany(feedbacks);
+    console.log(`Created ${feedbacks.length} feedback entries`);
 
-    console.log(
-      "Seed completed successfully with tables, weekly & monthly revenue, payments, inventory ordres and reservations!"
-    );
+    console.log('\n✅ Seed completed successfully!');
+    console.log('\n📋 Demo Credentials:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Admin:');
+    console.log('  Username: admin1');
+    console.log('  Password: 123456');
+    console.log('\nOwner (Tasty Bites):');
+    console.log('  Username: owner1');
+    console.log('  Password: 123456');
+    console.log('\nStaff:');
+    console.log('  Username: staff1');
+    console.log('  Password: 123456');
+    console.log('\nCustomers:');
+    console.log('  Username: customer1 / customer2 / customer3');
+    console.log('  Password: 123456');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   } catch (err) {
     console.error("Seeding error:", err);
   } finally {

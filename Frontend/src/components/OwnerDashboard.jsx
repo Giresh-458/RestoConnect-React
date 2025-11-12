@@ -15,7 +15,7 @@ fetchDashboardData();
 const fetchDashboardData = async () => {
 try {
 setLoading(true);
-const response = await fetch('http://localhost:3000/owner/dashboard/ownerdashboard', {
+const response = await fetch('http://localhost:3000/api/owner/dashboard', {
 credentials: 'include'
 });
 

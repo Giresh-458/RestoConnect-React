@@ -9,7 +9,7 @@ export function OwnerOrders() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const response = await fetch("http://localhost:3000/owner/orders", {
+        const response = await fetch("http://localhost:3000/api/owner/orders", {
           method: "GET",
           credentials: "include", // keep cookies/session
         });

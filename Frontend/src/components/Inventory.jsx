@@ -16,8 +16,8 @@ export function Inventory() {
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch("http://localhost:3000/owner/inventory", {
-        credentials: "include",
+      const response = await fetch("http://localhost:3000/api/owner/inventory", {
+        credentials: "include"
       });
       if (response.ok) {
         const data = await response.json();
@@ -33,7 +33,7 @@ export function Inventory() {
   const updateInventory = async (item, action) => {
     try {
       const response = await fetch(
-        "http://localhost:3000/owner/inventory/update",
+        "http://localhost:3000/api/owner/inventory/update",
         {
           method: "POST",
           headers: {

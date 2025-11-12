@@ -593,7 +593,7 @@ exports.getDashBoardData = async (req, res) => {
     const reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
 
     // ✅ Get Feedback
-    const feedback = await Feedback.find({ restaurantName: rest.name })
+    const feedback = await Feedback.find({ rest_id: req.session.rest_id })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -608,6 +608,8 @@ exports.getDashBoardData = async (req, res) => {
       return {
         item: item.name,
         quantity: `${item.quantity} ${item.unit}`,
+        quantityValue: item.quantity, // Include numeric value for comparison
+        minStock: item.minStock, // Include minStock for frontend calculations
         status,
       };
     });

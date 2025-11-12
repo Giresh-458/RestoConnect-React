@@ -49,7 +49,7 @@ export async function loader() {
 
   return new Promise((resolve, reject) => {
     let xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:3000/admin/dashboard", true);
+    xhr.open("GET", "http://localhost:3000/api/admin/dashboard", true);
     xhr.withCredentials = true;
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 4 && xhr.status === 200) {

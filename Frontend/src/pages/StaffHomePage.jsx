@@ -23,7 +23,7 @@ export function StaffHomePage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("http://localhost:3000/staff/api/homepage", {
+      const response = await fetch("http://localhost:3000/api/staff/homepage", {
         credentials: "include",
       });
 

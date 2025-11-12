@@ -40,6 +40,6 @@ router.post('/cart/decrease', menuController.decreaseDishQuantity);
 router.post('/cart/order', menuController.orderCart);
 
 // Customer homepage - search and filter restaurants
-router.get('/api/restaurants/search', customerController.searchRestaurants);
+router.get('/restaurants/search', customerController.searchRestaurants);
 
 module.exports = router;

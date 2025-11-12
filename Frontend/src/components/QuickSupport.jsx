@@ -13,7 +13,7 @@ const QuickSupport = ({ onUpdate }) => {
     setSending(true);
     try {
       const response = await fetch(
-        "http://localhost:3000/staff/api/support-message",
+        "http://localhost:3000/api/staff/support-message",
         {
           method: "POST",
           headers: {

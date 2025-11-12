@@ -68,10 +68,19 @@ app.get('/logout', (req, res) => {
 });
 
 app.use('/loginPage', loginPage);
+
+// Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 app.use('/customer', authentication('customer'), customerRouter);
+app.use('/api/customer', authentication('customer'), customerRouter);
+
 app.use('/admin', authentication('admin'), adminRouter);
+app.use('/api/admin', authentication('admin'), adminRouter);
+
 app.use('/owner', authentication('owner'), ownerRouter);
+app.use('/api/owner', authentication('owner'), ownerRouter);
+
 app.use('/staff', authentication('staff'), staffRouter);
+app.use('/api/staff', authentication('staff'), staffRouter);
 
 app.use('/reservations', authentication('owner'), reservationRouter);
 

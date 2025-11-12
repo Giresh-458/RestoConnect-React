@@ -26,7 +26,7 @@ export default function User() {
 
   useEffect(() => {
     const xhr = new XMLHttpRequest();
-    xhr.open("get", "http://localhost:3000/admin/users", true);
+    xhr.open("get", "http://localhost:3000/api/admin/users", true);
     xhr.onload = function () {
       if (this.status === 200) {
         const data = JSON.parse(xhr.responseText);

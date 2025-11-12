@@ -28,8 +28,8 @@ router.post(
   staffController.postRemoveReservation
 );
 
-router.get("/api/homepage", staffController.getStaffHomepageData);
-router.post("/api/support-message", staffController.postSupportMessage);
-router.put("/api/tasks/:id", staffController.updateTaskStatus);
+router.get("/homepage", staffController.getStaffHomepageData);
+router.post("/support-message", staffController.postSupportMessage);
+router.put("/tasks/:id", staffController.updateTaskStatus);
 
 module.exports = router;

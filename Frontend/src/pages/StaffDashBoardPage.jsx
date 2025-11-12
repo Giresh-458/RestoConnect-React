@@ -44,7 +44,12 @@ export function StaffDashBoardPage() {
   // ✅ Build inventory summary from backend inventory array
   const inventoryItems = data.inventoryStatus || [];
 
-  const lowStockCount = inventoryItems.filter((i) => i.quantity <= i.minStock && i.quantity > 0).length;
+  // Use quantityValue (numeric) and minStock for proper comparison
+  const lowStockCount = inventoryItems.filter((i) => {
+    const qty = i.quantityValue ?? parseFloat(i.quantity) || 0;
+    const min = i.minStock ?? 0;
+    return qty <= min && qty > 0;
+  }).length;
 
   return (
     <div className="staff-dashboard min-h-screen p-6 bg-blue-50">

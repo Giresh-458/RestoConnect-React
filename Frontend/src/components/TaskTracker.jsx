@@ -6,7 +6,7 @@ const TaskTracker = ({ tasks = [], onUpdate }) => {
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/staff/api/tasks/${taskId}`,
+        `http://localhost:3000/api/staff/tasks/${taskId}`,
         {
           method: "PUT",
           headers: {

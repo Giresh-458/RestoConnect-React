@@ -63,7 +63,7 @@ export const DashBoardPage = () => {
   const fetchDashboardData = async () => {
     try {
       // Replace with your API endpoint
-      const response = await fetch('http://localhost:3000/customer/customerDashboard', { credentials: 'include' });
+      const response = await fetch('http://localhost:3000/api/customer/customerDashboard');
       const data = await response.json();
       
       setUserData(data.user);

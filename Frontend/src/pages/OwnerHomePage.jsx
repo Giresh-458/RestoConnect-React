@@ -30,19 +30,19 @@ export function OwnerHomePage() {
     try {
       // Fetch all data in parallel
       const [statsRes, trendRes, ordersRes, inventoryRes, ownerInfoRes] = await Promise.all([
-        fetch("http://localhost:3000/owner/api/dashboard/stats", {
+        fetch("http://localhost:3000/api/owner/dashboard/stats", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/dashboard/trend", {
+        fetch("http://localhost:3000/api/owner/dashboard/trend", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/orders/recent", {
+        fetch("http://localhost:3000/api/owner/orders/recent", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/inventory", {
+        fetch("http://localhost:3000/api/owner/inventory", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/info", {
+        fetch("http://localhost:3000/api/owner/info", {
           credentials: "include"
         })
       ]);
@@ -76,7 +76,7 @@ export function OwnerHomePage() {
 
   const handleInventoryUpdate = async (itemId, change) => {
     try {
-      const response = await fetch(`http://localhost:3000/owner/api/inventory/${itemId}/quantity`, {
+      const response = await fetch(`http://localhost:3000/api/owner/inventory/${itemId}/quantity`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
@@ -94,7 +94,7 @@ export function OwnerHomePage() {
           )
         );
         // Refresh dashboard stats to update stock status
-        const statsRes = await fetch("http://localhost:3000/owner/api/dashboard/stats", {
+        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
           credentials: "include"
         });
         const stats = await statsRes.json();

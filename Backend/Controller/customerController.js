@@ -467,7 +467,19 @@ exports.submitFeedback = async (req, res) => {
 
     if (!username) return res.redirect("/customer/feedback");
 
+    // Get rest_id from the most recent order for this customer
+    // This is needed because rest_id is required in the feedback schema
+    const mostRecentOrder = await Order.findOne({ customerName: username })
+      .sort({ date: -1 })
+      .select('rest_id')
+      .lean();
+
+    if (!mostRecentOrder || !mostRecentOrder.rest_id) {
+      return res.status(400).send("Unable to find restaurant information. Please place an order first.");
+    }
+
     await Feedback.create({
+      rest_id: mostRecentOrder.rest_id,
       customerName: username,
       diningRating: diningRating || 0,
       lovedItems: lovedItems || "",

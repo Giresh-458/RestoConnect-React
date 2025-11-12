@@ -40,7 +40,7 @@ if(role!='customer'){
   return new Promise((resolve,reject)=>{
 
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", `http://localhost:3000/menu/${params.id}`, true);
+    xhr.open("GET", `http://localhost:3000/api/customer/menu/${params.id}`, true);
     xhr.withCredentials = true;
     xhr.onload=function(){
       if(this.status==200){

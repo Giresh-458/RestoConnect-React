@@ -28,7 +28,4 @@ router.get('/activities', admincontroller.getRecentActivities);
 
 
 
-// ✅ Public API for homepage (fetch restaurants via AJAX)
-router.get('/public/restaurants', admincontroller.getPublicRestaurants);
-
 module.exports = router;
