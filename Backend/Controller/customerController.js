@@ -4,11 +4,38 @@ const { Dish } = require("../Model/Dishes_model_test");
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const Feedback = require("../Model/feedback");
 const { Order } = require("../Model/Order_model");
-const bcrypt = require("bcrypt");
 const { User } = require("../Model/userRoleModel");
 
+const formatRelativeTime = (targetDate) => {
+  if (!targetDate) return "";
 
+  const date = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  if (Number.isNaN(date.getTime())) return "";
 
+  const diffMs = date.getTime() - Date.now();
+  const diffMinutes = Math.round(diffMs / (1000 * 60));
+  const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  const format = (value, unit, suffix) =>
+    `${Math.abs(value)} ${unit}${Math.abs(value) === 1 ? "" : "s"} ${suffix}`;
+
+  if (Math.abs(diffMinutes) < 60) {
+    return diffMinutes >= 0
+      ? format(diffMinutes, "minute", "from now")
+      : format(diffMinutes, "minute", "ago");
+  }
+
+  if (Math.abs(diffHours) < 24) {
+    return diffHours >= 0
+      ? format(diffHours, "hour", "from now")
+      : format(diffHours, "hour", "ago");
+  }
+
+  return diffDays >= 0
+    ? format(diffDays, "day", "from now")
+    : format(diffDays, "day", "ago");
+};
 
 // Validate reservation date/time
 exports.validateReservationDateTime = (date, time) => {
@@ -106,7 +133,10 @@ exports.validateReservationDateTime = (date, time) => {
 
 exports.getCustomerDashboard = async (req, res) => {
   try {
-    const customerName = req.session.username || req.params.customerName || req.query.customerName;
+    const customerName =
+      req.session.username ||
+      req.params.customerName ||
+      req.query.customerName;
 
     if (!customerName) {
       return res.status(401).json({ error: 'Not authenticated' });
@@ -118,29 +148,72 @@ exports.getCustomerDashboard = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const prevOrders = Array.isArray(userData.prev_order)
+      ? userData.prev_order
+      : [];
+    const restaurantList = Array.isArray(userData.restaurent_list)
+      ? userData.restaurent_list.filter(
+          (name) => typeof name === 'string' && name.trim() && name !== 'others'
+        )
+      : [];
+    const emailNotificationsEnabled =
+      typeof userData.emailNotificationsEnabled === 'boolean'
+        ? userData.emailNotificationsEnabled
+        : true;
+
     // =================== RECENT ORDERS ===================
     const orders = await Order.find({ customerName })
       .sort({ date: -1 })
-      .limit(5)
-      .populate('dishes');
+      .limit(10); // Get more orders to have enough for both tabs
 
     const recentOrders = await Promise.all(
       orders.map(async (order) => {
-        const dish = await Dish.findOne({ _id: order.dishes[0] });
+        let dishName = 'No items';
+        let dishImage = '/dish-placeholder.png';
+        
+        // Orders store dish NAMES (not IDs) in the dishes array
+        if (order.dishes && Array.isArray(order.dishes) && order.dishes.length > 0) {
+          const firstDishName = order.dishes[0];
+          
+          // Try to find the dish by name to get image and other details
+          let dish = null;
+          try {
+            dish = await Dish.findOne({ name: firstDishName });
+          } catch (err) {
+            console.error('Error finding dish:', err);
+          }
+          
+          if (dish) {
+            dishName = dish.name;
+            dishImage = dish.image || dish.img_url || '/dish-placeholder.png';
+          } else {
+            // If dish not found in DB, use the name from order
+            dishName = firstDishName;
+          }
+          
+          // If multiple dishes, show first dish name + count
+          if (order.dishes.length > 1) {
+            dishName = `${dishName} + ${order.dishes.length - 1} more`;
+          }
+        }
+        
+        // Format order ID to be shorter (use first part of shortid)
+        const shortOrderId = order._id ? order._id.substring(0, 11) : 'N/A';
+        
         return {
-          orderId: order._id,
-          dishName: dish ? dish.name : 'Unknown Dish',
-          price: order.totalAmount,
-          status: order.status,
+          orderId: shortOrderId,
+          dishName: dishName,
+          price: order.totalAmount || 0,
+          status: order.status || 'pending',
           date: order.date,
-          image: '/dish-placeholder.png',
-          restaurant: order.restaurant
+          image: dishImage,
+          restaurant: order.restaurant || 'Unknown Restaurant'
         };
       })
     );
 
     // =================== FAVORITE RESTAURANTS ===================
-    const topRestaurants = userData.restaurent_list.slice(0, 3);
+    const topRestaurants = restaurantList.slice(0, 3);
     const favoriteRestaurants = (
       await Promise.all(
         topRestaurants.map(async (restaurantName) => {
@@ -250,6 +323,81 @@ exports.getCustomerDashboard = async (req, res) => {
       if (weekIndex < 4) visitFrequency[weekIndex]++;
     });
 
+    // =================== NOTIFICATIONS ===================
+    const notifications = [];
+
+    // Add notifications for recent orders (limit to last 3 orders with pending/delivered status)
+    const recentOrderNotifications = recentOrders
+      .filter(order => order.status === 'pending' || order.status === 'delivered')
+      .slice(0, 3)
+      .map((order) => {
+        const statusText =
+          order.status === 'delivered'
+            ? 'has been delivered successfully!'
+            : order.status === 'pending'
+            ? 'is being prepared'
+            : `is currently ${order.status}`;
+        return {
+          id: `order-${order.orderId}`,
+          type: 'order',
+          icon: order.status === 'delivered' ? '✓' : '⏳',
+          message: `Your order #${order.orderId} ${statusText}`,
+          timeAgo: order.date ? formatRelativeTime(new Date(order.date)) : ''
+        };
+      });
+    notifications.push(...recentOrderNotifications);
+
+    // Add notifications for upcoming reservations
+    if (upcoming.length > 0) {
+      upcoming.slice(0, 2).forEach((reservation) => {
+        const reservationDateTime = reservation.date
+          ? new Date(`${reservation.date}T${reservation.time || '00:00'}`)
+          : null;
+        const hoursUntilReservation = reservationDateTime
+          ? Math.round((reservationDateTime.getTime() - Date.now()) / (1000 * 60 * 60))
+          : null;
+        
+        let message = `Your table booking is confirmed at ${reservation.restaurant}`;
+        if (reservation.time) {
+          message += ` for ${reservation.time}`;
+        }
+        if (hoursUntilReservation !== null && hoursUntilReservation < 24 && hoursUntilReservation > 0) {
+          message += ` (in ${hoursUntilReservation} hour${hoursUntilReservation !== 1 ? 's' : ''})`;
+        }
+        
+        notifications.push({
+          id: `reservation-${reservation.id || Date.now()}`,
+          type: 'reservation',
+          icon: '📅',
+          message: message,
+          timeAgo: reservationDateTime ? formatRelativeTime(reservationDateTime) : ''
+        });
+      });
+    }
+
+    // Add notification for new reviews/feedback if available
+    if (totalReviews > 0 && recentReviews.length > 0) {
+      const latestReview = recentReviews[0];
+      notifications.push({
+        id: `review-${Date.now()}`,
+        type: 'info',
+        icon: '⭐',
+        message: `Thank you for your ${latestReview.rating}-star review!`,
+        timeAgo: ''
+      });
+    }
+
+    // Ensure at least one notification is always present
+    if (notifications.length === 0) {
+      notifications.push({
+        id: 'welcome',
+        type: 'info',
+        icon: 'ℹ️',
+        message: 'Welcome! Your order updates and reservations will appear here.',
+        timeAgo: ''
+      });
+    }
+
     // =================== FINAL RESPONSE ===================
     return res.status(200).json({
       user: {
@@ -257,10 +405,10 @@ exports.getCustomerDashboard = async (req, res) => {
         img_url: userData.img_url,
         email: userData.email,
         phone: userData.phone,
-        totalOrders: userData.prev_order.length,
+        totalOrders: prevOrders.length,
         totalVisits,
         avgSpend,
-        topRestaurant: userData.restaurent_list[0] || 'N/A'
+        topRestaurant: restaurantList[0] || 'N/A'
       },
       recentOrders,
       favoriteRestaurants,
@@ -272,7 +420,9 @@ exports.getCustomerDashboard = async (req, res) => {
         totalReviews,
         recentReviews
       },
-      visitFrequency
+      visitFrequency,
+      notifications,
+      emailNotificationsEnabled
     });
   } catch (error) {
     console.error('Error in getCustomerDashboard:', error);
@@ -547,7 +697,8 @@ exports.postEditProfile = async (req, res) => {
       if (newPassword !== confirmPassword)
         return sendAlert("both passwords must be equal")
 
-      /*const hashedPassword = await bcrypt.hash(newPassword, 10);*/
+      // Set password - User model's pre-save hook will automatically hash it
+      // No need to hash manually as the model has a pre('save') hook that does this
       userRole.password = newPassword;
     }
 
@@ -561,7 +712,12 @@ exports.postEditProfile = async (req, res) => {
     const personUsername = name && name !== currentUsername ? name : currentUsername;
     const user = await Person.findOne({ name: req.session.username });
     
-    /*if (!user) return res.status(404).send("User not found");*/
+    if (!user) {
+      if (req.headers['content-type']?.includes('application/json')) {
+        return res.status(404).json({ success: false, error: "Customer profile not found" });
+      }
+      return res.status(404).send("Customer profile not found");
+    }
 
     if (name && name !== currentUsername) req.session.username = name;
    
@@ -572,9 +728,28 @@ exports.postEditProfile = async (req, res) => {
     user.img_url = img_url || user.img_url;
     await user.save();
 
+    // Check if request wants JSON response (from React frontend)
+    const wantsJson = req.headers['content-type']?.includes('application/json');
+    if (wantsJson) {
+      return res.status(200).json({ 
+        success: true, 
+        message: "Profile updated successfully",
+        data: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          img_url: user.img_url
+        }
+      });
+    }
+
     res.redirect("/customer/customerDashboard");
   } catch (error) {
     console.error("Error updating user profile:", error);
+    const wantsJson = req.headers['content-type']?.includes('application/json');
+    if (wantsJson) {
+      return res.status(500).json({ success: false, error: "Internal server error", details: error.message });
+    }
     res.status(500).send("Internal Server Error");
   }
 };
