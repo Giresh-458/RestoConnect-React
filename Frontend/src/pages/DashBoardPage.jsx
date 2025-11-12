@@ -1,5 +1,5 @@
 import { isLogin } from "../util/auth";
- import { redirect } from "react-router-dom";
+ import { redirect,useNavigate  } from "react-router-dom";
 
 
 export async function loader({request}){
@@ -17,6 +17,8 @@ if(role!='customer'){
 import { useState, useEffect } from 'react';
 
 export const DashBoardPage = () => {
+
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
@@ -235,7 +237,7 @@ export const DashBoardPage = () => {
         </div>
         <div style={styles.headerRight}>
           <button style={styles.editButton} onClick={handleEditProfileClick}>Edit Profile</button>
-          <button style={styles.logoutButton}>Logout</button>
+          <button style={styles.logoutButton} onClick={()=>{navigate("/logout")}}>Logout</button>
         </div>
       </div>
 
