@@ -1,10 +1,11 @@
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
-const user_model = require("../Model/userRoleModel");
+const { User } = require("../Model/userRoleModel");
+const { Order } = require("../Model/Order_model");
 
 // Dashboard Methods
 exports.getDashBoard = async (req, res) => {
   try {
-    let r_name=await Restaurant.findById(req.session.rest_id)
+    let r_name = await Restaurant.findById(req.session.rest_id);
     let rest = await Restaurant.findById(req.session.rest_id).populate(
       "orders"
     );
@@ -64,7 +65,7 @@ exports.getDashBoard = async (req, res) => {
       inventoryData: inventoryDataForChart, // For the chart
       inventoryDataForTable: inventoryDataForTable, // For the table
       restaurant: rest,
-      rest_name:r_name.name
+      rest_name: r_name.name,
     });
   } catch (error) {
     console.error("Error in getDashBoard:", error);
@@ -191,12 +192,12 @@ exports.getHomePage = async (req, res) => {
       }
     }
   }
-  let rest_name = rest.name
+  let rest_name = rest.name;
   res.render("staffHomepage", {
     tasks: rest.tasks || [],
     allocatedTables,
     reservationsNeedingAllocation,
-    availableTables
+    availableTables,
   });
 };
 
@@ -309,3 +310,223 @@ exports.postAutoAllocateTable = async (req, res) => {
   // Stub implementation for postAutoAllocateTable
   res.status(200).send("postAutoAllocateTable endpoint is under construction");
 };
+
+exports.getStaffHomepageData = async (req, res) => {
+  try {
+    console.log("Session username:", req.session.username);
+
+    const staffMember = await User.findOne({ username: req.session.username });
+    if (!staffMember) {
+      return res.status(404).json({ error: "Staff member not found" });
+    }
+
+    const restaurant = await Restaurant.findById(staffMember.rest_id);
+    if (!restaurant) {
+      return res.status(404).json({
+        error: "Restaurant not found",
+        staffRestId: staffMember.rest_id,
+      });
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    console.log(`Looking for orders for restaurant: ${restaurant._id}`);
+    console.log(`Date range: ${startOfDay} to ${endOfDay}`);
+
+    const activeAnnouncements = (restaurant.announcements || [])
+      .filter((a) => a.active)
+      .map((a) => ({
+        id: a._id,
+        text: a.message,
+        priority: a.priority,
+      }));
+
+    const todayShifts = (restaurant.staffShifts || [])
+      .filter((shift) => {
+        const shiftDate = new Date(shift.date);
+        return (
+          shiftDate.toDateString() === new Date().toDateString() &&
+          shift.assignedStaff.includes(staffMember.username)
+        );
+      })
+      .map((shift) => ({
+        id: shift._id,
+        name: shift.name,
+        time: `${shift.startTime} - ${shift.endTime}`,
+        staff: shift.assignedStaff,
+      }));
+
+    const staffTasks = (restaurant.staffTasks || [])
+      .filter((task) => task.assignedTo.includes(staffMember.username))
+      .map((task) => ({
+        id: task._id,
+        name: task.description,
+        status: task.status,
+        priority: task.priority,
+      }));
+
+    const todaysOrders = await Order.find({
+      rest_id: restaurant._id,
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    });
+
+    console.log(
+      `Found ${todaysOrders.length} orders for today from Order collection`
+    );
+
+    const staffOrders = todaysOrders.filter(
+      (order) =>
+        order.assignedStaff &&
+        order.assignedStaff.includes(staffMember.username)
+    );
+
+    console.log(
+      `Found ${staffOrders.length} orders assigned to ${staffMember.username}`
+    );
+
+    staffOrders.forEach((order, index) => {
+      console.log(`Order ${index + 1}:`, {
+        rating: order.rating,
+        orderTime: order.orderTime,
+        completionTime: order.completionTime,
+        estimatedTime: order.estimatedTime,
+        assignedStaff: order.assignedStaff,
+      });
+    });
+
+    const performance = {
+      ordersServed: staffOrders.length,
+      avgRating: calculateAverageRating(staffOrders),
+      avgServeTime: calculateAverageServeTime(staffOrders),
+      efficiencyScore: calculateEfficiencyScore(staffOrders),
+    };
+
+    console.log("Performance data:", performance);
+
+    const staffData = {
+      staff: {
+        name: staffMember.username,
+        role: staffMember.role,
+        branch: restaurant.name,
+      },
+      announcements: activeAnnouncements,
+      shifts: todayShifts,
+      tasks: staffTasks,
+      performance,
+    };
+
+    console.log("Sending staff data successfully");
+    res.json(staffData);
+  } catch (error) {
+    console.error("Error fetching staff homepage data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.postSupportMessage = async (req, res) => {
+  try {
+    const { message } = req.body;
+    const staffMember = await User.findOne({ username: req.session.username });
+
+    const restaurant = await Restaurant.findById(staffMember.rest_id);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    if (!restaurant.supportMessages) {
+      restaurant.supportMessages = [];
+    }
+
+    restaurant.supportMessages.push({
+      from: staffMember.username,
+      message: message,
+      timestamp: new Date(),
+      status: "pending",
+    });
+
+    await restaurant.save();
+
+    res.json({
+      success: true,
+      message: "Message sent to manager successfully",
+    });
+  } catch (error) {
+    console.error("Error sending support message:", error);
+    res.status(500).json({ error: "Failed to send message" });
+  }
+};
+
+exports.updateTaskStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const staffMember = await User.findOne({ username: req.session.username });
+
+    const restaurant = await Restaurant.findById(staffMember.rest_id);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    const task = restaurant.staffTasks.id(id);
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    task.status = status;
+    task.updatedAt = new Date();
+
+    if (status === "Done" && !task.completedBy) {
+      task.completedBy = [staffMember.username];
+    }
+
+    await restaurant.save();
+
+    res.json({ success: true, message: "Task updated successfully", task });
+  } catch (error) {
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: "Failed to update task" });
+  }
+};
+
+function calculateAverageRating(orders) {
+  if (!orders.length) return 4.5;
+  const totalRating = orders.reduce(
+    (sum, order) => sum + (order.rating || 4.5),
+    0
+  );
+  return Math.round((totalRating / orders.length) * 10) / 10;
+}
+
+function calculateAverageServeTime(orders) {
+  if (!orders.length) return 7;
+  const totalTime = orders.reduce((sum, order) => {
+    if (order.orderTime && order.completionTime) {
+      return (
+        sum +
+        (new Date(order.completionTime) - new Date(order.orderTime)) /
+          (1000 * 60)
+      );
+    }
+    return sum + 7;
+  }, 0);
+  return Math.round(totalTime / orders.length);
+}
+
+function calculateEfficiencyScore(orders) {
+  if (!orders.length) return 90;
+  const onTimeOrders = orders.filter((order) => {
+    if (order.estimatedTime && order.completionTime) {
+      const actualTime =
+        (new Date(order.completionTime) - new Date(order.orderTime)) /
+        (1000 * 60);
+      return actualTime <= order.estimatedTime + 5;
+    }
+    return true;
+  });
+  return Math.round((onTimeOrders.length / orders.length) * 100);
+}
