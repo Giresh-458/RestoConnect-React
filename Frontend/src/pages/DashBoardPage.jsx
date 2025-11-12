@@ -1,5 +1,5 @@
 import { isLogin } from "../util/auth";
- import { redirect } from "react-router-dom";
+ import { redirect,useNavigate  } from "react-router-dom";
 
 
 export async function loader({request}){
@@ -17,30 +17,84 @@ if(role!='customer'){
 import { useState, useEffect } from 'react';
 
 export const DashBoardPage = () => {
+
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
   const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
   const [weeklySpending, setWeeklySpending] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [activeOrderTab, setActiveOrderTab] = useState('recent');
+  const [pastOrders, setPastOrders] = useState([]);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    img_url: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [updateError, setUpdateError] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  // Update form data when userData changes
+  useEffect(() => {
+    if (userData) {
+      setEditFormData({
+        name: userData.name || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        img_url: userData.img_url || '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    }
+  }, [userData]);
+
   const fetchDashboardData = async () => {
     try {
       // Replace with your API endpoint
-      const response = await fetch('http://localhost:3000/customer/customerDashboard');
+      const response = await fetch('http://localhost:3000/customer/customerDashboard', { credentials: 'include' });
       const data = await response.json();
       
       setUserData(data.user);
-      setRecentOrders(data.recentOrders);
+      
+      // Separate recent and past orders based on status
+      const allOrders = data.recentOrders || [];
+      
+      // Recent orders: pending, preparing, or most recent completed (last 3)
+      const recent = allOrders.filter(order => {
+        const status = (order.status || '').toLowerCase();
+        return status === 'pending' || status === 'preparing';
+      });
+      
+      // Past orders: completed or delivered
+      const past = allOrders.filter(order => {
+        const status = (order.status || '').toLowerCase();
+        return status === 'completed' || status === 'delivered';
+      });
+      
+      setRecentOrders(recent);
+      setPastOrders(past);
       setFavoriteRestaurants(data.favoriteRestaurants);
       setUpcomingReservations(data.upcomingReservations);
       setPastReservations(data.pastReservations);
       setWeeklySpending(data.weeklySpending);
+      setNotifications(data.notifications || []);
+      setEmailNotificationsEnabled(
+        typeof data.emailNotificationsEnabled === 'boolean'
+          ? data.emailNotificationsEnabled
+          : true
+      );
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -49,11 +103,23 @@ export const DashBoardPage = () => {
   };
 
   const getOrderStatusColor = (status) => {
-    switch(status) {
-      case 'delivered': return '#4ade80';
-      case 'pending': return '#fbbf24';
+    switch(status?.toLowerCase()) {
+      case 'delivered':
+      case 'completed': return '#4ade80';
+      case 'pending':
+      case 'preparing': return '#fbbf24';
       default: return '#94a3b8';
     }
+  };
+
+  const formatOrderStatus = (status) => {
+    const statusMap = {
+      'pending': 'preparing',
+      'delivered': 'completed',
+      'completed': 'completed',
+      'preparing': 'preparing'
+    };
+    return statusMap[status?.toLowerCase()] || status?.toLowerCase() || 'pending';
   };
 
   const getDayName = (index) => {
@@ -64,6 +130,98 @@ export const DashBoardPage = () => {
   if (loading) {
     return <div style={styles.loading}>Loading...</div>;
   }
+
+  const maxWeeklySpending = weeklySpending.length
+    ? Math.max(...weeklySpending)
+    : 0;
+
+  const getNotificationIconStyle = (type) => {
+    if (type === 'order') return styles.notificationIcon;
+    if (type === 'reservation') return styles.notificationIconBlue;
+    return styles.notificationIconNeutral;
+  };
+
+  const handleNotificationToggle = () => {
+    setEmailNotificationsEnabled((prev) => !prev);
+    // TODO: Persist preference to backend when endpoint is available
+  };
+
+  const handleEditProfileClick = () => {
+    setShowEditModal(true);
+    setUpdateError('');
+  };
+
+  const handleCloseModal = () => {
+    setShowEditModal(false);
+    setUpdateError('');
+    // Reset password fields
+    setEditFormData(prev => ({
+      ...prev,
+      newPassword: '',
+      confirmPassword: ''
+    }));
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setUpdateError('');
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setUpdateError('');
+    setIsUpdating(true);
+
+    // Validate passwords if provided
+    if (editFormData.newPassword || editFormData.confirmPassword) {
+      if (!editFormData.newPassword || !editFormData.confirmPassword) {
+        setUpdateError('Both password fields are required');
+        setIsUpdating(false);
+        return;
+      }
+      if (editFormData.newPassword !== editFormData.confirmPassword) {
+        setUpdateError('Passwords do not match');
+        setIsUpdating(false);
+        return;
+      }
+      if (editFormData.newPassword.length < 6) {
+        setUpdateError('Password must be at least 6 characters');
+        setIsUpdating(false);
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch('http://localhost:3000/customer/edit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(editFormData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh dashboard data to get updated profile
+        await fetchDashboardData();
+        handleCloseModal();
+        alert('Profile updated successfully!');
+      } else {
+        setUpdateError(data.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setUpdateError('An error occurred while updating profile');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -78,8 +236,8 @@ export const DashBoardPage = () => {
           </div>
         </div>
         <div style={styles.headerRight}>
-          <button style={styles.editButton}>Edit Profile</button>
-          <button style={styles.logoutButton}>Logout</button>
+          <button style={styles.editButton} onClick={handleEditProfileClick}>Edit Profile</button>
+          <button style={styles.logoutButton} onClick={()=>{navigate("/logout")}}>Logout</button>
         </div>
       </div>
 
@@ -101,7 +259,9 @@ export const DashBoardPage = () => {
                       <div 
                         style={{
                           ...styles.bar,
-                          height: `${(amount / Math.max(...weeklySpending)) * 100}%`,
+                          height: maxWeeklySpending
+                            ? `${(amount / maxWeeklySpending) * 100}%`
+                            : '0%',
                           backgroundColor: index === 2 ? '#ff6b35' : index % 2 === 0 ? '#fbbf24' : '#fcd34d'
                         }}
                       ></div>
@@ -163,37 +323,50 @@ export const DashBoardPage = () => {
             <div style={styles.cardHeader}>
               <h2 style={styles.cardTitle}>Order Overview</h2>
               <div style={styles.tabs}>
-                <button style={styles.tabActive}>Recent Orders</button>
-                <button style={styles.tab}>Past Orders</button>
+                <button 
+                  style={activeOrderTab === 'recent' ? styles.tabActive : styles.tab}
+                  onClick={() => setActiveOrderTab('recent')}
+                >
+                  Recent Orders
+                </button>
+                <button 
+                  style={activeOrderTab === 'past' ? styles.tabActive : styles.tab}
+                  onClick={() => setActiveOrderTab('past')}
+                >
+                  Past Orders
+                </button>
               </div>
             </div>
             
             <div style={styles.ordersList}>
-              {recentOrders.map((order, index) => (
-                <div key={index} style={styles.orderItem}>
-                  <img src={order.image || '/dish-placeholder.png'} alt={order.dishName} style={styles.orderImage} />
-                  <div style={styles.orderInfo}>
-                    <h4 style={styles.orderName}>{order.dishName}</h4>
-                    <p style={styles.orderPrice}>${order.price}</p>
-                    <p style={{...styles.orderStatus, color: getOrderStatusColor(order.status)}}>
-                      Order #{order.orderId} · {order.status}
-                    </p>
+              {(activeOrderTab === 'recent' ? recentOrders : pastOrders).map((order, index) => {
+                const formattedStatus = formatOrderStatus(order.status);
+                return (
+                  <div key={index} style={styles.orderItem}>
+                    <img 
+                      src={order.image || '/dish-placeholder.png'} 
+                      alt={order.dishName} 
+                      style={styles.orderImage} 
+                    />
+                    <div style={styles.orderInfo}>
+                      <h4 style={styles.orderName}>{order.dishName}</h4>
+                      <p style={styles.orderPrice}>${order.price}</p>
+                      <p style={{...styles.orderStatus, color: getOrderStatusColor(formattedStatus)}}>
+                        Order #{order.orderId} · {formattedStatus}
+                      </p>
+                    </div>
+                    <div style={styles.orderActions}>
+                      <button style={styles.rateButton}>Rate</button>
+                      <button style={styles.reorderButton}>Reorder</button>
+                    </div>
                   </div>
-                  <div style={styles.orderActions}>
-                    {order.status === 'pending' ? (
-                      <>
-                        <button style={styles.rateButton}>Track</button>
-                        <button style={styles.reorderButton}>Reorder</button>
-                      </>
-                    ) : (
-                      <>
-                        <button style={styles.rateButton}>Rate</button>
-                        <button style={styles.reorderButton}>Reorder</button>
-                      </>
-                    )}
-                  </div>
+                );
+              })}
+              {(activeOrderTab === 'recent' ? recentOrders : pastOrders).length === 0 && (
+                <div style={styles.noOrdersMessage}>
+                  <p>No {activeOrderTab === 'recent' ? 'recent' : 'past'} orders found</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -297,32 +470,145 @@ export const DashBoardPage = () => {
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Notifications</h2>
             
-            <div style={styles.notificationItem}>
-              <div style={styles.notificationIcon}>✓</div>
-              <div>
-                <p style={styles.notificationText}>Order #5677 delivered successfully!</p>
-                <p style={styles.notificationTime}>2 hours ago</p>
+            {notifications.map((notification) => (
+              <div key={notification.id} style={styles.notificationItem}>
+                <div style={getNotificationIconStyle(notification.type)}>
+                  {notification.icon || 'ℹ️'}
+                </div>
+                <div>
+                  <p style={styles.notificationText}>{notification.message}</p>
+                  {notification.timeAgo ? (
+                    <p style={styles.notificationTime}>{notification.timeAgo}</p>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            
-            <div style={styles.notificationItem}>
-              <div style={styles.notificationIconBlue}>📅</div>
-              <div>
-                <p style={styles.notificationText}>Your table booking is confirmed at 8:00 PM</p>
-                <p style={styles.notificationTime}>1 day ago</p>
-              </div>
-            </div>
+            ))}
             
             <div style={styles.notificationToggle}>
               <span>Email Notifications</span>
               <label style={styles.switch}>
-                <input type="checkbox" defaultChecked />
+                <input
+                  type="checkbox"
+                  checked={emailNotificationsEnabled}
+                  onChange={handleNotificationToggle}
+                />
                 <span style={styles.slider}></span>
               </label>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div style={styles.modalOverlay} onClick={handleCloseModal}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Edit Profile</h2>
+              <button style={styles.modalCloseButton} onClick={handleCloseModal}>×</button>
+            </div>
+            
+            <form onSubmit={handleUpdateProfile} style={styles.modalForm}>
+              {updateError && (
+                <div style={styles.errorMessage}>{updateError}</div>
+              )}
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={editFormData.name}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                  required
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={editFormData.email}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                  required
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Phone</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={editFormData.phone}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Profile Image URL</label>
+                <input
+                  type="text"
+                  name="img_url"
+                  value={editFormData.img_url}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+
+              <div style={styles.formDivider}>
+                <p style={styles.formDividerText}>Change Password (optional)</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>New Password</label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={editFormData.newPassword}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                  placeholder="Leave empty to keep current password"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.formLabel}>Confirm Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={editFormData.confirmPassword}
+                  onChange={handleInputChange}
+                  style={styles.formInput}
+                  placeholder="Leave empty to keep current password"
+                />
+              </div>
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  style={styles.cancelButton}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={styles.saveButton}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? 'Updating...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -545,7 +831,14 @@ const styles = {
   ordersList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '15px'
+    gap: '15px',
+    minHeight: '200px'
+  },
+  noOrdersMessage: {
+    textAlign: 'center',
+    padding: '40px 20px',
+    color: '#6b7280',
+    fontSize: '14px'
   },
   orderItem: {
     display: 'flex',
@@ -766,6 +1059,18 @@ const styles = {
     fontSize: '14px',
     flexShrink: 0
   },
+  notificationIconNeutral: {
+    width: '24px',
+    height: '24px',
+    backgroundColor: '#6b7280',
+    color: '#fff',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    flexShrink: 0
+  },
   notificationText: {
     fontSize: '13px',
     margin: '0 0 5px 0'
@@ -799,6 +1104,121 @@ const styles = {
     backgroundColor: '#ff6b35',
     borderRadius: '24px',
     transition: '0.4s'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 24px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    margin: 0
+  },
+  modalCloseButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '28px',
+    cursor: 'pointer',
+    color: '#6b7280',
+    padding: 0,
+    width: '32px',
+    height: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '4px'
+  },
+  modalForm: {
+    padding: '24px'
+  },
+  formGroup: {
+    marginBottom: '20px'
+  },
+  formLabel: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    marginBottom: '8px',
+    color: '#374151'
+  },
+  formInput: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    boxSizing: 'border-box'
+  },
+  formDivider: {
+    margin: '24px 0',
+    borderTop: '1px solid #e5e7eb',
+    paddingTop: '20px'
+  },
+  formDividerText: {
+    fontSize: '14px',
+    color: '#6b7280',
+    margin: 0,
+    fontWeight: '600'
+  },
+  errorMessage: {
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    fontSize: '14px'
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '24px',
+    paddingTop: '20px',
+    borderTop: '1px solid #e5e7eb'
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    backgroundColor: '#fff',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151'
+  },
+  saveButton: {
+    padding: '10px 20px',
+    backgroundColor: '#ff6b35',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600'
   }
 };
 
