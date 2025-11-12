@@ -17,19 +17,19 @@ const restaurantSchema = new mongoose.Schema({
   amount: Number,
   cuisine: {
     type: [String],
-    default: []
+    default: [],
   },
   isOpen: {
     type: Boolean,
-    default: true
+    default: true,
   },
   operatingHours: {
-    open: { type: String, default: '09:00' },
-    close: { type: String, default: '22:00' }
+    open: { type: String, default: "09:00" },
+    close: { type: String, default: "22:00" },
   },
   distance: {
     type: Number,
-    default: 0 // distance in km
+    default: 0, // distance in km
   },
   date: {
     type: Date,
@@ -96,6 +96,43 @@ const restaurantSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
       },
+    },
+  ],
+  announcements: [
+    {
+      message: String,
+      priority: { type: String, default: "normal" },
+      completedBy: [String],
+      active: { type: Boolean, default: true },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
+
+  staffShifts: [
+    {
+      name: String,
+      startTime: String,
+      endTime: String,
+      date: Date,
+      assignedStaff: [String],
+      completed: { type: Boolean, default: false },
+    },
+  ],
+  staffTasks: [
+    {
+      description: String,
+      status: { type: String, default: "Pending" },
+      assignedTo: [String], // usernames
+      priority: { type: String, default: "medium" },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
+  supportMessages: [
+    {
+      from: String,
+      message: String,
+      timestamp: { type: Date, default: Date.now },
+      status: { type: String, default: "pending" },
     },
   ],
 });
