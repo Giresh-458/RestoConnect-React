@@ -198,7 +198,7 @@ async function seed() {
       },
     ];
 
-    // Add tables and revenue fields
+    // Add tables and payments fields
     restaurantsData.forEach((rest, index) => {
       rest.tables = [
         { number: "1", status: "available", seats: 2 },
@@ -208,9 +208,6 @@ async function seed() {
         { number: "5", status: "available", seats: 6 },
       ];
       rest.totalTables = rest.tables.length;
-      rest.weeklyRevenue = 0;
-      rest.monthlyRevenue = 0;
-      rest.totalOrders = 0;
       rest.payments = [];
 
       rest.inventoryData = {
@@ -471,7 +468,10 @@ async function seed() {
         tableNumber: "05",
         date: randomDateInLastMonth(),
         rating: 5.0,
-        orderTime: randomTimeWithinLastHour(),
+        orderTime: (function () {
+          const orderTime = randomTimeWithinLastHour();
+          return orderTime;
+        })(),
         completionTime: (function () {
           const orderTime = randomTimeWithinLastHour();
           return randomCompletionTime(orderTime);
@@ -491,11 +491,11 @@ async function seed() {
         tableNumber: "02",
         date: randomDateInLastMonth(),
         rating: 4.5,
-        orderTime: randomTimeWithinLastHour(),
-        completionTime: (function () {
+        orderTime: (function () {
           const orderTime = randomTimeWithinLastHour();
-          return randomCompletionTime(orderTime);
+          return orderTime;
         })(),
+        completionTime: null, // Pending orders don't have completion time
         estimatedTime: 12,
         assignedStaff: ["staff1"],
         feedback: "Good service, will visit again",
@@ -511,11 +511,11 @@ async function seed() {
         tableNumber: "08",
         date: randomDateInLastMonth(),
         rating: 4.0,
-        orderTime: randomTimeWithinLastHour(),
-        completionTime: (function () {
+        orderTime: (function () {
           const orderTime = randomTimeWithinLastHour();
-          return randomCompletionTime(orderTime);
+          return orderTime;
         })(),
+        completionTime: null, // Preparing orders don't have completion time yet
         estimatedTime: 15,
         assignedStaff: ["staff1"],
         feedback: "Tasty food, decent service",
@@ -531,7 +531,10 @@ async function seed() {
         tableNumber: "03",
         date: randomDateInLastMonth(),
         rating: 5.0,
-        orderTime: randomTimeWithinLastHour(),
+        orderTime: (function () {
+          const orderTime = randomTimeWithinLastHour();
+          return orderTime;
+        })(),
         completionTime: (function () {
           const orderTime = randomTimeWithinLastHour();
           return randomCompletionTime(orderTime);
@@ -551,7 +554,10 @@ async function seed() {
         tableNumber: "01",
         date: randomDateInLastMonth(),
         rating: 4.5,
-        orderTime: randomTimeWithinLastHour(),
+        orderTime: (function () {
+          const orderTime = randomTimeWithinLastHour();
+          return orderTime;
+        })(),
         completionTime: (function () {
           const orderTime = randomTimeWithinLastHour();
           return randomCompletionTime(orderTime);
@@ -717,26 +723,10 @@ async function seed() {
       await customer.save();
     }
 
-    // Update first restaurant revenue & payments
-    const now = new Date();
-    const oneWeekAgo = new Date(now);
-    oneWeekAgo.setDate(now.getDate() - 7);
-    const oneMonthAgo = new Date(now);
-    oneMonthAgo.setMonth(now.getMonth() - 1);
-
-    firstRestaurant.totalOrders = 0;
-    firstRestaurant.weeklyRevenue = 0;
-    firstRestaurant.monthlyRevenue = 0;
+    // Update first restaurant payments
     firstRestaurant.payments = [];
 
     allOrders.forEach((order) => {
-      const orderDate = new Date(order.date);
-      if (orderDate >= oneWeekAgo)
-        firstRestaurant.weeklyRevenue += order.totalAmount;
-      if (orderDate >= oneMonthAgo)
-        firstRestaurant.monthlyRevenue += order.totalAmount;
-      firstRestaurant.totalOrders += 1;
-
       firstRestaurant.payments.push({
         amount: order.totalAmount,
         date: order.date,
@@ -778,7 +768,7 @@ async function seed() {
     const feedbacks = [
       {
         customerName: "customer1",
-        rest_id: firstRestaurant._id, // Tasty Bites
+        rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
         diningRating: 5,
         lovedItems: "Paneer Tikka, Veg Biryani",
         orderRating: 4,
@@ -788,7 +778,7 @@ async function seed() {
       },
       {
         customerName: "customer2",
-        rest_id: firstRestaurant._id, // Tasty Bites
+        rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
         diningRating: 4,
         lovedItems: "Paneer Tikka",
         orderRating: 5,
@@ -798,7 +788,7 @@ async function seed() {
       },
       {
         customerName: "customer3",
-        rest_id: createdRestaurants[1]._id, // Spice Hub
+        rest_id: createdRestaurants[1]._id, // Spice Hub (String ID from shortid)
         diningRating: 5,
         lovedItems: "Masala Dosa",
         orderRating: 5,

@@ -105,32 +105,19 @@ export function CustomerHomepage() {
     navigate(`/customer/restaurant/${restaurantId}`);
   };
 
+  // Get popular restaurants (top rated)
+  const popularRestaurants = [...restaurants]
+    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 6);
+
+  // Get nearby restaurants (sorted by distance)
+  const nearbyRestaurants = [...restaurants]
+    .filter(r => r.distance !== undefined)
+    .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
+    .slice(0, 6);
+
   return (
     <div className={styles.customerHomepage}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div className={styles.logo}>
-          <div className={styles.logoIcon}></div>
-          <span className={styles.logoText}>FoodFind</span>
-        </div>
-        <nav className={styles.nav}>
-          <a href="#" className={styles.navLink}>Home</a>
-          <a href="#" className={styles.navLink}>Explore</a>
-          <a href="#" className={styles.navLink}>Offers</a>
-          <a href="#" className={styles.navLink}>About Us</a>
-        </nav>
-        <div className={styles.headerActions}>
-          <button className={styles.signUpButton}>Sign Up</button>
-          <a href="/login" className={styles.loginLink}>Log In</a>
-          <button className={styles.notificationButton}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-          </button>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className={styles.hero}>
         <div className={styles.heroContent}>
@@ -154,49 +141,47 @@ export function CustomerHomepage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <button type="submit" className={styles.searchButton}>Search</button>
+              <button type="submit" className={styles.searchButton}>
+                <span>Search</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"></path>
+                </svg>
+              </button>
             </div>
           </form>
         </div>
       </section>
 
-      {/* Filters Section */}
-      <section className={styles.filtersSection}>
+      {/* Quick Filters Section */}
+      <section className={styles.quickFilters}>
         <div className={styles.filtersContainer}>
-          <div className={styles.filterGroup}>
+          <div className={styles.filterRow}>
             <div className={styles.filterItem}>
-              <svg className={styles.filterIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span className={styles.filterLabel}>Open Now</span>
-              <label className={styles.toggle}>
+              <label className={styles.filterLabel}>
                 <input
                   type="checkbox"
                   checked={openNow}
                   onChange={(e) => setOpenNow(e.target.checked)}
+                  className={styles.checkbox}
                 />
-                <span className={styles.toggleSlider}></span>
+                <span>Open Now</span>
               </label>
             </div>
 
             <div className={styles.filterItem}>
-              <span className={styles.filterLabel}>Within Distance</span>
-              <div className={styles.sliderContainer}>
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={maxDistance}
-                  onChange={(e) => setMaxDistance(parseInt(e.target.value))}
-                  className={styles.slider}
-                />
-                <span className={styles.sliderValue}>{maxDistance} km</span>
-              </div>
+              <label className={styles.filterLabel}>Distance: {maxDistance} km</label>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={maxDistance}
+                onChange={(e) => setMaxDistance(parseInt(e.target.value))}
+                className={styles.rangeSlider}
+              />
             </div>
 
             <div className={styles.filterItem}>
-              <span className={styles.filterLabel}>Sort By</span>
+              <label className={styles.filterLabel}>Sort By</label>
               <select
                 className={styles.select}
                 value={sortBy}
@@ -209,7 +194,7 @@ export function CustomerHomepage() {
             </div>
 
             <div className={styles.filterItem}>
-              <span className={styles.filterLabel}>Location</span>
+              <label className={styles.filterLabel}>Location</label>
               <select
                 className={styles.select}
                 value={location}
@@ -222,12 +207,13 @@ export function CustomerHomepage() {
             </div>
           </div>
 
-          <div className={styles.cuisineFilters}>
-            <span className={styles.filterLabel}>Cuisine</span>
+          <div className={styles.cuisineSection}>
+            <span className={styles.cuisineLabel}>Cuisine Types:</span>
             <div className={styles.cuisineTags}>
               {cuisines.map((cuisine) => (
                 <button
                   key={cuisine}
+                  type="button"
                   className={`${styles.cuisineTag} ${
                     selectedCuisine === cuisine ? styles.cuisineTagActive : ""
                   }`}
@@ -241,58 +227,148 @@ export function CustomerHomepage() {
         </div>
       </section>
 
-      {/* Results Section */}
-      <section className={styles.resultsSection}>
-        {selectedCuisine !== "All" && (
-          <div className={styles.filterIndicator}>
-            Showing results for: <span className={styles.filterChip}>{selectedCuisine}</span>
-            <button className={styles.filterClear} onClick={clearCuisineFilter}>×</button>
+      {/* Popular Restaurants Section */}
+      {popularRestaurants.length > 0 && (
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>
+              <span className={styles.sectionIcon}>⭐</span>
+              Popular Restaurants
+            </h2>
+            <p className={styles.sectionSubtitle}>Top rated restaurants loved by customers</p>
           </div>
-        )}
+          <div className={styles.restaurantsGrid}>
+            {popularRestaurants.map((restaurant) => (
+              <RestaurantCard
+                key={restaurant._id}
+                restaurant={restaurant}
+                onClick={() => handleRestaurantClick(restaurant._id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* All Restaurants Section */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>
+            <span className={styles.sectionIcon}>🍴</span>
+            All Restaurants
+          </h2>
+          {selectedCuisine !== "All" && (
+            <div className={styles.filterIndicator}>
+              <span>Filtered by: <strong>{selectedCuisine}</strong></span>
+              <button className={styles.filterClear} onClick={clearCuisineFilter}>× Clear</button>
+            </div>
+          )}
+        </div>
 
         {loading ? (
-          <div className={styles.loading}>Loading restaurants...</div>
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Loading restaurants...</p>
+          </div>
         ) : restaurants.length === 0 ? (
-          <div className={styles.noResults}>No restaurants found. Try adjusting your filters.</div>
+          <div className={styles.noResults}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <h3>No restaurants found</h3>
+            <p>Try adjusting your search or filters to find more options.</p>
+          </div>
         ) : (
           <div className={styles.restaurantsGrid}>
             {restaurants.map((restaurant) => (
-              <div
+              <RestaurantCard
                 key={restaurant._id}
-                className={styles.restaurantCard}
+                restaurant={restaurant}
                 onClick={() => handleRestaurantClick(restaurant._id)}
-              >
-                <div className={styles.restaurantImageContainer}>
-                  <img
-                    src={restaurant.image || "https://via.placeholder.com/300x200"}
-                    alt={restaurant.name}
-                    className={styles.restaurantImage}
-                    onError={(e) => {
-                      e.target.src = "https://via.placeholder.com/300x200";
-                    }}
-                  />
-                  <span
-                    className={`${styles.restaurantStatus} ${
-                      restaurant.isOpen ? styles.statusOpen : styles.statusClosed
-                    }`}
-                  >
-                    {restaurant.isOpen ? "Open" : "Closed"}
-                  </span>
-                </div>
-                <div className={styles.restaurantInfo}>
-                  <h3 className={styles.restaurantName}>{restaurant.name}</h3>
-                  {restaurant.rating && (
-                    <p className={styles.restaurantRating}>⭐ {restaurant.rating.toFixed(1)}</p>
-                  )}
-                  {restaurant.location && (
-                    <p className={styles.restaurantLocation}>{restaurant.location}</p>
-                  )}
-                </div>
-              </div>
+              />
             ))}
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// Restaurant Card Component
+function RestaurantCard({ restaurant, onClick }) {
+  const formatPrice = (amount) => {
+    if (!amount) return "₹₹";
+    const rupees = "₹".repeat(Math.ceil(amount / 100));
+    return rupees || "₹";
+  };
+
+  return (
+    <div className={styles.restaurantCard} onClick={onClick}>
+      <div className={styles.restaurantImageContainer}>
+        <img
+          src={restaurant.image || "/images/default-restaurant.jpg"}
+          alt={restaurant.name}
+          className={styles.restaurantImage}
+          onError={(e) => {
+            e.target.src = "https://via.placeholder.com/400x250?text=Restaurant";
+          }}
+        />
+        <div className={styles.restaurantOverlay}>
+          <span
+            className={`${styles.restaurantStatus} ${
+              restaurant.isOpen ? styles.statusOpen : styles.statusClosed
+            }`}
+          >
+            {restaurant.isOpen ? "🟢 Open" : "🔴 Closed"}
+          </span>
+          {restaurant.distance !== undefined && (
+            <span className={styles.distanceBadge}>
+              📍 {restaurant.distance.toFixed(1)} km
+            </span>
+          )}
+        </div>
+      </div>
+      <div className={styles.restaurantInfo}>
+        <div className={styles.restaurantHeader}>
+          <h3 className={styles.restaurantName}>{restaurant.name}</h3>
+          {restaurant.rating && (
+            <div className={styles.ratingBadge}>
+              <span className={styles.star}>⭐</span>
+              <span className={styles.ratingValue}>{restaurant.rating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+        
+        {restaurant.location && (
+          <p className={styles.restaurantLocation}>
+            📍 {restaurant.location}
+          </p>
+        )}
+
+        {restaurant.cuisine && restaurant.cuisine.length > 0 && (
+          <div className={styles.cuisineTags}>
+            {restaurant.cuisine.slice(0, 2).map((cuisine, idx) => (
+              <span key={idx} className={styles.cuisineChip}>
+                {cuisine}
+              </span>
+            ))}
+            {restaurant.cuisine.length > 2 && (
+              <span className={styles.cuisineChip}>+{restaurant.cuisine.length - 2}</span>
+            )}
+          </div>
+        )}
+
+        <div className={styles.restaurantFooter}>
+          <span className={styles.priceRange}>
+            {formatPrice(restaurant.amount)}
+          </span>
+          {restaurant.operatingHours && (
+            <span className={styles.hours}>
+              {restaurant.operatingHours.open} - {restaurant.operatingHours.close}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

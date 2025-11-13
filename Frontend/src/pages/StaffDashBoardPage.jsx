@@ -46,7 +46,7 @@ export function StaffDashBoardPage() {
 
   // Use quantityValue (numeric) and minStock for proper comparison
   const lowStockCount = inventoryItems.filter((i) => {
-    const qty = i.quantityValue ?? parseFloat(i.quantity) || 0;
+    const qty = (i.quantityValue ?? parseFloat(i.quantity)) || 0;
     const min = i.minStock ?? 0;
     return qty <= min && qty > 0;
   }).length;

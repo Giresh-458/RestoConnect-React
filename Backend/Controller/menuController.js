@@ -5,27 +5,53 @@ const Dish = require('../Model/Dishes_model_test').Dish;
 
 
 exports.getMenu = async (req,res)=>{    
-    const id = req.params.restid;
-    const rest = await Restaurant.find_by_id(id);
+    try {
+        const id = req.params.restid;
+        const rest = await Restaurant.find_by_id(id);
 
-    // Set rest_id in session
-    req.session.rest_id = id;
-
-    let dishes1 = [];
-    for(let i=0 ;i<rest.dishes.length;i++){
-        let dsh = await Dish.find_by_id(rest.dishes[i])
-        if(dsh){
-            dishes1.push(dsh)
+        if (!rest) {
+            return res.status(404).json({ error: 'Restaurant not found' });
         }
+
+        // Set rest_id in session
+        req.session.rest_id = id;
+
+        let dishes1 = [];
+        for(let i=0 ;i<rest.dishes.length;i++){
+            let dsh = await Dish.find_by_id(rest.dishes[i])
+            if(dsh){
+                dishes1.push(dsh)
+            }
+        }
+
+        // Format dishes for frontend
+        const formattedDishes = dishes1.map(dish => ({
+            id: dish._id,
+            name: dish.name,
+            price: dish.price,
+            amount: dish.price, // For cart compatibility
+            description: dish.description || '',
+            image: dish.image || null
+        }));
+
+        // Return JSON for React frontend
+        res.json({ 
+            restaurant: {
+                id: rest._id,
+                name: rest.name,
+                location: rest.location,
+                image: rest.image,
+                rating: rest.rating,
+                isOpen: rest.isOpen,
+                operatingHours: rest.operatingHours,
+                cuisine: rest.cuisine || []
+            },
+            dishes: formattedDishes
+        });
+    } catch (error) {
+        console.error('Error in getMenu:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
-
-    // Get cart from Person model for logged-in user
-    const user = req.user;
-    let person = await Person.findOne({ email: user.email });
-    let cart = person ? person.cart : [];
-    console.log(dishes1)
-
-    res.render('menu',{ restaurant: {name:rest.name,location:rest.location,rest_id:id}, dishes: dishes1, cart: cart })
 }
 
 // Add dish to cart

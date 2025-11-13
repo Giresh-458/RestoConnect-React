@@ -1,0 +1,607 @@
+.menuPage {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+/* Restaurant Banner */
+.restaurantBanner {
+  width: 100%;
+  height: 300px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8)),
+    url('/images/default-restaurant.jpg');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 2rem;
+}
+
+.bannerOverlay {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  color: white;
+}
+
+.bannerTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.bannerMeta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 1.1rem;
+  opacity: 0.95;
+}
+
+/* Search and Filter Section */
+.searchFilterSection {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border-radius: 50px;
+  padding: 0.75rem 1.5rem;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  max-width: 600px;
+}
+
+.searchIcon {
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  color: #333;
+  background: transparent;
+}
+
+.searchInput::placeholder {
+  color: #999;
+}
+
+.categoryFilters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.categoryButton {
+  padding: 0.625rem 1.5rem;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  background: white;
+  color: #495057;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.categoryButton:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.categoryButtonActive {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: transparent;
+}
+
+/* Main Content Area */
+.mainContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2rem;
+  align-items: start;
+}
+
+.menuContent {
+  min-height: 100vh;
+}
+
+.menuSection {
+  margin-bottom: 3rem;
+}
+
+.sectionTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 1.5rem;
+}
+
+/* Dishes Grid */
+.dishesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Dish Card */
+.dishCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.dishCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dishImageContainer {
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.dishImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.dishCard:hover .dishImage {
+  transform: scale(1.05);
+}
+
+.dishInfo {
+  padding: 1.25rem;
+}
+
+.dishName {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #212529;
+  margin: 0 0 0.5rem 0;
+}
+
+.dishDescription {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1rem 0;
+}
+
+.dishFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dishPrice {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #28a745;
+}
+
+.quantityControls {
+  display: flex;
+  align-items: center;
+}
+
+.addButton {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.addButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.quantityButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 0.25rem;
+}
+
+.quantityButton {
+  background: white;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #667eea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quantityButton:hover {
+  background: #667eea;
+  color: white;
+  transform: scale(1.1);
+}
+
+.quantity {
+  font-weight: 700;
+  color: #212529;
+  min-width: 20px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+/* Order Summary Sidebar */
+.orderSummary {
+  position: sticky;
+  top: 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.orderSummaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.orderSummaryHeader h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #212529;
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6c757d;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: #f8f9fa;
+  color: #212529;
+}
+
+.emptyCart {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6c757d;
+}
+
+.emptyCart p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.emptyCartSubtext {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+.orderItems {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+  max-height: 400px;
+}
+
+.orderItem {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.orderItem:last-child {
+  border-bottom: none;
+}
+
+.orderItemImage {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.orderItemInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.orderItemName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.orderItemControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.orderItemPrice {
+  font-weight: 700;
+  color: #28a745;
+  font-size: 0.95rem;
+}
+
+.orderQuantityControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 0.25rem;
+}
+
+.orderQuantityButton {
+  background: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #667eea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.orderQuantityButton:hover {
+  background: #667eea;
+  color: white;
+}
+
+.orderQuantity {
+  font-weight: 600;
+  color: #212529;
+  min-width: 18px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.orderSummaryFooter {
+  border-top: 2px solid #f0f0f0;
+  padding-top: 1.5rem;
+}
+
+.orderSummaryRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.orderSummaryTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.paymentButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.payCardButton,
+.payUPIButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.payCardButton {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.payCardButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+}
+
+.payUPIButton {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 2px solid #4caf50;
+}
+
+.payUPIButton:hover {
+  background: #c8e6c9;
+  transform: translateY(-2px);
+}
+
+.showOrderButton {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.2s;
+  z-index: 100;
+}
+
+.showOrderButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+/* No Dishes */
+.noDishes {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6c757d;
+}
+
+/* Error Container */
+.errorContainer {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6c757d;
+}
+
+.errorContainer h2 {
+  color: #212529;
+  margin-bottom: 1rem;
+}
+
+.errorContainer button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .mainContent {
+    grid-template-columns: 1fr;
+  }
+
+  .orderSummary {
+    position: relative;
+    top: 0;
+    max-height: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .restaurantBanner {
+    height: 200px;
+    padding: 1.5rem;
+  }
+
+  .bannerTitle {
+    font-size: 2rem;
+  }
+
+  .bannerMeta {
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+  }
+
+  .searchFilterSection {
+    padding: 1.5rem 1rem;
+  }
+
+  .mainContent {
+    padding: 1rem;
+  }
+
+  .dishesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .orderSummary {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 70vh;
+    border-radius: 16px 16px 0 0;
+    z-index: 1000;
+  }
+}
+
+@media (max-width: 480px) {
+  .bannerTitle {
+    font-size: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .dishName {
+    font-size: 1.1rem;
+  }
+}

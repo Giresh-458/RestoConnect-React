@@ -440,21 +440,58 @@ exports.getFeedBack = async (req, res) => {
   try {
     const username = req.session.username;
     const user = await Person.findOne({ name: username });
-    if (!user) return res.status(404).send("User not found");
+    if (!user) return res.status(404).json({ error: "User not found" });
 
+    // Get recent orders for the customer to select restaurant
     const recentOrders = await Order.find({ customerName: username })
-      .sort({ _id: -1 })
-      .limit(5);
-
-    // ✅ Fetch the feedbacks for this user
-    const feedbacks = await Feedback.find({ username })
       .sort({ date: -1 })
-      .limit(10);
+      .limit(10)
+      .select('rest_id restaurant date totalAmount')
+      .lean();
 
-    res.render("feedback", { user, recentOrders, feedbacks }); // pass feedbacks
+    // Get unique restaurants from recent orders
+    const restaurantIds = [...new Set(recentOrders.map(o => o.rest_id).filter(Boolean))];
+    const restaurants = await Restaurant.find({ _id: { $in: restaurantIds } })
+      .select('name _id')
+      .lean();
+
+    // Fetch the feedbacks for this user (using customerName, not username)
+    const feedbacks = await Feedback.find({ customerName: username })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    // Return JSON for React frontend
+    res.json({ 
+      user: {
+        name: user.name,
+        email: user.email
+      },
+      recentOrders: recentOrders.map(order => ({
+        id: order._id,
+        restaurant: order.restaurant,
+        rest_id: order.rest_id,
+        date: order.date,
+        totalAmount: order.totalAmount
+      })),
+      restaurants: restaurants.map(r => ({
+        id: r._id,
+        name: r.name
+      })),
+      feedbacks: feedbacks.map(fb => ({
+        id: fb._id,
+        rest_id: fb.rest_id,
+        diningRating: fb.diningRating,
+        orderRating: fb.orderRating,
+        lovedItems: fb.lovedItems,
+        additionalFeedback: fb.additionalFeedback,
+        status: fb.status,
+        createdAt: fb.createdAt
+      }))
+    });
   } catch (error) {
     console.error("Error fetching feedback data:", error);
-    res.status(500).send("Internal Server Error2");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -462,37 +499,55 @@ exports.getFeedBack = async (req, res) => {
 
 exports.submitFeedback = async (req, res) => {
   try {
-    const { diningRating, lovedItems, orderRating, additionalFeedback } = req.body;
+    const { rest_id, diningRating, lovedItems, orderRating, additionalFeedback } = req.body;
     const username = req.session.username;
 
-    if (!username) return res.redirect("/customer/feedback");
-
-    // Get rest_id from the most recent order for this customer
-    // This is needed because rest_id is required in the feedback schema
-    const mostRecentOrder = await Order.findOne({ customerName: username })
-      .sort({ date: -1 })
-      .select('rest_id')
-      .lean();
-
-    if (!mostRecentOrder || !mostRecentOrder.rest_id) {
-      return res.status(400).send("Unable to find restaurant information. Please place an order first.");
+    if (!username) {
+      return res.status(401).json({ error: "Unauthorized. Please login." });
     }
 
-    await Feedback.create({
-      rest_id: mostRecentOrder.rest_id,
+    // Validate rest_id is provided
+    if (!rest_id) {
+      return res.status(400).json({ error: "Restaurant ID is required. Please select a restaurant." });
+    }
+
+    // Verify the restaurant exists
+    const restaurant = await Restaurant.findById(rest_id);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found." });
+    }
+
+    // Create feedback
+    const feedback = await Feedback.create({
+      rest_id: rest_id,
       customerName: username,
-      diningRating: diningRating || 0,
+      diningRating: diningRating ? parseInt(diningRating) : null,
       lovedItems: lovedItems || "",
-      orderRating: orderRating || 0,
+      orderRating: orderRating ? parseInt(orderRating) : null,
       additionalFeedback: additionalFeedback || "",
+      status: 'Pending',
       createdAt: new Date()
     });
 
-    // Redirect to customer dashboard after submission
-    res.redirect("/customer/customerDashboard");
+    // Return JSON response for React frontend
+    res.json({ 
+      success: true, 
+      message: "Feedback submitted successfully!",
+      feedback: {
+        id: feedback._id,
+        rest_id: feedback.rest_id,
+        customerName: feedback.customerName,
+        diningRating: feedback.diningRating,
+        orderRating: feedback.orderRating,
+        lovedItems: feedback.lovedItems,
+        additionalFeedback: feedback.additionalFeedback,
+        status: feedback.status,
+        createdAt: feedback.createdAt
+      }
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Server Error");
+    console.error("Error submitting feedback:", err);
+    res.status(500).json({ error: "Server Error. Please try again." });
   }
 };
 

@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const feedbackSchema = new mongoose.Schema({
     // NEW FIELD: To link feedback to a specific restaurant
     rest_id: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: 'Restaurant',
         required: true,
     },

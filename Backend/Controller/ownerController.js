@@ -115,14 +115,17 @@ exports.getFeedback = async (req, res) => {
       .sort({ createdAt: -1 })
       .select("-rest_id -__v");
 
-    // Format the data to match the dashboard table columns (ID, Customer, Rating, Comment, Status)
+    // Format the data to match the dashboard table columns
     const formattedFeedback = feedbackList.map(item => ({
         id: item._id, 
         customer: item.customerName,
-        // Use diningRating as the main rating, or orderRating if dining is not set.
-        rating: item.diningRating || item.orderRating || 'N/A', 
+        rating: {
+            dining: item.diningRating || null,
+            order: item.orderRating || null
+        },
         // Use additionalFeedback as the main comment.
         comment: item.additionalFeedback || (item.lovedItems ? `Liked: ${item.lovedItems}` : 'No specific comment'),
+        lovedItems: item.lovedItems || '',
         status: item.status, 
         date: item.createdAt
     }));
