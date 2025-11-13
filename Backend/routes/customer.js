@@ -25,6 +25,8 @@ router.post('/order_reservation/reservation',customerController.reservation);
 router.post('/order_reservation/combined', customerController.postOrderAndReservationCombined);
 router.get('/payments',customerController.getPayments);
 router.post('/orderplaced',customerController.postPaymentsSuccess);
+router.post('/orders/:orderId/reorder', customerController.reorderOrder);
+router.post('/preferences/email-notifications', customerController.updateEmailNotifications);
 
 // Menu page route
 router.get('/menu/:restid', menuController.getMenu);

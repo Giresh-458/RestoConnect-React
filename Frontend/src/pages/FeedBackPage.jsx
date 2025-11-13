@@ -58,6 +58,18 @@ export function FeedBackPage() {
         }
     };
 
+    useEffect(() => {
+        if (isCustomerView && customerData) {
+            const restIdFromState = location.state && location.state.restId;
+            if (restIdFromState) {
+                setFormData((prev) => ({
+                    ...prev,
+                    rest_id: restIdFromState
+                }));
+            }
+        }
+    }, [isCustomerView, customerData, location.state]);
+
     const fetchOwnerFeedback = async () => {
         setIsLoading(true);
         setError(null);

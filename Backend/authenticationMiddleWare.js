@@ -5,8 +5,10 @@ const auth_middleware = (role) => {
   return async (req, res, next) => {
     const wantsJSON =
       req.headers.accept?.includes("application/json") ||
+      req.headers.accept === "*/*" ||
       req.headers["content-type"] === "application/json" ||
-      req.xhr;
+      req.xhr ||
+      req.originalUrl.startsWith("/api/");
 
     if (!req.session.username) {
       if (wantsJSON) {
@@ -18,10 +20,10 @@ const auth_middleware = (role) => {
     const user = await User.findOne({ username: req.session.username });
 
     if (!user) {
-      if (wantsJSON) {
-        return res.status(401).json({ error: "Not authenticated" });
+      if (!wantsJSON) {
+        return res.redirect("/loginPage");
       }
-      return res.redirect("/loginPage");
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     req.user = user;
@@ -30,11 +32,10 @@ const auth_middleware = (role) => {
       return next();
     }
 
-    if (wantsJSON) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (!wantsJSON) {
+      return res.redirect("/loginPage");
     }
-
-    return res.redirect("/loginPage");
+    return res.status(403).json({ error: "Forbidden" });
   };
 };
 

@@ -200,14 +200,28 @@ exports.getCustomerDashboard = async (req, res) => {
         // Format order ID to be shorter (use first part of shortid)
         const shortOrderId = order._id ? order._id.substring(0, 11) : 'N/A';
         
+        let totalAmount = Number(order.totalAmount) || 0;
+        if ((!totalAmount || Number.isNaN(totalAmount)) && Array.isArray(order.dishes)) {
+          totalAmount = order.dishes.reduce((sum, dishName) => {
+            try {
+              const dishDoc = Dish.findByName ? Dish.findByName(dishName) : null;
+              return sum + (dishDoc?.price || 0);
+            } catch {
+              return sum;
+            }
+          }, 0);
+        }
+
         return {
           orderId: shortOrderId,
+          recordId: order._id || null,
           dishName: dishName,
-          price: order.totalAmount || 0,
+          price: Number(totalAmount.toFixed(2)),
           status: order.status || 'pending',
           date: order.date,
           image: dishImage,
-          restaurant: order.restaurant || 'Unknown Restaurant'
+          restaurant: order.restaurant || 'Unknown Restaurant',
+          restId: order.rest_id || null
         };
       })
     );
@@ -224,6 +238,7 @@ exports.getCustomerDashboard = async (req, res) => {
               ? await Dish.findOne({ _id: restaurant.dishes[0] })
               : null;
           return {
+            restId: restaurant._id,
             name: dish ? dish.name : restaurantName,
             restaurant: restaurantName,
             image: restaurant.image || '/dish-placeholder.png'
@@ -293,19 +308,53 @@ exports.getCustomerDashboard = async (req, res) => {
     let recentReviews = [];
 
     if (totalReviews > 0) {
-      const avgRating =
-        feedbacks.reduce((sum, fb) => sum + (fb.orderRating || 0), 0) / totalReviews;
-      satisfactionRate = Math.round((avgRating / 5) * 100);
+      const ratingValues = feedbacks.flatMap((fb) =>
+        [fb.orderRating, fb.diningRating].filter((val) => typeof val === "number")
+      );
+
+      if (ratingValues.length > 0) {
+        const avgRating =
+          ratingValues.reduce((sum, rating) => sum + rating, 0) / ratingValues.length;
+        satisfactionRate = Math.round((avgRating / 5) * 100);
+      }
+
+      const restaurantIdSet = Array.from(
+        new Set(feedbacks.map((fb) => fb.rest_id).filter(Boolean))
+      );
+      const restaurantLookup = {};
+      if (restaurantIdSet.length > 0) {
+        const feedbackRestaurants = await Restaurant.find({
+          _id: { $in: restaurantIdSet }
+        }).select("name");
+        feedbackRestaurants.forEach((rest) => {
+          restaurantLookup[rest._id.toString()] = rest.name;
+        });
+      }
 
       recentReviews = feedbacks
         .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, 2)
-        .map((fb) => ({
-          restaurant: 'Restaurant Name', // Can join with order for actual name
-          rating: fb.orderRating,
-          comment: fb.additionalFeedback,
-          lovedItems: fb.lovedItems
-        }));
+        .slice(0, 3)
+        .map((fb) => {
+          const restaurantName =
+            restaurantLookup[fb.rest_id?.toString()] || "Unknown Restaurant";
+          const ratings = [fb.orderRating, fb.diningRating].filter(
+            (val) => typeof val === "number"
+          );
+          const averageRating =
+            ratings.length > 0
+              ? ratings.reduce((sum, val) => sum + val, 0) / ratings.length
+              : null;
+
+          return {
+            restaurant: restaurantName,
+            rating: averageRating,
+            orderRating: fb.orderRating,
+            diningRating: fb.diningRating,
+            comment: fb.additionalFeedback || "",
+            lovedItems: fb.lovedItems || "",
+            createdAt: fb.createdAt
+          };
+        });
     }
 
     // =================== VISIT FREQUENCY ===================
@@ -408,6 +457,7 @@ exports.getCustomerDashboard = async (req, res) => {
         totalOrders: prevOrders.length,
         totalVisits,
         avgSpend,
+        totalSpent: totalSpent.toFixed(2),
         topRestaurant: restaurantList[0] || 'N/A'
       },
       recentOrders,
@@ -430,11 +480,112 @@ exports.getCustomerDashboard = async (req, res) => {
   }
 };
 
+exports.reorderOrder = async (req, res) => {
+  try {
+    const customerName = req.session.username;
+    if (!customerName) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
 
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ success: false, error: 'Order ID is required' });
+    }
 
+    const order = await Order.findOne({ _id: orderId, customerName });
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
 
+    const dishCounts = {};
+    (order.dishes || []).forEach((dishName) => {
+      if (!dishName) return;
+      dishCounts[dishName] = (dishCounts[dishName] || 0) + 1;
+    });
 
+    const uniqueDishNames = Object.keys(dishCounts);
 
+    const items = await Promise.all(
+      uniqueDishNames.map(async (dishName) => {
+        try {
+          const dishDoc = await Dish.findByName(dishName);
+          const price = dishDoc ? Number(dishDoc.price) : 0;
+          const quantity = dishCounts[dishName];
+          return {
+            id: dishDoc?._id || dishName,
+            name: dishDoc?.name || dishName,
+            price,
+            amount: price,
+            image: dishDoc?.image || dishDoc?.img_url || null,
+            quantity
+          };
+        } catch (err) {
+          console.error(`Failed to load dish ${dishName}`, err);
+          return {
+            id: dishName,
+            name: dishName,
+            price: 0,
+            amount: 0,
+            image: null,
+            quantity: dishCounts[dishName]
+          };
+        }
+      })
+    );
+
+    const person = await Person.findOne({ name: customerName });
+    if (person) {
+      person.cart = uniqueDishNames.map((dishName) => ({
+        dish: dishName,
+        quantity: dishCounts[dishName]
+      }));
+      person.markModified('cart');
+      await person.save();
+    }
+
+    return res.json({
+      success: true,
+      restaurant: {
+        id: order.rest_id || null,
+        name: order.restaurant || 'Restaurant'
+      },
+      items
+    });
+  } catch (error) {
+    console.error('Error in reorderOrder:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+exports.updateEmailNotifications = async (req, res) => {
+  try {
+    const customerName = req.session.username;
+    if (!customerName) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'Enabled flag must be boolean' });
+    }
+
+    const person = await Person.findOne({ name: customerName });
+    if (!person) {
+      return res.status(404).json({ success: false, error: 'Customer profile not found' });
+    }
+
+    person.emailNotificationsEnabled = enabled;
+    await person.save();
+
+    return res.json({
+      success: true,
+      emailNotificationsEnabled: person.emailNotificationsEnabled
+    });
+  } catch (error) {
+    console.error('Error updating email notifications:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
 
 exports.getFeedBack = async (req, res) => {
   try {

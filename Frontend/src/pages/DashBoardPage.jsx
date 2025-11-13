@@ -1,17 +1,14 @@
 import { isLogin } from "../util/auth";
- import { redirect,useNavigate  } from "react-router-dom";
+import { redirect, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { replaceCart } from "../store/CartSlice";
 
-
-export async function loader({request}){
-
- let role =await isLogin();
-if(role!='customer'){
-   return redirect('/login');
-}
-
-
-
-
+export async function loader() {
+  const role = await isLogin();
+  if (role !== 'customer') {
+    throw redirect('/login');
+  }
+  return null;
 }
 
 import { useState, useEffect } from 'react';
@@ -19,15 +16,23 @@ import { useState, useEffect } from 'react';
 export const DashBoardPage = () => {
 
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
   const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
-  const [weeklySpending, setWeeklySpending] = useState([]);
+  const [weeklySpending, setWeeklySpending] = useState(Array(7).fill(0));
+  const [visitFrequency, setVisitFrequency] = useState([0, 0, 0, 0]);
+  const [feedbackStats, setFeedbackStats] = useState({
+    satisfactionRate: 0,
+    totalReviews: 0,
+    recentReviews: []
+  });
   const [notifications, setNotifications] = useState([]);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeOrderTab, setActiveOrderTab] = useState('recent');
   const [pastOrders, setPastOrders] = useState([]);
@@ -41,6 +46,50 @@ export const DashBoardPage = () => {
   });
   const [updateError, setUpdateError] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reorderingOrderId, setReorderingOrderId] = useState(null);
+  const [notificationSaving, setNotificationSaving] = useState(false);
+
+  const renderStars = (rating) => {
+    if (typeof rating !== 'number' || Number.isNaN(rating)) {
+      return '☆☆☆☆☆';
+    }
+    const clamped = Math.max(0, Math.min(5, Math.round(rating)));
+    return '★'.repeat(clamped) + '☆'.repeat(5 - clamped);
+  };
+
+  const formatCurrency = (amount) => {
+    const numeric = typeof amount === 'number' ? amount : Number(amount);
+    if (Number.isNaN(numeric)) {
+      return '$0.00';
+    }
+    return `$${numeric.toFixed(2)}`;
+  };
+
+  const formatReviewTimestamp = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleDateString();
+  };
+
+  const formatReservationDate = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleDateString();
+  };
+
+  const formatGuestCount = (value) => {
+    const guests = Number(value);
+    if (!Number.isFinite(guests) || guests <= 0) {
+      return '0 guests';
+    }
+    return `${guests} ${guests === 1 ? 'guest' : 'guests'}`;
+  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -62,34 +111,74 @@ export const DashBoardPage = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Replace with your API endpoint
-      const response = await fetch('http://localhost:3000/api/customer/customerDashboard');
+      setFetchError('');
+      const response = await fetch('http://localhost:3000/api/customer/customerDashboard', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        navigate('/login?message=Please login again');
+        return;
+      }
+
+      if (response.status === 403) {
+        setLoading(false);
+        navigate('/login?message=Access denied');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch dashboard data (${response.status})`);
+      }
+
       const data = await response.json();
-      
-      setUserData(data.user);
-      
+
+      const dashboardUser = data.user || null;
+      setUserData(dashboardUser);
+
       // Separate recent and past orders based on status
-      const allOrders = data.recentOrders || [];
-      
-      // Recent orders: pending, preparing, or most recent completed (last 3)
-      const recent = allOrders.filter(order => {
+      const allOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+
+      const recent = allOrders.filter((order) => {
         const status = (order.status || '').toLowerCase();
         return status === 'pending' || status === 'preparing';
       });
-      
-      // Past orders: completed or delivered
-      const past = allOrders.filter(order => {
+
+      const past = allOrders.filter((order) => {
         const status = (order.status || '').toLowerCase();
         return status === 'completed' || status === 'delivered';
       });
-      
+
       setRecentOrders(recent);
       setPastOrders(past);
-      setFavoriteRestaurants(data.favoriteRestaurants);
-      setUpcomingReservations(data.upcomingReservations);
-      setPastReservations(data.pastReservations);
-      setWeeklySpending(data.weeklySpending);
-      setNotifications(data.notifications || []);
+      setFavoriteRestaurants(Array.isArray(data.favoriteRestaurants) ? data.favoriteRestaurants : []);
+      setUpcomingReservations(
+        Array.isArray(data.upcomingReservations) ? data.upcomingReservations : []
+      );
+      setPastReservations(Array.isArray(data.pastReservations) ? data.pastReservations : []);
+      setWeeklySpending(
+        Array.isArray(data.weeklySpending) && data.weeklySpending.length === 7
+          ? data.weeklySpending.map((value) => (Number.isFinite(Number(value)) ? Number(value) : 0))
+          : Array(7).fill(0)
+      );
+      setVisitFrequency(
+        Array.isArray(data.visitFrequency) && data.visitFrequency.length === 4
+          ? data.visitFrequency.map((value) => (Number.isFinite(Number(value)) ? Number(value) : 0))
+          : [0, 0, 0, 0]
+      );
+      setFeedbackStats({
+        satisfactionRate: data.feedbackStats?.satisfactionRate ?? 0,
+        totalReviews: data.feedbackStats?.totalReviews ?? 0,
+        recentReviews: Array.isArray(data.feedbackStats?.recentReviews)
+          ? data.feedbackStats.recentReviews
+          : []
+      });
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
       setEmailNotificationsEnabled(
         typeof data.emailNotificationsEnabled === 'boolean'
           ? data.emailNotificationsEnabled
@@ -98,6 +187,7 @@ export const DashBoardPage = () => {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setFetchError('We had trouble loading your dashboard. Please refresh to try again.');
       setLoading(false);
     }
   };
@@ -131,9 +221,37 @@ export const DashBoardPage = () => {
     return <div style={styles.loading}>Loading...</div>;
   }
 
-  const maxWeeklySpending = weeklySpending.length
-    ? Math.max(...weeklySpending)
+  const weeklyAmounts = weeklySpending.map((value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  });
+  const maxWeeklySpending = weeklyAmounts.length
+    ? Math.max(...weeklyAmounts, 0)
     : 0;
+  const monthlyVisits = visitFrequency.reduce((sum, count) => sum + count, 0);
+  const visitGoal = 12;
+  const donutCircumference = 314;
+  const visitProgress = Math.min(visitGoal === 0 ? 0 : monthlyVisits / visitGoal, 1);
+  const visitDashOffset = donutCircumference * (1 - visitProgress);
+  const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+  const visitLegendColors = ['#10b981', '#fbbf24', '#f59e0b', '#e5e7eb'];
+
+  const satisfactionRate = feedbackStats?.satisfactionRate ?? 0;
+  const totalReviews = feedbackStats?.totalReviews ?? 0;
+  const recentReviewsList = Array.isArray(feedbackStats?.recentReviews)
+    ? feedbackStats.recentReviews
+    : [];
+  const satisfactionCircumference = 251;
+  const satisfactionOffset = satisfactionCircumference * (1 - Math.min(satisfactionRate / 100, 1));
+  const reviewLabel = totalReviews === 1 ? 'review' : 'reviews';
+  const hasFavorites = favoriteRestaurants.length > 0;
+  const totalVisits = userData?.totalVisits ?? 0;
+  const averageSpend = formatCurrency(Number(userData?.avgSpend ?? 0));
+  const totalSpentDisplay = formatCurrency(Number(userData?.totalSpent ?? 0));
+  const topRestaurant =
+    userData?.topRestaurant && userData.topRestaurant !== 'N/A'
+      ? userData.topRestaurant
+      : 'Keep exploring';
 
   const getNotificationIconStyle = (type) => {
     if (type === 'order') return styles.notificationIcon;
@@ -141,11 +259,136 @@ export const DashBoardPage = () => {
     return styles.notificationIconNeutral;
   };
 
-  const handleNotificationToggle = () => {
-    setEmailNotificationsEnabled((prev) => !prev);
-    // TODO: Persist preference to backend when endpoint is available
+  const handleNotificationToggle = async () => {
+    const nextValue = !emailNotificationsEnabled;
+    setEmailNotificationsEnabled(nextValue);
+    setNotificationSaving(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/customer/preferences/email-notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ enabled: nextValue })
+      });
+      if (response.status === 401) {
+        navigate('/login?message=Please login again');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Failed to update preference (${response.status})`);
+      }
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update preference');
+      }
+    } catch (error) {
+      console.error('Error updating email notifications:', error);
+      alert('Could not update email notification preference. Please try again.');
+      setEmailNotificationsEnabled((prev) => !prev);
+    } finally {
+      setNotificationSaving(false);
+    }
   };
 
+  const handleRateOrder = (order) => {
+    navigate('/customer/feedback', {
+      state: {
+        restId: order?.restId || null,
+        orderId: order?.recordId || order?.orderId || null,
+        restaurant: order?.restaurant || null
+      }
+    });
+  };
+
+  const handleReorder = async (entity) => {
+    if (!entity) {
+      navigate('/customer/order');
+      return;
+    }
+
+    const recordId = entity.recordId || null;
+
+    if (!recordId && entity.restId) {
+      navigate(`/customer/restaurant/${entity.restId}`);
+      return;
+    }
+
+    if (!recordId) {
+      navigate('/customer/order');
+      return;
+    }
+
+    try {
+      setReorderingOrderId(recordId);
+      const response = await fetch(`http://localhost:3000/api/customer/orders/${recordId}/reorder`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (response.status === 401) {
+        navigate('/login?message=Please login again');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to reorder (${response.status})`);
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to reorder');
+      }
+
+      if (Array.isArray(data.items)) {
+        dispatch(replaceCart(data.items));
+      }
+
+      if (data.restaurant?.id) {
+        navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`);
+      } else {
+        navigate('/customer/order');
+      }
+    } catch (error) {
+      console.error('Error during reorder:', error);
+      alert('Could not reorder this order. Please try again.');
+    } finally {
+      setReorderingOrderId(null);
+    }
+  };
+
+  const handleViewMenu = async (restId, fallbackRestaurantName) => {
+    try {
+      if (restId) {
+        navigate(`/customer/restaurant/${restId}`);
+        return;
+      }
+      if (fallbackRestaurantName) {
+        const resp = await fetch('http://localhost:3000/api/restaurants', {
+          credentials: 'include'
+        });
+        if (resp.ok) {
+          const list = await resp.json();
+          const match = Array.isArray(list)
+            ? list.find(r => (r.name || '').toLowerCase() === fallbackRestaurantName.toLowerCase())
+            : null;
+          if (match && match._id) {
+            navigate(`/customer/restaurant/${match._id}`);
+            return;
+          }
+        }
+      }
+      alert('Unable to open menu for this restaurant.');
+    } catch (e) {
+      console.error('View menu failed:', e);
+      alert('Unable to open menu right now.');
+    }
+  };
   const handleEditProfileClick = () => {
     setShowEditModal(true);
     setUpdateError('');
@@ -196,14 +439,20 @@ export const DashBoardPage = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/customer/edit', {
+      const response = await fetch('http://localhost:3000/api/customer/edit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify(editFormData)
       });
+
+      if (response.status === 401) {
+        navigate('/login?message=Please login again');
+        return;
+      }
 
       const data = await response.json();
 
@@ -241,6 +490,10 @@ export const DashBoardPage = () => {
         </div>
       </div>
 
+      {fetchError && (
+        <div style={styles.dashboardError}>{fetchError}</div>
+      )}
+
       {/* Main Content */}
       <div style={styles.mainContent}>
         {/* Left Section */}
@@ -254,16 +507,18 @@ export const DashBoardPage = () => {
               <div style={styles.spendingSection}>
                 <h3 style={styles.sectionTitle}>Weekly Spending</h3>
                 <div style={styles.chartContainer}>
-                  {weeklySpending.map((amount, index) => (
+                  {weeklyAmounts.map((amount, index) => (
                     <div key={index} style={styles.barContainer}>
-                      <div 
+                      <div
                         style={{
                           ...styles.bar,
                           height: maxWeeklySpending
                             ? `${(amount / maxWeeklySpending) * 100}%`
                             : '0%',
-                          backgroundColor: index === 2 ? '#ff6b35' : index % 2 === 0 ? '#fbbf24' : '#fcd34d'
+                          backgroundColor:
+                            index === 2 ? '#ff6b35' : index % 2 === 0 ? '#fbbf24' : '#fcd34d'
                         }}
+                        title={formatCurrency(amount)}
                       ></div>
                       <span style={styles.barLabel}>{getDayName(index)}</span>
                     </div>
@@ -272,15 +527,19 @@ export const DashBoardPage = () => {
                 <div style={styles.statsRow}>
                   <div>
                     <p style={styles.statLabel}>Total Visits</p>
-                    <p style={styles.statValue}>{userData?.totalVisits || 8}</p>
+                    <p style={styles.statValue}>{totalVisits}</p>
                   </div>
                   <div>
                     <p style={styles.statLabel}>Avg Spend</p>
-                    <p style={styles.statValue}>${userData?.avgSpend || '78.50'}</p>
+                    <p style={styles.statValue}>{averageSpend}</p>
                   </div>
                   <div>
                     <p style={styles.statLabel}>Top Restaurant</p>
-                    <p style={styles.statValue}>{userData?.topRestaurant || 'The Grand Bistro'}</p>
+                    <p style={styles.statValue}>{topRestaurant}</p>
+                  </div>
+                  <div>
+                    <p style={styles.statLabel}>Total Spent</p>
+                    <p style={styles.statValue}>{totalSpentDisplay}</p>
                   </div>
                 </div>
               </div>
@@ -298,19 +557,30 @@ export const DashBoardPage = () => {
                       fill="none" 
                       stroke="#10b981" 
                       strokeWidth="20"
-                      strokeDasharray="314"
-                      strokeDashoffset="78.5"
+                      strokeDasharray={donutCircumference}
+                      strokeDashoffset={visitDashOffset}
                       transform="rotate(-90 60 60)"
+                      strokeLinecap="round"
                     />
-                    <text x="60" y="65" textAnchor="middle" style={styles.donutText}>8</text>
-                    <text x="60" y="80" textAnchor="middle" style={styles.donutSubtext}>Visits/Mo</text>
+                    <text x="60" y="65" textAnchor="middle" style={styles.donutText}>{monthlyVisits}</text>
+                    <text x="60" y="80" textAnchor="middle" style={styles.donutSubtext}>Visits this month</text>
                   </svg>
                 </div>
                 <div style={styles.legend}>
-                  {['Week 1-2', 'Week 2-3', 'Week 3-1', 'Week 4-2'].map((week, idx) => (
-                    <div key={idx} style={styles.legendItem}>
-                      <div style={{...styles.legendDot, backgroundColor: ['#10b981', '#fbbf24', '#f59e0b', '#e5e7eb'][idx]}}></div>
-                      <span style={styles.legendText}>{week}</span>
+                  {visitFrequency.map((count, idx) => (
+                    <div key={weekLabels[idx]} style={styles.legendItem}>
+                      <div style={styles.legendLabel}>
+                        <div
+                          style={{
+                            ...styles.legendDot,
+                            backgroundColor: visitLegendColors[idx]
+                          }}
+                        ></div>
+                        <span style={styles.legendText}>{weekLabels[idx]}</span>
+                      </div>
+                      <span style={styles.legendCount}>
+                        {count} {count === 1 ? 'visit' : 'visits'}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -342,7 +612,7 @@ export const DashBoardPage = () => {
               {(activeOrderTab === 'recent' ? recentOrders : pastOrders).map((order, index) => {
                 const formattedStatus = formatOrderStatus(order.status);
                 return (
-                  <div key={index} style={styles.orderItem}>
+                  <div key={order.recordId || index} style={styles.orderItem}>
                     <img 
                       src={order.image || '/dish-placeholder.png'} 
                       alt={order.dishName} 
@@ -350,14 +620,25 @@ export const DashBoardPage = () => {
                     />
                     <div style={styles.orderInfo}>
                       <h4 style={styles.orderName}>{order.dishName}</h4>
-                      <p style={styles.orderPrice}>${order.price}</p>
+                      <p style={styles.orderPrice}>{formatCurrency(order.price)}</p>
+                      <p style={styles.orderMeta}>{order.restaurant || 'Restaurant'}</p>
                       <p style={{...styles.orderStatus, color: getOrderStatusColor(formattedStatus)}}>
-                        Order #{order.orderId} · {formattedStatus}
+                        {formattedStatus === 'completed' ? 'Completed order' : `Order is ${formattedStatus}`}
                       </p>
                     </div>
                     <div style={styles.orderActions}>
-                      <button style={styles.rateButton}>Rate</button>
-                      <button style={styles.reorderButton}>Reorder</button>
+                      <button style={styles.rateButton} onClick={() => handleRateOrder(order)}>Rate</button>
+                      <button
+                        style={{
+                          ...styles.reorderButton,
+                          opacity: reorderingOrderId === (order.recordId || order.orderId) ? 0.7 : 1,
+                          cursor: reorderingOrderId === (order.recordId || order.orderId) ? 'not-allowed' : 'pointer'
+                        }}
+                        onClick={() => handleReorder(order)}
+                        disabled={reorderingOrderId === (order.recordId || order.orderId)}
+                      >
+                        {reorderingOrderId === (order.recordId || order.orderId) ? 'Reordering...' : 'Reorder'}
+                      </button>
                     </div>
                   </div>
                 );
@@ -373,55 +654,94 @@ export const DashBoardPage = () => {
           {/* Favorite Dishes */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Favorite Dishes</h2>
-            <div style={styles.dishesGrid}>
-              {favoriteRestaurants.slice(0, 2).map((dish, index) => (
-                <div key={index} style={styles.dishCard}>
-                  <img src={dish.image || '/dish-placeholder.png'} alt={dish.name} style={styles.dishImage} />
-                  <div style={styles.dishInfo}>
-                    <h4 style={styles.dishName}>{dish.name}</h4>
-                    <p style={styles.dishRestaurant}>From {dish.restaurant}</p>
-                    <div style={styles.dishActions}>
-                      <button style={styles.viewMenuButton}>View Menu</button>
-                      <button style={styles.reorderButtonOrange}>Reorder</button>
+            {hasFavorites ? (
+              <div style={styles.dishesGrid}>
+                {favoriteRestaurants.slice(0, 4).map((dish, index) => (
+                  <div key={`${dish.restaurant}-${index}`} style={styles.dishCard}>
+                    <img
+                      src={dish.image || '/dish-placeholder.png'}
+                      alt={dish.name || 'Favorite dish'}
+                      style={styles.dishImage}
+                    />
+                    <div style={styles.dishInfo}>
+                      <h4 style={styles.dishName}>{dish.name || 'Signature Dish'}</h4>
+                      <p style={styles.dishRestaurant}>
+                        From {dish.restaurant || 'Your favorite spot'}
+                      </p>
+                      <div style={styles.dishActions}>
+                        <button
+                          style={styles.viewMenuButton}
+                          onClick={() => handleViewMenu(dish.restId, dish.restaurant)}
+                        >
+                          View Menu
+                        </button>
+                        <button
+                          style={styles.reorderButtonOrange}
+                          onClick={() => handleReorder(dish)}
+                        >
+                          Reorder
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.emptyState}>
+                Save dishes to your favorites to see them highlighted here.
+              </div>
+            )}
           </div>
 
           {/* Table Reservations */}
           <div style={styles.card}>
             <div style={styles.cardHeader}>
               <h2 style={styles.cardTitle}>Table Reservations</h2>
-              <button style={styles.bookTableButton}>Book New Table</button>
             </div>
             
             <div style={styles.reservationsContainer}>
               <div style={styles.reservationColumn}>
                 <h3 style={styles.reservationTitle}>Upcoming</h3>
-                {upcomingReservations.map((res, index) => (
-                  <div key={index} style={styles.reservationItem}>
-                    <span style={styles.restaurantIcon}>🍽️</span>
-                    <div>
-                      <p style={styles.reservationName}>{res.restaurant}</p>
-                      <p style={styles.reservationDetails}>{res.date} at {res.time} · {res.guests} guests</p>
+                {upcomingReservations.length > 0 ? (
+                  upcomingReservations.map((res, index) => (
+                    <div key={res.id || res._id || index} style={styles.reservationItem}>
+                      <span style={styles.restaurantIcon}>🍽️</span>
+                      <div>
+                        <p style={styles.reservationName}>{res.restaurant}</p>
+                        <p style={styles.reservationDetails}>
+                          {formatReservationDate(res.date)}
+                          {res.time ? ` at ${res.time}` : ''} · {formatGuestCount(res.guests)}
+                        </p>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={styles.emptyState}>
+                    No upcoming reservations. Book your next table to see it here.
                   </div>
-                ))}
+                )}
               </div>
               
               <div style={styles.reservationColumn}>
                 <h3 style={styles.reservationTitle}>Past</h3>
-                {pastReservations.map((res, index) => (
-                  <div key={index} style={styles.reservationItem}>
-                    <span style={styles.restaurantIcon}>🍽️</span>
-                    <div>
-                      <p style={styles.reservationName}>{res.restaurant}</p>
-                      <p style={styles.reservationDetails}>{res.date} at {res.time} · {res.guests} guests</p>
+                {pastReservations.length > 0 ? (
+                  pastReservations.map((res, index) => (
+                    <div key={res.id || res._id || `past-${index}`} style={styles.reservationItem}>
+                      <span style={styles.restaurantIcon}>🍽️</span>
+                      <div>
+                        <p style={styles.reservationName}>{res.restaurant}</p>
+                        <p style={styles.reservationDetails}>
+                          {formatReservationDate(res.date)}
+                          {res.time ? ` at ${res.time}` : ''} · {formatGuestCount(res.guests)}
+                        </p>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={styles.emptyState}>
+                    Past reservations will appear once you complete a booking.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -442,27 +762,56 @@ export const DashBoardPage = () => {
                   fill="none" 
                   stroke="#ff6b35" 
                   strokeWidth="8"
-                  strokeDasharray="251"
-                  strokeDashoffset="25"
+                  strokeDasharray={satisfactionCircumference}
+                  strokeDashoffset={Math.max(satisfactionOffset, 0)}
                   transform="rotate(-90 50 50)"
+                  strokeLinecap="round"
                 />
-                <text x="50" y="55" textAnchor="middle" style={styles.satisfactionText}>92%</text>
+                <text x="50" y="55" textAnchor="middle" style={styles.satisfactionText}>
+                  {`${Math.round(Math.max(0, satisfactionRate))}%`}
+                </text>
               </svg>
-              <p style={styles.satisfactionLabel}>Based on your 14 reviews</p>
+              <p style={styles.satisfactionLabel}>
+                {totalReviews > 0
+                  ? `Based on your ${totalReviews} ${reviewLabel}`
+                  : 'Share feedback to see your satisfaction score'}
+              </p>
             </div>
             
             <div style={styles.reviewsSection}>
-              <h3 style={styles.sectionTitle}>Your Past Reviews</h3>
-              <div style={styles.reviewItem}>
-                <p style={styles.reviewRestaurant}>The Grand Bistro</p>
-                <div style={styles.stars}>★★★★★</div>
-                <p style={styles.reviewText}>"Lovely ambiance and the steak was perfect!"</p>
-              </div>
-              <div style={styles.reviewItem}>
-                <p style={styles.reviewRestaurant}>Sakura Sushi House</p>
-                <div style={styles.stars}>★★★★★</div>
-                <p style={styles.reviewText}>"The sushi was incredibly fresh and delicious"</p>
-              </div>
+              <h3 style={styles.sectionTitle}>Recent Feedback</h3>
+              {recentReviewsList.length > 0 ? (
+                recentReviewsList.map((review, index) => (
+                  <div key={review.createdAt || index} style={styles.reviewItem}>
+                    <div style={styles.reviewHeader}>
+                      <p style={styles.reviewRestaurant}>{review.restaurant}</p>
+                      {typeof review.rating === 'number' && !Number.isNaN(review.rating) ? (
+                        <div style={styles.reviewRating}>
+                          <span style={styles.reviewStars}>{renderStars(review.rating)}</span>
+                          <span style={styles.reviewRatingValue}>{review.rating.toFixed(1)}</span>
+                        </div>
+                      ) : (
+                        <span style={styles.reviewRatingValue}>No rating yet</span>
+                      )}
+                    </div>
+                    <p style={styles.reviewText}>
+                      {review.comment
+                        ? `"${review.comment}"`
+                        : 'No written feedback provided.'}
+                    </p>
+                    {review.lovedItems ? (
+                      <p style={styles.reviewLovedItems}>Loved: {review.lovedItems}</p>
+                    ) : null}
+                    {review.createdAt ? (
+                      <p style={styles.reviewTimestamp}>{formatReviewTimestamp(review.createdAt)}</p>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <div style={styles.emptyState}>
+                  Share your first review to see it highlighted here.
+                </div>
+              )}
             </div>
           </div>
 
@@ -483,6 +832,11 @@ export const DashBoardPage = () => {
                 </div>
               </div>
             ))}
+            {notifications.length === 0 && (
+              <div style={styles.emptyState}>
+                You're all caught up. Order or book to see updates here.
+              </div>
+            )}
             
             <div style={styles.notificationToggle}>
               <span>Email Notifications</span>
@@ -491,6 +845,7 @@ export const DashBoardPage = () => {
                   type="checkbox"
                   checked={emailNotificationsEnabled}
                   onChange={handleNotificationToggle}
+                  disabled={notificationSaving}
                 />
                 <span style={styles.slider}></span>
               </label>
@@ -673,21 +1028,33 @@ const styles = {
     border: '1px solid #e5e7eb',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    color: '#1f2937',
+    fontWeight: 600
   },
   logoutButton: {
     padding: '10px 20px',
     backgroundColor: '#ff6b35',
-    color: '#fff',
+    color: '#ffffff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '14px'
+    fontSize: '14px',
+    fontWeight: 600
   },
   mainContent: {
     display: 'grid',
     gridTemplateColumns: '2fr 1fr',
     gap: '20px'
+  },
+  dashboardError: {
+    margin: '0 0 20px 0',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    border: '1px solid #fcd34d',
+    fontSize: '13px'
   },
   leftSection: {
     display: 'flex',
@@ -782,8 +1149,9 @@ const styles = {
     marginTop: '8px'
   },
   statsRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '16px',
     marginTop: '20px'
   },
   statLabel: {
@@ -817,6 +1185,13 @@ const styles = {
   legendItem: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    width: '100%'
+  },
+  legendLabel: {
+    display: 'flex',
+    alignItems: 'center',
     gap: '8px'
   },
   legendDot: {
@@ -827,6 +1202,11 @@ const styles = {
   legendText: {
     fontSize: '12px',
     color: '#6b7280'
+  },
+  legendCount: {
+    fontSize: '12px',
+    color: '#374151',
+    fontWeight: '500'
   },
   ordersList: {
     display: 'flex',
@@ -867,6 +1247,11 @@ const styles = {
     color: '#6b7280',
     margin: '0 0 5px 0'
   },
+  orderMeta: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    margin: '0 0 6px 0'
+  },
   orderStatus: {
     fontSize: '12px',
     margin: 0
@@ -881,7 +1266,9 @@ const styles = {
     border: '1px solid #e5e7eb',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
+    color: '#1f2937',
+    fontWeight: 600
   },
   reorderButton: {
     padding: '8px 16px',
@@ -890,11 +1277,12 @@ const styles = {
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
+    fontWeight: 600
   },
   dishesGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
     gap: '20px'
   },
   dishCard: {
@@ -931,7 +1319,9 @@ const styles = {
     border: '1px solid #e5e7eb',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
+    color: '#1f2937',
+    fontWeight: 600
   },
   reorderButtonOrange: {
     flex: 1,
@@ -941,16 +1331,8 @@ const styles = {
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '13px'
-  },
-  bookTableButton: {
-    padding: '8px 16px',
-    backgroundColor: '#ff6b35',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
+    fontWeight: 600
   },
   reservationsContainer: {
     display: 'grid',
@@ -988,6 +1370,15 @@ const styles = {
     color: '#6b7280',
     margin: 0
   },
+  emptyState: {
+    textAlign: 'center',
+    padding: '28px 16px',
+    color: '#6b7280',
+    fontSize: '13px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '10px',
+    border: '1px dashed #d1d5db'
+  },
   satisfactionContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -1011,21 +1402,46 @@ const styles = {
     padding: '12px 0',
     borderBottom: '1px solid #e5e7eb'
   },
+  reviewHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px'
+  },
   reviewRestaurant: {
     fontSize: '14px',
     fontWeight: '600',
     margin: '0 0 5px 0'
   },
-  stars: {
+  reviewRating: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  reviewStars: {
     color: '#fbbf24',
-    fontSize: '14px',
-    margin: '5px 0'
+    fontSize: '14px'
+  },
+  reviewRatingValue: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '600'
   },
   reviewText: {
     fontSize: '13px',
     color: '#6b7280',
     margin: 0,
     fontStyle: 'italic'
+  },
+  reviewLovedItems: {
+    fontSize: '12px',
+    color: '#f97316',
+    margin: '8px 0 0 0'
+  },
+  reviewTimestamp: {
+    fontSize: '11px',
+    color: '#9ca3af',
+    marginTop: '6px'
   },
   notificationItem: {
     display: 'flex',
