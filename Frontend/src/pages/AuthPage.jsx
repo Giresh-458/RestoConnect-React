@@ -77,7 +77,8 @@ export function AuthPage() {
                                     minLength="2"
                                     maxLength="50"
                                     required={!isLogin}
-                                    title="Full name must be at least 2 characters"
+                                    pattern="^[A-Za-z][A-Za-z\s]{1,49}$"
+                                    title="Full name must start with a letter and can only contain letters and spaces"
                                 />
                             </div>
                         </div>
@@ -232,7 +233,11 @@ const validateMobile = (mobile) => {
 };
 
 const validateFullName = (name) => {
-    return name && name.trim().length >= 2;
+    if (!name) return false;
+    const trimmedName = name.trim();
+    // Must start with a letter; then allow only letters and spaces (no symbols)
+    const fullNameRegex = /^[A-Za-z][A-Za-z\s]{1,49}$/;
+    return fullNameRegex.test(trimmedName);
 };
 
 // Action handler for form submission
