@@ -23,8 +23,118 @@ export function StaffDashBoardPage() {
     availableTables: []
   });
   const [showSettings, setShowSettings] = useState(false);
-<<<<<<< HEAD
-   const navigate = useNavigate();
+  const navigate = useNavigate();
+  const [newTable, setNewTable] = useState({ number: "", capacity: "" });
+  const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("http://localhost:3000/staff/DashboardData", {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch dashboard data");
+      }
+
+      const json = await response.json();
+      setData({
+        rest_name: json.rest_name || '',
+        orders: json.orders || [],
+        reservations: json.reservations || [],
+        feedback: json.feedback || [],
+        inventoryStatus: json.inventoryStatus || [],
+        availableTables: json.availableTables || []
+      });
+      return json;
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      setError(err.message || "Failed to load dashboard data. Please refresh the page.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadData = async () => {
+      try {
+        await fetchData();
+      } catch (error) {
+        if (isMounted) {
+    setError(null);
+    try {
+      const response = await fetch("http://localhost:3000/staff/DashboardData", {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch dashboard data");
+      }
+
+      const json = await response.json();
+      setData({
+        rest_name: json.rest_name || '',
+        orders: json.orders || [],
+        reservations: json.reservations || [],
+        feedback: json.feedback || [],
+        inventoryStatus: json.inventoryStatus || [],
+        availableTables: json.availableTables || []
+      });
+      return json;
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      setError(err.message || "Failed to load dashboard data. Please refresh the page.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+=======
+  const [showSettings, setShowSettings] = useState(false);
+  const navigate = useNavigate();
+  const [newTable, setNewTable] = useState({ number: "", capacity: "" });
+  const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("http://localhost:3000/staff/DashboardData", {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch dashboard data");
+      }
+
+      const json = await response.json();
+      setData({
+        rest_name: json.rest_name || '',
+        orders: json.orders || [],
+        reservations: json.reservations || [],
+        feedback: json.feedback || [],
+        inventoryStatus: json.inventoryStatus || [],
+        availableTables: json.availableTables || []
+      });
+      return json;
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      setError(err.message || "Failed to load dashboard data. Please refresh the page.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 =======
   const [newTable, setNewTable] = useState({ number: "", capacity: "" });
   const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
