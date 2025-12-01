@@ -37,19 +37,19 @@ router.post("/inventory/update", ownerController.updateInventory);
 router.get("/reports", ownerController.getReportsData);
 
 // API routes for owner homepage dashboard
-router.get("/api/info", ownerController.getOwnerInfo);
-router.get("/api/dashboard/stats", ownerController.getDashboardStats);
-router.get("/api/dashboard/trend", ownerController.getRevenueOrdersTrend);
-router.get("/api/orders/recent", ownerController.getRecentOrders);
-router.get("/api/inventory", ownerController.getInventoryAPI);
-router.post("/api/inventory", ownerController.createInventoryItem);
-router.patch("/api/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+router.get("/info", ownerController.getOwnerInfo);
+router.get("/dashboard/stats", ownerController.getDashboardStats);
+router.get("/dashboard/trend", ownerController.getRevenueOrdersTrend);
+router.get("/orders/recent", ownerController.getRecentOrders);
+router.get("/inventory", ownerController.getInventoryAPI);
+router.post("/inventory", ownerController.createInventoryItem);
+router.patch("/inventory/:id/quantity", ownerController.updateInventoryQuantity);
 
-router.get("/api/feedback", ownerController.getFeedback);
-router.put("/api/feedback/:id/status", ownerController.updateFeedbackStatus);
+router.get("/feedback", ownerController.getFeedback);
+router.put("/feedback/:id/status", ownerController.updateFeedbackStatus);
 
 // API routes for owner dashboard
-router.get("/api/owner/reports", ownerController.getReportsData);
-router.get("/api/owner/inventory", ownerController.getInventory);
-router.post("/api/owner/inventory/update", ownerController.updateInventory);
+router.get("/owner/reports", ownerController.getReportsData);
+router.get("/owner/inventory", ownerController.getInventory);
+router.post("/owner/inventory/update", ownerController.updateInventory);
 module.exports = router;

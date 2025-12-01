@@ -52,6 +52,7 @@ const reservationRouter = require('./routes/reservationRoutes.js');
 
 const homepageController = require('./Controller/homePageController.js');
 const menuController = require('./Controller/menuController.js');
+const staffController = require('./Controller/staffController.js');
 const authentication = require('./authenticationMiddleWare.js');
 const validation = require('./passwordAuth.js');
 
@@ -76,12 +77,12 @@ app.use('/api/customer', authentication('customer'), customerRouter);
 app.use('/admin', authentication('admin'), adminRouter);
 app.use('/api/admin', authentication('admin'), adminRouter);
 
+
 app.use('/owner', authentication('owner'), ownerRouter);
 app.use('/api/owner', authentication('owner'), ownerRouter);
 
 app.use('/staff', authentication('staff'), staffRouter);
-app.use('/api/staff', authentication('staff'), staffRouter);
-
+app.use('/api/staff', authentication('staff'), (req, res, next) => {console.log("staff middleware called"); next();}, staffController.getStaffHomepageData);
 app.use('/reservations', authentication('owner'), reservationRouter);
 
 
