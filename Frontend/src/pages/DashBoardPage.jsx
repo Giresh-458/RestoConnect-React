@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { isLogin } from "../util/auth";
+import { getFavourites } from "../util/favourites";
 import { redirect, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { replaceCart } from "../store/CartSlice";
@@ -10,8 +12,6 @@ export async function loader() {
   }
   return null;
 }
-
-import { useState, useEffect } from 'react';
 
 export const DashBoardPage = () => {
 
@@ -48,6 +48,8 @@ export const DashBoardPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [reorderingOrderId, setReorderingOrderId] = useState(null);
   const [notificationSaving, setNotificationSaving] = useState(false);
+  const [favoriteDishes, setFavoriteDishes] = useState([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
 
   const renderStars = (rating) => {
     if (typeof rating !== 'number' || Number.isNaN(rating)) {
@@ -93,21 +95,8 @@ export const DashBoardPage = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchFavoriteDishes();
   }, []);
-
-  // Update form data when userData changes
-  useEffect(() => {
-    if (userData) {
-      setEditFormData({
-        name: userData.name || '',
-        email: userData.email || '',
-        phone: userData.phone || '',
-        img_url: userData.img_url || '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    }
-  }, [userData]);
 
   const fetchDashboardData = async () => {
     try {
@@ -189,6 +178,29 @@ export const DashBoardPage = () => {
       console.error('Error fetching dashboard data:', error);
       setFetchError('We had trouble loading your dashboard. Please refresh to try again.');
       setLoading(false);
+    }
+  };
+
+  const fetchFavoriteDishes = async () => {
+    try {
+      console.log('Starting to fetch favorite dishes...');
+      setLoadingFavorites(true);
+      const data = await getFavourites();
+      console.log('Received favorite dishes data:', data);
+      const dishes = Array.isArray(data) ? data : [];
+      console.log('Processed favorite dishes:', dishes);
+      setFavoriteDishes(dishes);
+    } catch (error) {
+      console.error('Error fetching favorite dishes:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
+      setFavoriteDishes([]);
+    } finally {
+      console.log('Finished loading favorite dishes');
+      setLoadingFavorites(false);
     }
   };
 
@@ -654,41 +666,46 @@ export const DashBoardPage = () => {
           {/* Favorite Dishes */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Favorite Dishes</h2>
-            {hasFavorites ? (
-              <div style={styles.dishesGrid}>
-                {favoriteRestaurants.slice(0, 4).map((dish, index) => (
-                  <div key={`${dish.restaurant}-${index}`} style={styles.dishCard}>
-                    <img
-                      src={dish.image || '/dish-placeholder.png'}
-                      alt={dish.name || 'Favorite dish'}
-                      style={styles.dishImage}
-                    />
+            {loadingFavorites ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : favoriteDishes.length > 0 ? (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {favoriteDishes.map((dish, index) => (
+                  <div 
+                    key={dish._id || index} 
+                    style={styles.dishCard}
+                    onClick={() => dish.restaurantId && navigate(`/customer/restaurant/${dish.restaurantId}`)}
+                  >
+                    <div style={styles.dishImageContainer}>
+                      <img 
+                        src={dish.image || 'https://via.placeholder.com/80'} 
+                        alt={dish.name}
+                        style={styles.dishImage}
+                      />
+                    </div>
                     <div style={styles.dishInfo}>
-                      <h4 style={styles.dishName}>{dish.name || 'Signature Dish'}</h4>
-                      <p style={styles.dishRestaurant}>
-                        From {dish.restaurant || 'Your favorite spot'}
-                      </p>
-                      <div style={styles.dishActions}>
-                        <button
-                          style={styles.viewMenuButton}
-                          onClick={() => handleViewMenu(dish.restId, dish.restaurant)}
-                        >
-                          View Menu
-                        </button>
-                        <button
-                          style={styles.reorderButtonOrange}
-                          onClick={() => handleReorder(dish)}
-                        >
-                          Reorder
-                        </button>
-                      </div>
+                      <h4 style={styles.dishName}>{dish.name}</h4>
+                      {dish.restaurantName && (
+                        <p style={styles.restaurantName}>
+                          <i className="bi bi-shop"></i> {dish.restaurantName}
+                        </p>
+                      )}
+                      {dish.price && (
+                        <p style={styles.dishPrice}>${dish.price.toFixed(2)}</p>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div style={styles.emptyState}>
-                Save dishes to your favorites to see them highlighted here.
+                <i className="bi bi-heart" style={styles.emptyIcon}></i>
+                <p style={styles.emptyText}>No favorite dishes yet</p>
+                <p style={styles.emptySubtext}>Save your favorite dishes to see them here</p>
               </div>
             )}
           </div>

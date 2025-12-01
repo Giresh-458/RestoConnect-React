@@ -1135,30 +1135,33 @@ exports.addToFavourites = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Dish ID is required' });
     }
 
+    console.log(`[Favorites] Adding dish ${dishId} for user ${customerName}`);
     const person = await Person.findOne({ name: customerName });
+    
     if (!person) {
       return res.status(404).json({ success: false, error: 'Customer not found' });
     }
 
-    // Initialize favourites array if it doesn't exist
-    if (!person.favourites) {
-      person.favourites = [];
-    }
+    if (!person.favourites) person.favourites = [];
 
-    // Check if dish is already in favourites
     if (person.favourites.includes(dishId)) {
+      console.log(`[Favorites] Dish ${dishId} already in favorites`);
       return res.status(400).json({ success: false, error: 'Dish already in favourites' });
     }
 
-    // Add to favourites
     person.favourites.push(dishId);
     person.markModified('favourites');
     await person.save();
-
+    
+    console.log(`[Favorites] Added dish ${dishId} to favorites for ${customerName}`);
     res.json({ success: true, message: 'Dish added to favourites' });
   } catch (error) {
-    console.error('Error adding to favourites:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error('[Favorites] Add error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -1200,12 +1203,15 @@ exports.getFavourites = async (req, res) => {
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
 
+    console.log(`[Favorites] Fetching favorites for user: ${customerName}`);
     const person = await Person.findOne({ name: customerName });
+    
     if (!person) {
       return res.status(404).json({ success: false, error: 'Customer not found' });
     }
 
     const favouriteDishIds = person.favourites || [];
+    console.log(`[Favorites] Found ${favouriteDishIds.length} favorite dishes`);
 
     if (favouriteDishIds.length === 0) {
       return res.json({ success: true, favourites: [] });
@@ -1227,7 +1233,7 @@ exports.getFavourites = async (req, res) => {
             image: getImageUrl(req, dish.image) || null
           };
         } catch (err) {
-          console.error(`Error fetching dish ${dishId}:`, err);
+          console.error(`[Favorites] Error fetching dish ${dishId}:`, err.message);
           return null;
         }
       })
@@ -1235,10 +1241,18 @@ exports.getFavourites = async (req, res) => {
 
     // Filter out null values (dishes that no longer exist)
     const validDishes = dishes.filter(dish => dish !== null);
+    
+    if (validDishes.length !== dishes.length) {
+      console.log(`[Favorites] Filtered out ${dishes.length - validDishes.length} invalid dishes`);
+    }
 
     res.json({ success: true, favourites: validDishes });
   } catch (error) {
-    console.error('Error getting favourites:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error('[Favorites] Get error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };

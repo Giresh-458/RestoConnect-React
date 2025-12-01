@@ -9,7 +9,7 @@ import styles from "./OrderPage.module.css";
 export function OrderPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const cartItems = useSelector((state) => state.cartSlice.dishes);
+  const cartItems = useSelector((state) => state.cart.dishes || []);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [savedToFavorites, setSavedToFavorites] = useState(false);

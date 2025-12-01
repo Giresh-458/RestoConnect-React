@@ -10,8 +10,8 @@ export function MenuPage() {
   const data = useLoaderData();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const cartItems = useSelector((state) => state.cartSlice.dishes);
-  const cartTotal = useSelector((state) => state.cartSlice.amount);
+  const cartItems = useSelector((state) => state.cart.dishes || []);
+  const cartTotal = useSelector((state) => state.cart.amount || 0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showOrderSummary, setShowOrderSummary] = useState(true);

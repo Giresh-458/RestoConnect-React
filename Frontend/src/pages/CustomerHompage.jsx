@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLoaderData, redirect, useNavigate } from "react-router-dom";
 import { isLogin } from "../util/auth";
+import { getFavourites } from "../util/favourites";
 import styles from "./CustomerHomepage.module.css";
 
 export async function loader() {
@@ -34,6 +35,9 @@ export function CustomerHomepage() {
   const [locations, setLocations] = useState([]);
   const [cuisines, setCuisines] = useState(["All"]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [favorites, setFavorites] = useState([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
   const navigate = useNavigate();
 
   const fetchLocations = useCallback(async () => {
@@ -84,6 +88,27 @@ export function CustomerHomepage() {
     fetchLocations();
   }, [fetchLocations]);
 
+  // Fetch favorites when the component mounts and when activeTab changes to 'favorites'
+  useEffect(() => {
+    if (activeTab === 'favorites') {
+      const fetchFavorites = async () => {
+        try {
+          console.log('Fetching favorites...');
+          setLoadingFavorites(true);
+          const favoritesData = await getFavourites();
+          console.log('Received favorites data:', favoritesData);
+          setFavorites(Array.isArray(favoritesData) ? favoritesData : []);
+        } catch (error) {
+          console.error('Error fetching favorites:', error);
+          setFavorites([]);
+        } finally {
+          setLoadingFavorites(false);
+        }
+      };
+      fetchFavorites();
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     fetchRestaurants();
   }, [fetchRestaurants]);
@@ -115,6 +140,172 @@ export function CustomerHomepage() {
     .filter(r => r.distance !== undefined)
     .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
     .slice(0, 6);
+
+  // Tab navigation
+  const renderTabs = () => (
+    <div className={styles.tabs}>
+      <button
+        className={`${styles.tab} ${activeTab === 'all' ? styles.activeTab : ''}`}
+        onClick={() => setActiveTab('all')}
+      >
+        All Restaurants
+      </button>
+      <button
+        className={`${styles.tab} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
+        onClick={() => setActiveTab('favorites')}
+      >
+        My Favorites
+      </button>
+    </div>
+  );
+
+  // Render content based on active tab
+  const renderContent = () => {
+    console.log('Rendering content, activeTab:', activeTab, 'favorites:', favorites);
+    if (activeTab === 'favorites') {
+      if (loadingFavorites) {
+        return (
+          <div className={styles.loading}>
+            <div className={styles.spinner}></div>
+            <p>Loading your favorite dishes...</p>
+          </div>
+        );
+      }
+
+      if (favorites.length === 0) {
+        return (
+          <div className={styles.noResults}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            <h3>No favorite dishes yet</h3>
+            <p>Save your favorite dishes to see them here!</p>
+          </div>
+        );
+      }
+
+      console.log('Rendering favorites:', favorites);
+      return (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>
+              <span className={styles.sectionIcon}>❤️</span>
+              My Favorite Dishes
+            </h2>
+            <p className={styles.sectionSubtitle}>Your saved favorite dishes from all restaurants</p>
+          </div>
+          {favorites.length > 0 ? (
+            <div className={styles.restaurantsGrid}>
+              {favorites.map((dish) => (
+                <div key={dish._id || dish.id} className={styles.restaurantCard}>
+                  <div className={styles.restaurantImageContainer}>
+                    <img 
+                      src={dish.image || '/placeholder-dish.jpg'} 
+                      alt={dish.name} 
+                      className={styles.restaurantImage}
+                    />
+                  </div>
+                  <div className={styles.restaurantInfo}>
+                    <div className={styles.restaurantHeader}>
+                      <h3 className={styles.restaurantName}>{dish.name}</h3>
+                      {dish.price && (
+                        <div className={styles.ratingBadge}>
+                          <span className={styles.ratingValue}>${dish.price.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {dish.restaurantName && (
+                      <p className={styles.restaurantLocation}>
+                        <span>🍽️</span> {dish.restaurantName}
+                      </p>
+                    )}
+                    <p className={styles.dishDescription}>
+                      {dish.description || 'No description available'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.noResults}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+              <h3>No favorite dishes yet</h3>
+              <p>Save your favorite dishes from the menu to see them here!</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Default view: All Restaurants
+    return (
+      <>
+        {popularRestaurants.length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>
+                <span className={styles.sectionIcon}>⭐</span>
+                Popular Restaurants
+              </h2>
+              <p className={styles.sectionSubtitle}>Top rated restaurants loved by customers</p>
+            </div>
+            <div className={styles.restaurantsGrid}>
+              {popularRestaurants.map((restaurant) => (
+                <RestaurantCard
+                  key={restaurant._id}
+                  restaurant={restaurant}
+                  onClick={() => handleRestaurantClick(restaurant._id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>
+              <span className={styles.sectionIcon}>🍴</span>
+              All Restaurants
+            </h2>
+            {selectedCuisine !== "All" && (
+              <div className={styles.filterIndicator}>
+                <span>Filtered by: <strong>{selectedCuisine}</strong></span>
+                <button className={styles.filterClear} onClick={clearCuisineFilter}>× Clear</button>
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <div className={styles.loading}>
+              <div className={styles.spinner}></div>
+              <p>Loading restaurants...</p>
+            </div>
+          ) : restaurants.length === 0 ? (
+            <div className={styles.noResults}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <h3>No restaurants found</h3>
+              <p>Try adjusting your search or filters to find more options.</p>
+            </div>
+          ) : (
+            <div className={styles.restaurantsGrid}>
+              {restaurants.map((restaurant) => (
+                <RestaurantCard
+                  key={restaurant._id}
+                  restaurant={restaurant}
+                  onClick={() => handleRestaurantClick(restaurant._id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </>
+    );
+  };
 
   return (
     <div className={styles.customerHomepage}>
@@ -227,69 +418,7 @@ export function CustomerHomepage() {
         </div>
       </section>
 
-      {/* Popular Restaurants Section */}
-      {popularRestaurants.length > 0 && (
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>
-              <span className={styles.sectionIcon}>⭐</span>
-              Popular Restaurants
-            </h2>
-            <p className={styles.sectionSubtitle}>Top rated restaurants loved by customers</p>
-          </div>
-          <div className={styles.restaurantsGrid}>
-            {popularRestaurants.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant._id}
-                restaurant={restaurant}
-                onClick={() => handleRestaurantClick(restaurant._id)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* All Restaurants Section */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>
-            <span className={styles.sectionIcon}>🍴</span>
-            All Restaurants
-          </h2>
-          {selectedCuisine !== "All" && (
-            <div className={styles.filterIndicator}>
-              <span>Filtered by: <strong>{selectedCuisine}</strong></span>
-              <button className={styles.filterClear} onClick={clearCuisineFilter}>× Clear</button>
-            </div>
-          )}
-        </div>
-
-        {loading ? (
-          <div className={styles.loading}>
-            <div className={styles.spinner}></div>
-            <p>Loading restaurants...</p>
-          </div>
-        ) : restaurants.length === 0 ? (
-          <div className={styles.noResults}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
-            <h3>No restaurants found</h3>
-            <p>Try adjusting your search or filters to find more options.</p>
-          </div>
-        ) : (
-          <div className={styles.restaurantsGrid}>
-            {restaurants.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant._id}
-                restaurant={restaurant}
-                onClick={() => handleRestaurantClick(restaurant._id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {renderContent()}
     </div>
   );
 }

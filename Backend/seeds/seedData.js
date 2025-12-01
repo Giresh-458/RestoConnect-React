@@ -398,6 +398,7 @@ async function seed() {
         top_dishes: {},
         top_restaurent: {},
         cart: [],
+        favourites: [],
       },
       {
         name: "customer2",
@@ -408,6 +409,7 @@ async function seed() {
         top_dishes: {},
         top_restaurent: {},
         cart: [],
+        favourites: [],
       },
       {
         name: "customer3",
@@ -418,6 +420,7 @@ async function seed() {
         top_dishes: {},
         top_restaurent: {},
         cart: [],
+        favourites: [],
       },
     ];
     const createdCustomers = await Person.insertMany(customers);
