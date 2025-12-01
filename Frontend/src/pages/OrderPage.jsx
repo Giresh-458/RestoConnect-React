@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { clearcart } from "../store/CartSlice";
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
+import { addToFavourites } from "../util/favourites";
 import styles from "./OrderPage.module.css";
 
 export function OrderPage() {
@@ -13,6 +14,8 @@ export function OrderPage() {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [savedToFavorites, setSavedToFavorites] = useState(false);
+  const [savingFavorites, setSavingFavorites] = useState(false);
+  const [favoritesMessage, setFavoritesMessage] = useState(null);
 
   // Generate a consistent order number based on cart items
   const generateOrderNumber = (cartItems) => {
@@ -35,9 +38,51 @@ export function OrderPage() {
     navigate("/customer/");
   };
 
-  const handleSaveToFavorites = () => {
-    setSavedToFavorites(!savedToFavorites);
-    // Here you can add logic to save to favorites
+  const handleSaveToFavorites = async () => {
+    if (savedToFavorites) return; // Already saved
+
+    if (cartItems.length === 0) {
+      setFavoritesMessage({ type: 'error', text: 'No items in cart to save.' });
+      return;
+    }
+
+    setSavingFavorites(true);
+    setFavoritesMessage(null);
+
+    try {
+      // Get unique dish IDs from cart items
+      const dishIds = [...new Set(cartItems.map(item => item.id).filter(Boolean))];
+
+      if (dishIds.length === 0) {
+        setFavoritesMessage({ type: 'error', text: 'No valid dishes found in cart.' });
+        return;
+      }
+
+      let addedCount = 0;
+      for (const dishId of dishIds) {
+        try {
+          await addToFavourites(dishId);
+          addedCount++;
+        } catch (error) {
+          console.error(`Failed to add dish ${dishId} to favorites:`, error);
+        }
+      }
+
+      if (addedCount > 0) {
+        setSavedToFavorites(true);
+        setFavoritesMessage({
+          type: 'success',
+          text: `Added ${addedCount} dish(es) to favorites!`
+        });
+      } else {
+        setFavoritesMessage({ type: 'error', text: 'Failed to add dishes to favorites.' });
+      }
+    } catch (error) {
+      console.error('Error saving to favorites:', error);
+      setFavoritesMessage({ type: 'error', text: 'Failed to save to favorites.' });
+    } finally {
+      setSavingFavorites(false);
+    }
   };
 
   return (
@@ -87,18 +132,26 @@ export function OrderPage() {
         </div>
 
         {/* Save to Favorites */}
-        <button
-          className={`${styles.favoritesButton} ${savedToFavorites ? styles.favoritesButtonActive : ""}`}
-          onClick={handleSaveToFavorites}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill={savedToFavorites ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-          </svg>
-          <span>Save to Favorites</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
+        <div className={styles.favoritesSection}>
+          <button
+            className={`${styles.favoritesButton} ${savedToFavorites ? styles.favoritesButtonActive : ""}`}
+            onClick={handleSaveToFavorites}
+            disabled={savingFavorites}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill={savedToFavorites ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            <span>{savingFavorites ? 'Saving...' : savedToFavorites ? 'Saved to Favorites' : 'Save to Favorites'}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+          {favoritesMessage && (
+            <div className={`${styles.favoritesMessage} ${styles[favoritesMessage.type]}`}>
+              {favoritesMessage.type === 'success' ? '✅' : '❌'} {favoritesMessage.text}
+            </div>
+          )}
+        </div>
 
         {/* Done Button */}
         <button className={styles.doneButton} onClick={handleDone}>

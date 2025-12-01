@@ -47,4 +47,9 @@ router.patch("/api/inventory/:id/quantity", ownerController.updateInventoryQuant
 
 router.get("/api/feedback", ownerController.getFeedback);
 router.put("/api/feedback/:id/status", ownerController.updateFeedbackStatus);
+
+// API routes for owner dashboard
+router.get("/api/owner/reports", ownerController.getReportsData);
+router.get("/api/owner/inventory", ownerController.getInventory);
+router.post("/api/owner/inventory/update", ownerController.updateInventory);
 module.exports = router;

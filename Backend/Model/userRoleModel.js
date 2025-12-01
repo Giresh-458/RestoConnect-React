@@ -7,7 +7,10 @@ const userSchema = new mongoose.Schema({
   role: { type: String, required: true },
   restaurantName: { type: String, default: null },
   rest_id: { type: String, default: null },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  isSuspended: { type: Boolean, default: false },
+  suspensionEndDate: { type: Date, default: null },
+  suspensionReason: { type: String, default: null }
 });
 
 // Pre-save hook to hash password

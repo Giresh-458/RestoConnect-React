@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { addToFavourites } from '../util/favourites';
 import '../styles/owner_dashboard.css';
 import styles from './FeedBackPage.module.css';
 
@@ -20,6 +21,9 @@ export function FeedBackPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [menuDishes, setMenuDishes] = useState([]);
+    const [addingToFav, setAddingToFav] = useState(false);
+    const [favMessage, setFavMessage] = useState(null);
 
     // Owner state
     const [feedbackData, setFeedbackData] = useState([]);
@@ -69,6 +73,80 @@ export function FeedBackPage() {
             }
         }
     }, [isCustomerView, customerData, location.state]);
+
+    // Fetch menu when restaurant changes
+    useEffect(() => {
+        if (formData.rest_id) {
+            fetchMenu(formData.rest_id);
+        } else {
+            setMenuDishes([]);
+        }
+    }, [formData.rest_id]);
+
+    const fetchMenu = async (restId) => {
+        try {
+            const response = await fetch(`http://localhost:3000/api/customer/menu/${restId}`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setMenuDishes(data.dishes || []);
+            } else {
+                setMenuDishes([]);
+            }
+        } catch (error) {
+            console.error('Error fetching menu:', error);
+            setMenuDishes([]);
+        }
+    };
+
+    const handleAddToFav = async () => {
+        if (!formData.lovedItems.trim()) {
+            setFavMessage({ type: 'error', text: 'Please enter loved items first.' });
+            return;
+        }
+
+        if (!formData.rest_id) {
+            setFavMessage({ type: 'error', text: 'Please select a restaurant first.' });
+            return;
+        }
+
+        setAddingToFav(true);
+        setFavMessage(null);
+
+        try {
+            const lovedItems = formData.lovedItems.split(',').map(item => item.trim().toLowerCase());
+            const matchedDishes = menuDishes.filter(dish =>
+                lovedItems.some(loved => dish.name.toLowerCase().includes(loved))
+            );
+
+            if (matchedDishes.length === 0) {
+                setFavMessage({ type: 'error', text: 'No matching dishes found in the menu.' });
+                return;
+            }
+
+            let addedCount = 0;
+            for (const dish of matchedDishes) {
+                try {
+                    await addToFavourites(dish.id);
+                    addedCount++;
+                } catch (error) {
+                    console.error(`Failed to add ${dish.name} to favorites:`, error);
+                }
+            }
+
+            if (addedCount > 0) {
+                setFavMessage({ type: 'success', text: `Added ${addedCount} dish(es) to favorites!` });
+            } else {
+                setFavMessage({ type: 'error', text: 'Failed to add dishes to favorites.' });
+            }
+        } catch (error) {
+            console.error('Error adding to favorites:', error);
+            setFavMessage({ type: 'error', text: 'Failed to add to favorites.' });
+        } finally {
+            setAddingToFav(false);
+        }
+    };
 
     const fetchOwnerFeedback = async () => {
         setIsLoading(true);
@@ -230,13 +308,28 @@ export function FeedBackPage() {
 
                     <div className={styles.formGroup}>
                         <label htmlFor="lovedItems">Loved Items</label>
-                        <input
-                            type="text"
-                            id="lovedItems"
-                            value={formData.lovedItems}
-                            onChange={(e) => setFormData({ ...formData, lovedItems: e.target.value })}
-                            placeholder="e.g., Paneer Tikka, Biryani"
-                        />
+                        <div className={styles.lovedItemsContainer}>
+                            <input
+                                type="text"
+                                id="lovedItems"
+                                value={formData.lovedItems}
+                                onChange={(e) => setFormData({ ...formData, lovedItems: e.target.value })}
+                                placeholder="e.g., Paneer Tikka, Biryani"
+                            />
+                            <button
+                                type="button"
+                                className={styles.addToFavButton}
+                                onClick={handleAddToFav}
+                                disabled={addingToFav || !formData.rest_id}
+                            >
+                                {addingToFav ? 'Adding...' : '❤️ Add to Fav'}
+                            </button>
+                        </div>
+                        {favMessage && (
+                            <div className={`${styles.favMessage} ${styles[favMessage.type]}`}>
+                                {favMessage.type === 'success' ? '✅' : '❌'} {favMessage.text}
+                            </div>
+                        )}
                     </div>
 
                     <div className={styles.formGroup}>

@@ -59,13 +59,22 @@ const login = async (req, res) => {
             });
         }
 
+        // Check if user is suspended
+        if (user.isSuspended) {
+            const endDate = user.suspensionEndDate ? new Date(user.suspensionEndDate).toLocaleDateString() : 'indefinite';
+            return res.status(403).json({
+                valid: false,
+                error: `Your account has been suspended until ${endDate}. If you have any queries, please contact customer care.`
+            });
+        }
+
         // Verify password
         const isMatch = await bcrypt.compare(password.trim(), user.password);
-        
+
         if (!isMatch) {
-            return res.status(401).json({ 
-                valid: false, 
-                error: 'Invalid credentials' 
+            return res.status(401).json({
+                valid: false,
+                error: 'Invalid credentials'
             });
         }
 

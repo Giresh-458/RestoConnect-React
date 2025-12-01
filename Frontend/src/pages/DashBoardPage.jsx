@@ -623,17 +623,22 @@ export const DashBoardPage = () => {
             <div style={styles.ordersList}>
               {(activeOrderTab === 'recent' ? recentOrders : pastOrders).map((order, index) => {
                 const formattedStatus = formatOrderStatus(order.status);
+                const isPastOrder = formattedStatus === 'completed';
                 return (
                   <div key={order.recordId || index} style={styles.orderItem}>
-                    <img 
-                      src={order.image || '/dish-placeholder.png'} 
-                      alt={order.dishName} 
-                      style={styles.orderImage} 
+                    <img
+                      src={order.image || '/dish-placeholder.png'}
+                      alt={order.dishName}
+                      style={styles.orderImage}
                     />
                     <div style={styles.orderInfo}>
-                      <h4 style={styles.orderName}>{order.dishName}</h4>
+                      <h4 style={styles.orderName}>
+                        {isPastOrder ? (order.dishName || 'Unknown Dish') : (order.restaurant || 'Restaurant')}
+                      </h4>
                       <p style={styles.orderPrice}>{formatCurrency(order.price)}</p>
-                      <p style={styles.orderMeta}>{order.restaurant || 'Restaurant'}</p>
+                      <p style={styles.orderMeta}>
+                        {isPastOrder ? (order.restaurant || 'Restaurant') : (order.dishName || 'Unknown Dish')}
+                      </p>
                       <p style={{...styles.orderStatus, color: getOrderStatusColor(formattedStatus)}}>
                         {formattedStatus === 'completed' ? 'Completed order' : `Order is ${formattedStatus}`}
                       </p>

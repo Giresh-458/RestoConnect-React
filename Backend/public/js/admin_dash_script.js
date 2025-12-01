@@ -73,33 +73,39 @@ if (!user) {
 
  dispaly.innerHTML = `
         <h3>User Profile</h3>
-        <p><b>Username:</b> <input id="edit-username" value="${user.username}"></p>
-        <p><b>Email:</b> <input id="edit-email" value="${user.email}"></p>
-        <p><b>Role:</b> <input id="edit-role" value="${user.role}"></p>
-        <p><b>Restaurant Name:</b> <input id="edit-restaurantName" value="${user.restaurantName ?? ''}"></p>
-        <button id="save1">Save</button>
+        <p><b>Username:</b> <span>${user.username}</span></p>
+        <p><b>Email:</b> <span>${user.email}</span></p>
+        <p><b>Role:</b> <span>${user.role}</span></p>
+        <p><b>Restaurant Name:</b> <span>${user.restaurantName ?? ''}</span></p>
+        <p><b>Suspended:</b> <span>${user.isSuspended ? 'Yes' : 'No'}</span></p>
+        ${user.isSuspended ? `<p><b>Suspension End Date:</b> <span>${user.suspensionEndDate ? new Date(user.suspensionEndDate).toLocaleDateString() : 'Indefinite'}</span></p>` : ''}
+        <button id="suspend1">Suspend</button>
         <button id="remove1">Remove</button>
       `;
 
 
-      document.getElementById("save1").addEventListener("click",function(){
+      document.getElementById("suspend1").addEventListener("click",function(){
+        let suspensionEndDate = prompt("Enter suspension end date (YYYY-MM-DD) or leave blank for indefinite:");
+        let suspensionReason = prompt("Enter suspension reason (optional):");
 
-         let updatedUser = {
-          _id: user._id, 
-          username: document.getElementById("edit-username").value,
-          email: document.getElementById("edit-email").value,
-          role: document.getElementById("edit-role").value,
-          restaurantName: document.getElementById("edit-restaurantName").value,
-          rest_id: document.getElementById("edit-rest_id").value
+        let suspensionData = {
+          suspensionEndDate: suspensionEndDate || null,
+          suspensionReason: suspensionReason || null
         };
 
         let xhr = new XMLHttpRequest();
-        xhr.open("post","http://localhost:3000/admin/edit_user/"+user._id,true);
+        xhr.open("post","http://localhost:3000/admin/suspend_user/"+user._id,true);
         xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send(JSON.stringify(updatedUser));
+        xhr.send(JSON.stringify(suspensionData));
 
-        callAll();
-
+        xhr.onload = function() {
+          if (xhr.status == 200) {
+            callAll();
+            dispaly.innerHTML = "<p>User suspended successfully.</p>";
+          } else {
+            alert("Error suspending user: " + JSON.parse(xhr.responseText).error);
+          }
+        };
       })
 
 

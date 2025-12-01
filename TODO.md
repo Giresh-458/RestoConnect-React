@@ -1,8 +1,8 @@
-# Resolve Merge Conflicts
+# User Suspension Implementation
 
-- [ ] Resolve Backend/Controller/ownerController.js: Merge HEAD and giresh versions (keep all functions)
-- [ ] Resolve Backend/routes/ownerRoutes.js: Combine both route sets
-- [ ] Resolve Backend/seeds/seedData.js: Use giresh version
-- [ ] Resolve Frontend/src/pages/OwnerHomePage.jsx: Use giresh version
-- [ ] Run git add . to stage resolved files
-- [ ] Run git commit to complete merge
+## Tasks
+- [x] Update User Model: Add suspension fields (isSuspended, suspensionEndDate, suspensionReason)
+- [x] Modify Admin Controller: Replace editUser with suspendUser function
+- [x] Update Auth Controller: Add suspension check in login function
+- [x] Update Admin Routes: Change /edit_user/:id to /suspend_user/:id
+- [x] Test suspension functionality

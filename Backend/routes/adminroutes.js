@@ -14,7 +14,7 @@ router.get('/chartstats',admincontroller.getStatisticsGraphs);
 // User management routes
 router.get('/users', admincontroller.getAllUsers);
 router.post('/delete_user/:id', admincontroller.deleteUser);
-router.post('/edit_user/:id', admincontroller.editUser);
+router.post('/suspend_user/:id', admincontroller.suspendUser);
 router.post('/edit_profile', admincontroller.editProfile);
 router.post('/change_password', admincontroller.changePassword); // <-- NEW ROUTE
 router.delete('/delete_account', admincontroller.deleteAccount);

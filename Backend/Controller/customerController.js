@@ -172,26 +172,35 @@ exports.getCustomerDashboard = async (req, res) => {
         let dishName = 'No items';
         let dishImage = '/dish-placeholder.png';
         
-        // Orders store dish NAMES (not IDs) in the dishes array
+        // Orders store dish NAMES (not IDs) in the dishes array, but some may have IDs
         if (order.dishes && Array.isArray(order.dishes) && order.dishes.length > 0) {
-          const firstDishName = order.dishes[0];
-          
-          // Try to find the dish by name to get image and other details
+          const firstDishIdentifier = order.dishes[0];
+
+          // Try to find the dish by name first
           let dish = null;
           try {
-            dish = await Dish.findOne({ name: firstDishName });
+            dish = await Dish.findOne({ name: firstDishIdentifier });
           } catch (err) {
-            console.error('Error finding dish:', err);
+            console.error('Error finding dish by name:', err);
           }
-          
+
+          // If not found by name, try to find by ID (in case the order stores IDs)
+          if (!dish) {
+            try {
+              dish = await Dish.findById(firstDishIdentifier);
+            } catch (err) {
+              console.error('Error finding dish by ID:', err);
+            }
+          }
+
           if (dish) {
             dishName = dish.name;
             dishImage = dish.image || dish.img_url || '/dish-placeholder.png';
           } else {
-            // If dish not found in DB, use the name from order
-            dishName = firstDishName;
+            // If dish not found in DB, use the identifier from order as fallback
+            dishName = firstDishIdentifier;
           }
-          
+
           // If multiple dishes, show first dish name + count
           if (order.dishes.length > 1) {
             dishName = `${dishName} + ${order.dishes.length - 1} more`;

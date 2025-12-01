@@ -144,23 +144,24 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// Edit user
-exports.editUser = async (req, res) => {
+// Suspend user
+exports.suspendUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    const { username, email, role, restaurantName, password } = req.body;
-    if (!username || !role)
-      return res.status(400).json({ error: "Missing required fields!" });
+    const { suspensionEndDate, suspensionReason } = req.body;
+    if (!suspensionEndDate)
+      return res.status(400).json({ error: "Suspension end date is required!" });
 
-    const updateData = { username, email, role, restaurantName };
-    if (password && password.trim() !== "") {
-      updateData.password = await bcrypt.hash(password.trim(), 10);
-    }
+    const updateData = {
+      isSuspended: true,
+      suspensionEndDate: new Date(suspensionEndDate),
+      suspensionReason: suspensionReason || null
+    };
 
     await User.updateOne({ _id: userId }, { $set: updateData });
     res.redirect("/admin/dashboard");
   } catch (error) {
-    console.error("Error in editUser:", error);
+    console.error("Error in suspendUser:", error);
     res.status(500).send("Internal Server Error");
   }
 };
