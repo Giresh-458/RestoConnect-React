@@ -118,6 +118,15 @@ export function CustomerHomepage() {
     fetchRestaurants();
   };
 
+  // Debounced search: auto-run fetchRestaurants shortly after typing stops
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      // only trigger if there's an actual query to avoid noisy requests
+      if (searchQuery && searchQuery.trim().length > 0) fetchRestaurants();
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [searchQuery, fetchRestaurants]);
+
   const handleCuisineClick = (cuisine) => {
     setSelectedCuisine(cuisine === selectedCuisine ? "All" : cuisine);
   };
@@ -257,6 +266,7 @@ export function CustomerHomepage() {
                   key={restaurant._id}
                   restaurant={restaurant}
                   onClick={() => handleRestaurantClick(restaurant._id)}
+                  onViewMenu={() => handleRestaurantClick(restaurant._id)}
                 />
               ))}
             </div>
@@ -298,6 +308,7 @@ export function CustomerHomepage() {
                   key={restaurant._id}
                   restaurant={restaurant}
                   onClick={() => handleRestaurantClick(restaurant._id)}
+                  onViewMenu={() => handleRestaurantClick(restaurant._id)}
                 />
               ))}
             </div>
@@ -432,7 +443,7 @@ function RestaurantCard({ restaurant, onClick }) {
   };
 
   return (
-    <div className={styles.restaurantCard} onClick={onClick}>
+    <div className={styles.restaurantCard} onClick={onClick} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}>
       <div className={styles.restaurantImageContainer}>
         <img
           src={restaurant.image || "/images/default-restaurant.jpg"}
@@ -496,6 +507,11 @@ function RestaurantCard({ restaurant, onClick }) {
               {restaurant.operatingHours.open} - {restaurant.operatingHours.close}
             </span>
           )}
+          <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.viewMenuBtn} onClick={() => onClick && onClick()} aria-label={`View menu for ${restaurant.name}`}>
+              View Menu
+            </button>
+          </div>
         </div>
       </div>
     </div>

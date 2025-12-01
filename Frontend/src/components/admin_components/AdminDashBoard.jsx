@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { logout } from "../../util/auth";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend } from "recharts";
 import "./AdminDashboard.css"; // ✅ Styling
 
@@ -64,6 +65,22 @@ const getMonthsData = (rawData) => {
 
   return (
     <div className="admin-dashboard">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button
+          onClick={async () => {
+            try {
+              await logout();
+              window.location.href = '/login';
+            } catch (e) {
+              console.error('Logout failed', e);
+              window.location.href = '/login';
+            }
+          }}
+          style={{ background: 'transparent', border: '1px solid #e5e7eb', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
+        >
+          Logout
+        </button>
+      </div>
       <h2 className="dashboard-heading">Admin Dashboard</h2>
 
       {/* Top Summary Blocks */}

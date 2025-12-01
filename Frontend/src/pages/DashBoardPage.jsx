@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { isLogin } from "../util/auth";
 import { getFavourites } from "../util/favourites";
 import { redirect, useNavigate } from "react-router-dom";
+import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
 import { replaceCart } from "../store/CartSlice";
 
@@ -498,7 +499,19 @@ export const DashBoardPage = () => {
         </div>
         <div style={styles.headerRight}>
           <button style={styles.editButton} onClick={handleEditProfileClick}>Edit Profile</button>
-          <button style={styles.logoutButton} onClick={()=>{navigate("/logout")}}>Logout</button>
+          <button
+            style={styles.logoutButton}
+            onClick={async () => {
+              try {
+                await logout();
+              } catch (e) {
+                console.error('Logout failed', e);
+              }
+              navigate('/login');
+            }}
+          >
+            Logout
+          </button>
         </div>
       </div>
 

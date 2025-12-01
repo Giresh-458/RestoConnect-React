@@ -1,7 +1,17 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import styles from "./StaffNav.module.css";
+import { logout } from "../util/auth";
 
 export function StaffNav() {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+    navigate('/login');
+  };
   return (
     <>
       <nav className={styles.staffNav}>
@@ -18,6 +28,7 @@ export function StaffNav() {
         >
           Dashboard
         </NavLink>
+        <button onClick={handleLogout} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
       </nav>
       <Outlet />
     </>

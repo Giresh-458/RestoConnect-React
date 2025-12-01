@@ -8,7 +8,9 @@ name:"cart",
 initialState:{
 dishes:[],
 reservation:{},
-amount:0
+amount:0,
+restId: null,
+restName: ''
 },
 reducers:{
 
@@ -59,6 +61,8 @@ reducers:{
         state.dishes = [];
         state.reservation = {};
         state.amount = 0;
+        state.restId = null;
+        state.restName = '';
     },
     replaceCart: (state, action) => {
         const items = Array.isArray(action.payload) ? action.payload : [];
@@ -74,6 +78,10 @@ reducers:{
         if (!state.reservation) {
             state.reservation = {};
         }
+    },
+    setRestaurant: (state, action) => {
+        state.restId = action.payload?.restId ?? null;
+        state.restName = action.payload?.restName ?? '';
     }
 
 
@@ -81,5 +89,5 @@ reducers:{
 })
 
 
-export const {addItem,removeItem,addReservation,removeReservation,clearcart,replaceCart}=cartSlice.actions;
+export const {addItem,removeItem,addReservation,removeReservation,clearcart,replaceCart,setRestaurant}=cartSlice.actions;
 export default cartSlice.reducer;

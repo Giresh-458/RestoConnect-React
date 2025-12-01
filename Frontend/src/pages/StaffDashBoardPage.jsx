@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { isLogin } from "../util/auth";
-import { redirect } from "react-router-dom";
+import { isLogin, logout } from "../util/auth";
+import { redirect, useNavigate } from "react-router-dom";
 import "./StaffDashBoardPage.css";
 import {
   FaUtensils,
@@ -14,6 +14,7 @@ import {
 export function StaffDashBoardPage() {
   const [data, setData] = useState({});
   const [showSettings, setShowSettings] = useState(false);
+   const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchData() {
@@ -33,9 +34,14 @@ export function StaffDashBoardPage() {
     fetchData();
   }, []);
 
-  const handleLogout = () => {
-    window.location.href = "http://localhost:3000/logout";
-  };
+   const handleLogout = async () => {
+      try {
+         await logout();
+      } catch (e) {
+         console.error('Logout failed', e);
+      }
+      navigate('/login');
+   };
 
   // 🟡 Compute stats safely
   const activeOrders = data.orders?.filter((o) => o.status !== "completed").length || 0;

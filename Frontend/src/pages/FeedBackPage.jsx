@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { addToFavourites } from '../util/favourites';
 import '../styles/owner_dashboard.css';
 import styles from './FeedBackPage.module.css';
+import { CheckoutSteps } from '../components/CheckoutSteps';
 
 export function FeedBackPage() {
     const location = useLocation();
@@ -76,7 +78,7 @@ export function FeedBackPage() {
 
     // Fetch menu when restaurant changes
     useEffect(() => {
-        if (formData.rest_id) {
+    if (formData.rest_id) {
             fetchMenu(formData.rest_id);
         } else {
             setMenuDishes([]);
@@ -201,11 +203,12 @@ export function FeedBackPage() {
                 additionalFeedback: ''
             });
             
-            // Refresh customer data to show new feedback
+            // Refresh customer data to show new feedback and navigate home shortly
             setTimeout(() => {
                 fetchCustomerData();
                 setSubmitSuccess(false);
-            }, 2000);
+                navigate('/customer');
+            }, 1200);
         } catch (err) {
             console.error("Error submitting feedback:", err);
             setSubmitError(err.message || "Could not submit feedback. Please try again.");
@@ -239,6 +242,7 @@ export function FeedBackPage() {
     if (isCustomerView) {
         return (
             <div className={styles.feedbackContainer}>
+                <CheckoutSteps current="feedback" />
                 <h2 className={styles.title}>Share Your Feedback</h2>
                 
                 {submitSuccess && (

@@ -22,9 +22,18 @@ const orderSchema = new mongoose.Schema({
   rest_id: {
     type: String,
   },
+  reservation_id: {
+    type: String,
+    default: null,
+  },
   status: {
     type: String,
     default: "pending",
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["unpaid", "paid", "refunded"],
+    default: "unpaid",
   },
   totalAmount: {
     type: Number,

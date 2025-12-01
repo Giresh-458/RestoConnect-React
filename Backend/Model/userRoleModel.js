@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true,unique: true },
-  role: { type: String, required: true },
+  role: { type: String, required: true, enum: ['customer', 'owner', 'staff', 'admin'] },
   restaurantName: { type: String, default: null },
   rest_id: { type: String, default: null },
   password: { type: String, required: true },

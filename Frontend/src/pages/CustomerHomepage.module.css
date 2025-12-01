@@ -7,7 +7,7 @@
 /* Hero Section */
 .hero {
   background: linear-gradient(135deg, #ffe5e5 0%, #e5e5ff 100%);
-  padding: 4rem 2rem;
+  padding: 3rem 1.5rem;
   text-align: center;
   color: #1a1a1a;
   position: relative;
@@ -26,7 +26,7 @@
 }
 
 .heroContent {
-  max-width: 800px;
+  max-width: 980px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
@@ -350,6 +350,25 @@
   overflow: hidden;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
+
+/* Card action button */
+.cardActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.viewMenuBtn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewMenuBtn:hover { transform: translateY(-2px); }
 
 .restaurantImage {
   width: 100%;

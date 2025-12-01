@@ -1,197 +1,213 @@
+/* Order Page Layout */
 .orderPage {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #ffe5cc 0%, #c8e6c9 100%);
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panels */
+.orderSummaryPanel,
+.actionPanel {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+}
+
+.panelHeader {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.orderConfirmationCard {
-  background: white;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  padding: 3rem;
-  max-width: 500px;
-  width: 100%;
-  text-align: center;
-}
-
-/* Confirmation Section */
-.confirmationSection {
-  margin-bottom: 2rem;
-}
-
-.checkmarkCircle {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: #d4edda;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.5rem;
-  color: #28a745;
-}
-
-.confirmationTitle {
-  font-size: 2.5rem;
-  font-weight: 800;
+.panelHeader h2 {
+  font-size: 20px;
+  font-weight: 700;
   color: #212529;
-  margin: 0 0 1rem 0;
 }
 
-.confirmationText {
-  font-size: 1rem;
+.restaurantName {
+  font-size: 13px;
   color: #6c757d;
-  line-height: 1.6;
+}
+
+/* Empty cart */
+.emptyCart {
+  padding: 24px;
+  text-align: center;
+  color: #6c757d;
+}
+
+/* Order list */
+.summaryList {
+  list-style: none;
   margin: 0;
+  padding: 0;
 }
 
-.confirmationText strong {
-  color: #212529;
+.summaryItem {
+  padding: 12px 0;
+  border-bottom: 1px dashed #e9ecef;
 }
 
-/* Feedback Section */
-.feedbackSection {
-  margin: 2rem 0;
+.summaryItem:last-child {
+  border-bottom: none;
 }
 
-.divider {
-  height: 1px;
-  background: #e9ecef;
-  margin-bottom: 1.5rem;
-}
-
-.feedbackQuestion {
-  font-size: 1rem;
-  color: #495057;
-  margin: 0 0 1rem 0;
-}
-
-.starRating {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.starButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  transition: transform 0.2s;
-}
-
-.starButton:hover {
-  transform: scale(1.2);
-}
-
-.starButton:active {
-  transform: scale(0.95);
-}
-
-/* Favorites Button */
-.favoritesButton {
-  width: 100%;
+.summaryMain {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
+  gap: 12px;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemName {
+  font-weight: 600;
+  color: #212529;
+}
+
+.itemMeta {
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.summaryPrice {
+  font-weight: 700;
+  color: #212529;
+}
+
+/* Totals */
+.summaryTotals {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f3f5;
+}
+
+.totRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
   color: #495057;
 }
 
-.favoritesButton:hover {
-  background: #fff5f5;
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+.totTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 2px solid #e9ecef;
+  font-size: 16px;
 }
 
-.favoritesButtonActive {
-  background: #fff5f5;
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+/* Actions */
+.editCartRow {
+  margin-top: 10px;
 }
 
-.favoritesButton svg:first-child {
-  color: #ff6b6b;
-}
-
-.favoritesButton span {
-  flex: 1;
-  text-align: left;
-  margin-left: 0.75rem;
-  font-weight: 500;
-}
-
-/* Done Button */
-.doneButton {
-  width: 100%;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #ff6b35, #f7931e);
-  color: white;
+.linkButton {
   border: none;
-  border-radius: 12px;
-  font-size: 1.1rem;
+  background: transparent;
+  color: #0d6efd;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actionsRow {
+  display: flex;
+  gap: 10px;
+}
+
+.primaryButton,
+.secondaryButton {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+  transition: transform .02s ease, box-shadow .2s ease;
 }
 
-.doneButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+.primaryButton {
+  background: #0d6efd;
+  color: #fff;
+  border: 1px solid #0b5ed7;
+  box-shadow: 0 4px 10px rgba(13,110,253,0.25);
 }
 
-.doneButton:active {
-  transform: translateY(0);
+.primaryButton:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .orderPage {
-    padding: 1rem;
-  }
-
-  .orderConfirmationCard {
-    padding: 2rem 1.5rem;
-  }
-
-  .confirmationTitle {
-    font-size: 2rem;
-  }
-
-  .checkmarkCircle {
-    width: 60px;
-    height: 60px;
-  }
-
-  .checkmarkCircle svg {
-    width: 30px;
-    height: 30px;
-  }
+.secondaryButton {
+  background: #f8f9fa;
+  color: #212529;
+  border: 1px solid #e9ecef;
 }
 
-@media (max-width: 480px) {
-  .confirmationTitle {
-    font-size: 1.75rem;
-  }
-
-  .confirmationText {
-    font-size: 0.9rem;
-  }
-
-  .starButton svg {
-    width: 28px;
-    height: 28px;
-  }
+.primaryButton:active,
+.secondaryButton:active {
+  transform: translateY(1px);
 }
 
+/* Reservation form */
+.reservationForm {
+  margin-top: 16px;
+  padding: 14px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+}
+
+.formTitle {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.formField span {
+  font-size: 13px;
+  color: #495057;
+}
+
+.formField input,
+.formField select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reservationActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}

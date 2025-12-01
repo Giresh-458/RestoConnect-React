@@ -16,6 +16,12 @@ export default function User() {
         lastaction: "delete",
         lastpayload: action.payload,
       };
+    } else if (action.type === "suspend") {
+      return {
+        users_list: state.users_list.map(u => u._id === action.payload.id ? { ...u, isSuspended: true, suspensionEndDate: action.payload.suspensionEndDate || null, suspensionReason: action.payload.suspensionReason || null } : u),
+        lastaction: "suspend",
+        lastpayload: action.payload.id,
+      };
     }
     return state;
   }
@@ -23,6 +29,12 @@ export default function User() {
   const [state, Dispatch] = useReducer(reducer, initialState);
   const firstRender = useRef(true);
   const [filter, setFilter] = useState({ username: "", role: "" });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalUser, setModalUser] = useState(null);
+  const [suspensionEndDate, setSuspensionEndDate] = useState("");
+  const [suspensionReason, setSuspensionReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [suspendError, setSuspendError] = useState("");
 
   useEffect(() => {
     const xhr = new XMLHttpRequest();
@@ -55,6 +67,102 @@ export default function User() {
     const { name, value } = e.target;
     setFilter((prev) => ({ ...prev, [name]: value }));
   }
+
+  const handleDelete = (userId, username) => {
+    if (!confirm(`Are you sure you want to permanently delete user '${username}'? This action cannot be undone.`)) return;
+    Dispatch({ type: "delete", payload: userId });
+  };
+
+  const openSuspendModal = (user) => {
+    setModalUser(user);
+    setSuspensionEndDate(user.suspensionEndDate ? new Date(user.suspensionEndDate).toISOString().split('T')[0] : "");
+    setSuspensionReason(user.suspensionReason || "");
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (submitting) return;
+    setModalOpen(false);
+    setModalUser(null);
+    setSuspensionEndDate("");
+    setSuspensionReason("");
+  };
+
+  const submitSuspend = async () => {
+    if (!modalUser) return;
+    setSubmitting(true);
+    setSuspendError("");
+    // Validate date is present and valid (server requires a valid date)
+    if (!suspensionEndDate) {
+      setSuspendError('Please provide a valid suspension end date.');
+      setSubmitting(false);
+      return;
+    }
+    const parsed = new Date(suspensionEndDate);
+    if (isNaN(parsed.getTime())) {
+      setSuspendError('Please provide a valid suspension end date.');
+      setSubmitting(false);
+      return;
+    }
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (parsed < startOfToday) {
+      setSuspendError('Suspension end date must be today or later.');
+      setSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      suspensionEndDate: suspensionEndDate,
+      suspensionReason: suspensionReason || null
+    };
+
+    try {
+      const resp = await fetch(`http://localhost:3000/admin/suspend_user/${modalUser._id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(()=>({ error: 'Server error' }));
+        setSuspendError('Error: ' + (err.error || 'Failed to suspend'));
+        setSubmitting(false);
+        return;
+      }
+      // update UI
+      Dispatch({ type: 'suspend', payload: { id: modalUser._id, suspensionEndDate: payload.suspensionEndDate, suspensionReason: payload.suspensionReason } });
+      // success — clear any error and close modal
+      setSuspendError("");
+      closeModal();
+    } catch (e) {
+      console.error(e);
+      setSuspendError('Network or server error while suspending');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUnsuspend = async (user) => {
+    if (!confirm(`Unsuspend user '${user.username}'?`)) return;
+    try {
+      const resp = await fetch(`http://localhost:3000/admin/unsuspend_user/${user._id}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(()=>({ error: 'Server error' }));
+        alert('Error: ' + (err.error || 'Failed to unsuspend'));
+        return;
+      }
+      // Update UI to reflect unsuspension
+      Dispatch({ type: 'load', payload: state.users_list.map(u => u._id === user._id ? { ...u, isSuspended: false, suspensionEndDate: null, suspensionReason: null } : u) });
+      alert('User unsuspended');
+    } catch (e) {
+      console.error(e);
+      alert('Network or server error while unsuspending');
+    }
+  };
 
   // --- Styles resembling the provided dashboard ---
   const styles = {
@@ -181,12 +289,6 @@ export default function User() {
         </div>
         <div style={styles.statCard}>
           <div style={styles.statNumber}>
-            {state.users_list.filter((u) => u.role.toLowerCase() === "admin").length}
-          </div>
-          <div style={styles.statLabel}>Administrators</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statNumber}>
             {state.users_list.filter((u) => u.role.toLowerCase() === "owner").length}
           </div>
           <div style={styles.statLabel}>Owners</div>
@@ -205,15 +307,11 @@ export default function User() {
           />
           <select style={styles.select} name="role" onChange={handleChange}>
             <option value="">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="manager">Manager</option>
+            <option value="customer">Customer</option>
             <option value="owner">Owner</option>
-            <option value="chef">Chef</option>
-            <option value="waitstaff">Waitstaff</option>
-            <option value="driver">Delivery Driver</option>
+            <option value="staff">Staff</option>
           </select>
         </div>
-        <button style={styles.addButton}>+ Add New User</button>
       </div>
 
       {/* User List */}
@@ -247,16 +345,17 @@ export default function User() {
                   <td style={styles.td}>
                     <button
                       style={{ ...styles.actionButton, ...styles.deleteBtn }}
-                      onClick={() =>
-                        Dispatch({ type: "delete", payload: user._id })
-                      }
+                      onClick={() => handleDelete(user._id, user.username)}
                     >
                       Delete
                     </button>
                     <button
                       style={{ ...styles.actionButton, ...styles.updateBtn }}
+                      onClick={() => user.isSuspended ? handleUnsuspend(user) : openSuspendModal(user)}
+                      disabled={submitting}
+                      title={user.isSuspended ? 'Click to unsuspend' : 'Suspend user'}
                     >
-                      Update
+                      {user.isSuspended ? 'Unsuspend' : 'Suspend'}
                     </button>
                   </td>
                 </tr>
@@ -264,6 +363,30 @@ export default function User() {
           </tbody>
         </table>
       </div>
+      {/* Suspend Modal */}
+      {modalOpen && modalUser && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ width: 420, background: 'white', borderRadius: 8, padding: 20 }}>
+            <h3 style={{ marginTop: 0 }}>Suspend {modalUser.username}</h3>
+            <div style={{ marginBottom: 10 }}>
+              <label>End date (required)</label>
+              <input type="date" value={suspensionEndDate} onChange={e=>{ setSuspensionEndDate(e.target.value); }} style={{ width: '100%', padding: 8, marginTop: 6 }} />
+              {suspendError && (
+                <div style={{ color: '#b91c1c', marginTop: 8, fontSize: '0.95rem' }}>{suspendError}</div>
+              )}
+            </div>
+            
+            <div style={{ marginBottom: 10 }}>
+              <label>Reason (optional)</label>
+              <textarea value={suspensionReason} onChange={e=>setSuspensionReason(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 6 }} rows={3} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={closeModal} disabled={submitting} style={{ padding: '8px 12px', borderRadius: 6 }}>Cancel</button>
+              <button onClick={submitSuspend} disabled={submitting} style={{ padding: '8px 12px', background: '#ef4444', color: 'white', borderRadius: 6 }}>{submitting ? 'Suspending...' : 'Suspend'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

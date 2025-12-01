@@ -61,10 +61,11 @@ const login = async (req, res) => {
 
         // Check if user is suspended
         if (user.isSuspended) {
-            const endDate = user.suspensionEndDate ? new Date(user.suspensionEndDate).toLocaleDateString() : 'indefinite';
+            const endDate = user.suspensionEndDate ? new Date(user.suspensionEndDate).toLocaleDateString() : null;
+            const dateMsg = endDate ? ` until ${endDate}` : '';
             return res.status(403).json({
                 valid: false,
-                error: `Your account has been suspended until ${endDate}. If you have any queries, please contact customer care.`
+                error: `Your account has been suspended${dateMsg}. If you have any queries, please contact customer care.`
             });
         }
 
@@ -160,11 +161,11 @@ const signup = async (req, res) => {
         }
 
         // Validate role
-        const allowedRoles = ['customer', 'owner'];
+        const allowedRoles = ['customer', 'owner', 'staff'];
         if (!allowedRoles.includes(role)) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid role selected' 
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid role selected'
             });
         }
 

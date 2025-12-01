@@ -4,8 +4,10 @@ const { Dish } = require("../Model/Dishes_model_test");
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const Feedback = require("../Model/feedback");
 const { Order } = require("../Model/Order_model");
+const { Reservation } = require("../Model/Reservation_model");
 const { User } = require("../Model/userRoleModel");
 const { getImageUrl } = require('../util/fileUpload');
+// Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
   if (!targetDate) return "";
@@ -771,6 +773,11 @@ exports.order = async (req, res) => {
     sum += parseInt(temp.price) * a.quantity;
   }
   req.session.bill = sum;
+  // If the request expects JSON (from SPA), respond with JSON instead of redirect
+  const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+  if (wantsJson) {
+    return res.json({ success: true, message: 'Order stored in session', bill: req.session.bill });
+  }
   res.redirect("/customer/payments");
 };
 
@@ -785,6 +792,10 @@ exports.reservation = async (req, res) => {
     guests,
   };
   req.session.reservation = newReservation;
+  const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+  if (wantsJson) {
+    return res.json({ success: true, message: 'Reservation stored in session', reservation: req.session.reservation });
+  }
   res.redirect("/customer/payments");
 };
 
@@ -819,7 +830,10 @@ exports.postOrderAndReservationCombined = async (req, res) => {
       user.cart = [];
       await user.save();
     }
-
+    const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+    if (wantsJson) {
+      return res.json({ success: true, message: 'Order+Reservation stored in session', bill: req.session.bill });
+    }
     res.redirect("/customer/payments");
   } catch (error) {
     console.error("Error in postOrderAndReservationCombined:", error);
@@ -880,10 +894,185 @@ exports.postPaymentsSuccess = async (req, res) => {
     req.session.rest_id = undefined;
     req.session.bill = undefined;
 
+    const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+    if (wantsJson) {
+      return res.json({ success: true, message: 'Payment successful, order/reservation completed' });
+    }
     res.redirect("/customer/feedback");
   } catch (error) {
     console.error("Error in postPaymentsSuccess:", error);
     res.status(500).send("Internal Server Error");
+  }
+};
+
+// API: create order and/or reservation from SPA
+exports.apiCheckout = async (req, res) => {
+  try {
+    const username = req.session.username || null;
+    const { rest_id, items, totalAmount, reservation } = req.body;
+
+    if (!rest_id) return res.status(400).json({ success: false, message: '', error: 'rest_id is required' });
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: '', error: 'items are required' });
+
+    // Create Order
+    const dishes = items.map(i => i.name || i.dish || i.id || '').filter(Boolean);
+    const order = new Order({
+      dishes,
+      customerName: username || 'guest',
+      restaurant: req.body.restaurantName || '',
+      rest_id,
+      status: 'pending',
+      totalAmount: Number(totalAmount) || 0
+    });
+    await order.save();
+
+    // Attach order to restaurant
+    const rest = await Restaurant.find_by_id(rest_id);
+    if (rest) {
+      rest.orders = rest.orders || [];
+      rest.orders.push(order._id);
+      await rest.save();
+    }
+
+    // If reservation provided, add to restaurant reservations
+    let reservationSaved = null;
+    if (reservation && reservation.date && reservation.time) {
+      const newReservation = new Reservation({
+        customerName: username || reservation.name || 'guest',
+        time: reservation.time,
+        table_id: reservation.table_id || '',
+        guests: reservation.guests || 1,
+        status: 'pending',
+        rest_id,
+        date: reservation.date
+      });
+      await newReservation.save();
+      order.reservation_id = newReservation._id;
+      await order.save();
+      reservationSaved = newReservation;
+    }
+
+    // Return created ids for frontend to proceed to payment
+    return res.json({ success: true, data: { orderId: order._id, reservation: reservationSaved ? { id: reservationSaved._id } : null, amount: order.totalAmount }, message: '' });
+  } catch (err) {
+    console.error('apiCheckout error:', err);
+    return res.status(500).json({ success: false, message: '', error: 'Server error' });
+  }
+};
+
+// API: confirm payment for an order/reservation
+exports.apiCheckoutPay = async (req, res) => {
+  try {
+    const { orderId, rest_id, payload } = req.body;
+
+    let order = null;
+
+    // If orderId provided, find existing order
+    if (orderId) {
+      order = await Order.findOne({ _id: orderId });
+      if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    } else {
+      // Create order from payload
+      if (!payload || !payload.rest_id || !Array.isArray(payload.items) || payload.items.length === 0) {
+        return res.status(400).json({ success: false, message: '', error: 'Missing payload to create order' });
+      }
+
+      const username = req.session.username || null;
+      const dishes = payload.items.map(i => i.name || i.dish || i.id || '').filter(Boolean);
+      order = new Order({
+        dishes,
+        customerName: username || 'guest',
+        restaurant: payload.restaurantName || '',
+        rest_id: payload.rest_id,
+        status: 'pending',
+        totalAmount: Number(payload.totalAmount) || 0
+      });
+      await order.save();
+
+      // Attach order to restaurant
+      const rest = await Restaurant.find_by_id(payload.rest_id);
+      if (rest) {
+        rest.orders = rest.orders || [];
+        rest.orders.push(order._id);
+        await rest.save();
+      }
+
+      // If reservation provided, add to restaurant reservations
+      if (payload.reservation && payload.reservation.date && payload.reservation.time) {
+        const newReservation = new Reservation({
+          customerName: username || payload.reservation.name || 'guest',
+          time: payload.reservation.time,
+          table_id: payload.reservation.table_id || '',
+          guests: payload.reservation.guests || 1,
+          status: 'pending',
+          rest_id: payload.rest_id,
+          date: payload.reservation.date
+        });
+        await newReservation.save();
+        order.reservation_id = newReservation._id;
+        await order.save();
+      }
+    }
+
+    // At this point we have an order object; mark as paid
+    order.status = 'paid';
+    order.paymentStatus = 'paid';
+    order.completionTime = new Date();
+    await order.save();
+
+    // Add payment to restaurant record
+    const finalRestId = rest_id || (order && order.rest_id) || (payload && payload.rest_id);
+    if (finalRestId) {
+      const rest = await Restaurant.find_by_id(finalRestId);
+      if (rest) {
+        rest.payments = rest.payments || [];
+        rest.payments.push({ amount: order.totalAmount, date: new Date() });
+        await rest.save();
+      }
+    }
+
+    // If user exists, add order to their history and clear cart
+    if (req.session.username) {
+      const person = await Person.findOne({ name: req.session.username });
+      if (person) {
+        await person.add_order({ name: order.restaurant || '', items: order.dishes });
+        person.cart = [];
+        await person.save();
+      }
+    }
+
+    return res.json({ success: true, data: { orderId: order._id }, message: 'Payment processed and order created' });
+  } catch (err) {
+    console.error('apiCheckoutPay error:', err);
+    return res.status(500).json({ success: false, message: '', error: 'Server error' });
+  }
+};
+
+// API: get order details by ID for Order Placed page
+exports.getOrderById = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: '', error: 'orderId is required' });
+    }
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+      return res.status(404).json({ success: false, message: '', error: 'Order not found' });
+    }
+    // Optional: ensure current user owns the order
+    if (req.session?.username && order.customerName && order.customerName !== req.session.username) {
+      return res.status(403).json({ success: false, message: '', error: 'Forbidden' });
+    }
+
+    let reservation = null;
+    if (order.reservation_id) {
+      reservation = await Reservation.findOne({ _id: order.reservation_id });
+    }
+
+    return res.json({ success: true, data: { order, reservation }, message: '' });
+  } catch (err) {
+    console.error('getOrderById error:', err);
+    return res.status(500).json({ success: false, message: '', error: 'Server error' });
   }
 };
 

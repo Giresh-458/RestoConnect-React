@@ -1,10 +1,11 @@
 import { redirect, useLoaderData, useNavigate } from "react-router-dom";
 import { isLogin } from "../util/auth";
 import { useSelector, useDispatch } from "react-redux";
-import { addItem, removeItem } from "../store/CartSlice";
+import { addItem, removeItem, clearcart, setRestaurant } from "../store/CartSlice";
 import { useState, useEffect } from "react";
 import { addToFavourites, removeFromFavourites, getFavourites } from "../util/favourites";
 import styles from "./MenuPage.module.css";
+import { CheckoutSteps } from "../components/CheckoutSteps";
 
 export function MenuPage() {
   const data = useLoaderData();
@@ -12,6 +13,8 @@ export function MenuPage() {
   const dispatch = useDispatch();
   const cartItems = useSelector((state) => state.cart.dishes || []);
   const cartTotal = useSelector((state) => state.cart.amount || 0);
+  const currentRestId = useSelector((state) => state.cart.restId);
+  const currentRestName = useSelector((state) => state.cart.restName);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showOrderSummary, setShowOrderSummary] = useState(true);
@@ -28,6 +31,7 @@ export function MenuPage() {
   }
 
   const { restaurant, dishes } = data;
+  const restIdForCart = restaurant._id || restaurant.id;
 
   // Filter dishes based on search and category
   const filteredDishes = dishes.filter((dish) => {
@@ -46,6 +50,26 @@ export function MenuPage() {
   };
 
   const handleAddItem = (dish) => {
+    // If cart is empty: set restaurant and add without any prompt
+    if (cartItems.length === 0) {
+      if (!currentRestId) {
+        dispatch(setRestaurant({ restId: restIdForCart, restName: restaurant.name }));
+      }
+      dispatch(addItem({ ...dish, amount: dish.price }));
+      return;
+    }
+
+    // Cart has items. If it's the same restaurant, just add.
+    if (currentRestId === restIdForCart) {
+      dispatch(addItem({ ...dish, amount: dish.price }));
+      return;
+    }
+
+    // Different restaurant: warn and clear on confirm
+    const confirmClear = window.confirm(`Your cart currently has items from "${currentRestName || 'another restaurant'}".\nSwitching to "${restaurant.name}" will clear your cart. Continue?`);
+    if (!confirmClear) return;
+    dispatch(clearcart());
+    dispatch(setRestaurant({ restId: restIdForCart, restName: restaurant.name }));
     dispatch(addItem({ ...dish, amount: dish.price }));
   };
 
@@ -58,7 +82,7 @@ export function MenuPage() {
       alert("Your cart is empty. Add some items first!");
       return;
     }
-    navigate("/customer/order");
+    navigate("/customer/order", { state: { restId: restIdForCart, restName: restaurant.name } });
   };
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -112,6 +136,7 @@ export function MenuPage() {
 
   return (
     <div className={styles.menuPage}>
+      <CheckoutSteps current="menu" />
       {/* Restaurant Banner */}
       <div className={styles.restaurantBanner}>
         <div className={styles.bannerOverlay}>
@@ -285,7 +310,7 @@ export function MenuPage() {
                         <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                         <line x1="1" y1="10" x2="23" y2="10"></line>
                       </svg>
-                      Pay with Card
+                      Proceed to Order
                     </button>
                     <button className={styles.payUPIButton} onClick={handleOrder}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -293,7 +318,7 @@ export function MenuPage() {
                         <path d="M9 9h6v6H9z"></path>
                         <path d="M9 1v6M15 1v6M9 23v-6M15 23v-6M1 9h6M1 15h6M23 9h-6M23 15h-6"></path>
                       </svg>
-                      Pay with UPI
+                      Proceed to Order
                     </button>
                   </div>
                 </div>

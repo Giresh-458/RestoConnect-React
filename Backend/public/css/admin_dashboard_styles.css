@@ -118,6 +118,19 @@ body {
   background-color: #c82333;
 }
 
+.delete-btn {
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
+}
+
 /* Profile Edit Form */
 .profile-form {
   display: none;

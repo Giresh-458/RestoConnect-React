@@ -1,5 +1,5 @@
 import { redirect, useLoaderData } from "react-router-dom";
-import { isLogin } from "../util/auth";
+import { isLogin, logout } from "../util/auth";
 import User from '../components/admin_components/User';
 import { AdminDashBoard } from "../components/admin_components/AdminDashBoard";
 import { Settings } from "../components/admin_components/Settings";
@@ -21,6 +21,21 @@ export default function Sidebar({ setSubPage, subPage }) {
     <li className={subPage === "restaurant" ? "active" : ""} onClick={() => setSubPage("restaurant")}>Restaurant Management</li>
     <li className={subPage === "settings" ? "active" : ""} onClick={() => setSubPage("settings")}>Settings</li>
   </ul>
+    <div style={{ marginTop: 20 }}>
+      <button
+        onClick={async () => {
+          try {
+            await logout();
+          } catch (e) {
+            console.error('Logout failed', e);
+          }
+          window.location.href = '/login';
+        }}
+        style={{ background: '#ffffff', border: '1px solid #ddd', color: '#333', padding: '8px 12px', width: '100%', borderRadius: 6, cursor: 'pointer' }}
+      >
+        Logout
+      </button>
+    </div>
 </div>
 
   );

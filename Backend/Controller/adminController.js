@@ -43,10 +43,11 @@ exports.getAdminDashboard = async (req, res) => {
         }
 
         let users = [];
+        const userFilter = { role: { $ne: 'admin' } };
         if (currentAdminUsername) {
-            users = await User.find({ username: { $ne: currentAdminUsername } });
+          users = await User.find({ ...userFilter, username: { $ne: currentAdminUsername } });
         } else {
-            users = await User.find({});
+          users = await User.find(userFilter);
         }
 
         users = users.map(user => {
@@ -54,7 +55,8 @@ exports.getAdminDashboard = async (req, res) => {
             return user;
         });
 
-        const totalUserCount = await User.countDocuments();
+        // Count only non-admin users
+        const totalUserCount = await User.countDocuments({ role: { $ne: 'admin' } });
 
        res.json({ 
             active_user_count: 0,
@@ -102,10 +104,11 @@ exports.getAllUsers = async (req, res) => {
   try {
     const currentAdminUsername = req.user ? req.user.username : null;
     let users = [];
+    const filter = { role: { $ne: 'admin' } };
     if (currentAdminUsername) {
-      users = await User.find({ username: { $ne: currentAdminUsername } });
+      users = await User.find({ ...filter, username: { $ne: currentAdminUsername } });
     } else {
-      users = await User.find({});
+      users = await User.find(filter);
     }
     res.json(users);
   } catch (error) {
@@ -131,15 +134,26 @@ exports.getStatistics = async (req, res) => {
   }
 };
 
+// Helper to determine if request expects JSON (AJAX)
+const expectsJson = (req) => {
+  return (
+    req.xhr ||
+    (req.headers.accept && req.headers.accept.includes("application/json")) ||
+    req.get("X-Requested-With") === "XMLHttpRequest" ||
+    req.headers["content-type"] === "application/json"
+  );
+};
+
 // Delete user
 exports.deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    console.log("jj");
     await User.deleteOne({ _id: userId });
-    res.redirect("/admin/dashboard");
+    if (expectsJson(req)) return res.status(200).json({ message: "User deleted successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in deleteUser:", error);
+    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };
@@ -148,50 +162,106 @@ exports.deleteUser = async (req, res) => {
 exports.suspendUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    const { suspensionEndDate, suspensionReason } = req.body;
-    if (!suspensionEndDate)
-      return res.status(400).json({ error: "Suspension end date is required!" });
+    const { suspensionEndDate, suspensionReason } = req.body || {};
+
+    // Require a valid suspension end date
+    if (!suspensionEndDate) {
+      return res.status(400).json({ error: 'Suspension end date is required' });
+    }
+
+    const parsed = new Date(suspensionEndDate);
+    if (isNaN(parsed.getTime())) {
+      return res.status(400).json({ error: 'Invalid suspension end date' });
+    }
+
+    const now = new Date();
+    // Allow same-day suspensions; require end date >= today
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (parsed < startOfToday) {
+      return res.status(400).json({ error: 'Suspension end date must be today or later' });
+    }
 
     const updateData = {
       isSuspended: true,
-      suspensionEndDate: new Date(suspensionEndDate),
-      suspensionReason: suspensionReason || null
+      suspensionEndDate: parsed,
+      suspensionReason: suspensionReason || null,
     };
 
     await User.updateOne({ _id: userId }, { $set: updateData });
-    res.redirect("/admin/dashboard");
+    if (expectsJson(req)) return res.status(200).json({ message: "User suspended successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in suspendUser:", error);
+    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
+  }
+};
+
+// Unsuspend user
+exports.unsuspendUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    await User.updateOne({ _id: userId }, { $set: { isSuspended: false, suspensionEndDate: null, suspensionReason: null } });
+    if (expectsJson(req)) return res.status(200).json({ message: "User unsuspended successfully" });
+    return res.redirect('/admin/dashboard');
+  } catch (error) {
+    console.error('Error in unsuspendUser:', error);
+    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).send('Internal Server Error');
   }
 };
 
 // 🌟 FIX: Edit admin profile
 exports.editProfile = async (req, res) => {
   try {
-    const currentAdminUsername = req.user ? req.user.username : null;
-    if (!currentAdminUsername) return res.redirect("/loginPage");
+    const currentAdminUsername = req.user ? req.user.username : req.session.username;
+    if (!currentAdminUsername) {
+      if (expectsJson(req)) return res.status(401).json({ error: 'Unauthorized' });
+      return res.redirect('/loginPage');
+    }
 
-    const { username, email, password, newpassword } = req.body;
-    console.log(req.body);
-    if (!username || !email)
-      return res.status(400).send("Missing required fields");
+    const { username, email, currentPassword, newpassword } = req.body || {};
+    if (!username || !email) {
+      if (expectsJson(req)) return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).send('Missing required fields');
+    }
+
+    const adminUser = await User.findOne({ username: currentAdminUsername });
+    if (!adminUser) {
+      if (expectsJson(req)) return res.status(404).json({ error: 'Admin not found' });
+      return res.redirect('/loginPage');
+    }
+
+    // Determine if identity/password will change
+    const willChangeIdentity = (username !== adminUser.username) || (email !== adminUser.email) || (newpassword && newpassword.trim() !== '');
+
+    // If the client provided a currentPassword, always verify it.
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, adminUser.password);
+      if (!isMatch) {
+        if (expectsJson(req)) return res.status(401).json({ error: 'Incorrect current password' });
+        return res.status(401).send('Incorrect current password');
+      }
+    } else if (willChangeIdentity) {
+      // When identity (username/email) or password is changing, require the current password.
+      if (expectsJson(req)) return res.status(400).json({ error: 'Current password is required to update profile' });
+      return res.status(400).send('Current password is required');
+    }
 
     const updateData = { username, email };
-    if (newpassword && newpassword.trim() !== "") {
+    if (newpassword && newpassword.trim() !== '') {
       updateData.password = await bcrypt.hash(newpassword.trim(), 10);
     }
 
-    await User.updateOne(
-      { username: currentAdminUsername },
-      { $set: updateData }
-    );
+    await User.updateOne({ username: currentAdminUsername }, { $set: updateData });
     if (username !== currentAdminUsername) req.session.username = username;
 
-    res.redirect("/admin/dashboard");
+    if (expectsJson(req)) return res.status(200).json({ message: 'Profile updated successfully' });
+    return res.redirect('/admin/dashboard');
   } catch (error) {
-    console.error("Error in editProfile:", error);
-    res.status(500).send("Internal Server Error");
+    console.error('Error in editProfile:', error);
+    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).send('Internal Server Error');
   }
 };
 
@@ -224,26 +294,33 @@ exports.changePassword = async (req, res) => {
 
 // 🌟 FIX: Delete Admin Account
 exports.deleteAccount = async (req, res) => {
-    const currentAdminUsername = req.session.username; // Use session for identity
-    if (!currentAdminUsername) return res.status(401).json({ error: "Unauthorized" });
+  const currentAdminUsername = req.session.username; // Use session for identity
+  if (!currentAdminUsername) {
+    if (expectsJson(req)) return res.status(401).json({ error: "Unauthorized" });
+    return res.redirect('/loginPage');
+  }
 
-    try {
-        // Find the admin user to be sure
-        const user = await User.findOne({ username: currentAdminUsername, role: 'admin' });
-        if (!user) return res.status(404).json({ error: "Admin account not found" });
-
-        await User.deleteOne({ username: currentAdminUsername });
-
-        // Destroy the session to log the admin out
-        req.session.destroy(err => {
-            if (err) console.error("Error destroying session:", err);
-            // After successful deletion and session destruction
-            res.status(200).json({ message: "Account deleted successfully." });
-        });
-    } catch (error) {
-        console.error("Error in deleteAccount:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+  try {
+    // Find the admin user to be sure
+    const user = await User.findOne({ username: currentAdminUsername, role: 'admin' });
+    if (!user) {
+      if (expectsJson(req)) return res.status(404).json({ error: "Admin account not found" });
+      return res.redirect('/loginPage');
     }
+
+    await User.deleteOne({ username: currentAdminUsername });
+
+    // Destroy the session to log the admin out
+    req.session.destroy(err => {
+      if (err) console.error("Error destroying session:", err);
+      if (expectsJson(req)) return res.status(200).json({ message: "Account deleted successfully." });
+      res.redirect('/loginPage');
+    });
+  } catch (error) {
+    console.error("Error in deleteAccount:", error);
+    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 
@@ -305,6 +382,58 @@ exports.postEditRestaurent = async (req, res) => {
   }
 };
 
+// Suspend restaurant
+exports.suspendRestaurant = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { suspensionEndDate, suspensionReason } = req.body || {};
+
+    // Require a valid suspension end date
+    if (!suspensionEndDate) {
+      return res.status(400).json({ error: 'Suspension end date is required' });
+    }
+
+    const parsed = new Date(suspensionEndDate);
+    if (isNaN(parsed.getTime())) {
+      return res.status(400).json({ error: 'Invalid suspension end date' });
+    }
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (parsed < startOfToday) {
+      return res.status(400).json({ error: 'Suspension end date must be today or later' });
+    }
+
+    const updateData = {
+      isSuspended: true,
+      suspensionEndDate: parsed,
+      suspensionReason: suspensionReason || null,
+    };
+
+    await Restaurant.updateOne({ _id: id }, { $set: updateData });
+    if (expectsJson(req)) return res.status(200).json({ message: "Restaurant suspended successfully" });
+    return res.redirect("/admin/dashboard");
+  } catch (error) {
+    console.error("Error in suspendRestaurant:", error);
+    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).send("Internal Server Error");
+  }
+};
+
+// Unsuspend restaurant
+exports.unsuspendRestaurant = async (req, res) => {
+  try {
+    const id = req.params.id;
+    await Restaurant.updateOne({ _id: id }, { $set: { isSuspended: false, suspensionEndDate: null, suspensionReason: null } });
+    if (expectsJson(req)) return res.status(200).json({ message: 'Restaurant unsuspended successfully' });
+    return res.redirect('/admin/dashboard');
+  } catch (error) {
+    console.error('Error in unsuspendRestaurant:', error);
+    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).send('Internal Server Error');
+  }
+};
+
 // Delete restaurant
 exports.postDeleteRestaurent = async (req, res) => {
   try {
@@ -315,9 +444,11 @@ exports.postDeleteRestaurent = async (req, res) => {
       await User.deleteMany({ rest_id: id });
     }
     await Restaurant.deleteOne({ _id: id });
-    res.redirect("/admin/dashboard");
+    if (expectsJson(req)) return res.status(200).json({ message: "Restaurant deleted successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in postDeleteRestaurent:", error);
+    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };

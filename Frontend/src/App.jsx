@@ -10,6 +10,7 @@ import { CustomerNav } from "./components/CustomerNav";
 import { MenuPage,loader as menuLoader } from "./pages/MenuPage";
 import { OrderPage } from "./pages/OrderPage";
 import { PaymentPage } from "./pages/PaymentPage";
+import { OrderPlacedPage } from "./pages/OrderPlacedPage";
 import { FeedBackPage } from "./pages/FeedBackPage";
 import { DashBoardPage,loader as DashboardLoader } from "./pages/DashBoardPage";
 import { CustomerHomepage,loader as customerHomepageLoader } from "./pages/CustomerHompage";
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
       { path: "restaurant/:id", element: <MenuPage></MenuPage>,loader:menuLoader },
       { path: "order", element: <OrderPage></OrderPage> },
       { path: "payment", element: <PaymentPage></PaymentPage> },
+      { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
       { path: "feedback", element: <FeedBackPage></FeedBackPage> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],

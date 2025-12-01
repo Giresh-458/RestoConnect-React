@@ -129,14 +129,12 @@ export function Restaurant({ searchTerm }) {
                     ${restaurant.amount || 0}
                   </td>
                   <td className={styles.actions}>
-                    <RestaurantEdit
-                      Dispatch={Dispatch}
-                      restaurant={restaurant}
-                    />
+                    <RestaurantEdit Dispatch={Dispatch} restaurant={restaurant} />
                     <button
-                      onClick={() =>
-                        Dispatch({ type: "delete", payload: restaurant._id })
-                      }
+                      onClick={() => {
+                        if (!confirm(`Are you sure you want to permanently delete restaurant '${restaurant.name}'? This will remove its dishes and owner account.`)) return;
+                        Dispatch({ type: "delete", payload: restaurant._id });
+                      }}
                       className={styles.deleteBtn}
                     >
                       Delete

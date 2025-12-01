@@ -22,6 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Removed as per user request to not use any API for dynamic updates
 
   // Removed updateStatistics function and related calls
+
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', () => {
+      if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+        let xhr = new XMLHttpRequest();
+        xhr.open("DELETE", "/admin/delete_account", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send();
+
+        xhr.onload = function () {
+          if (xhr.status == 200) {
+            alert("Account deleted successfully.");
+            window.location.href = "/loginPage"; // Redirect to login
+          } else {
+            alert("Error deleting account: " + JSON.parse(xhr.responseText).error);
+          }
+        };
+      }
+    });
+  }
 });
 
 
@@ -37,6 +58,8 @@ xhr.onload = function(){
 if(this.status==200){
 console.log(this.response)
 users = JSON.parse(this.response);
+// Exclude admin users from the UI listing/count
+users = users.filter(u => u.role !== 'admin');
 console.log(users)
 for(let i=0;i<users.length;i++){
   let opt = document.createElement("option");
@@ -45,6 +68,7 @@ for(let i=0;i<users.length;i++){
 }
 
 
+// Only count customer/owner/staff
 document.getElementById("totalUsersCount").innerText=users.length;
 }
 }
@@ -111,20 +135,17 @@ if (!user) {
 
 
       document.getElementById("remove1").addEventListener("click",function(){
+        if (confirm("Are you sure you want to delete this user?")) {
+          let xhr = new XMLHttpRequest();
+          xhr.open("post", "http://localhost:3000/admin/delete_user/" + user._id, true);
 
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.send();
 
-
-        let xhr = new XMLHttpRequest();
-        xhr.open("post", "http://localhost:3000/admin/delete_user/" + user._id, true);
-        
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send();
-        
-let dispaly = document.getElementById("diplay");
-dispaly.innerHTML="";
+          let dispaly = document.getElementById("diplay");
+          dispaly.innerHTML="";
           callAll();
-
-
+        }
       });
 
 
@@ -182,40 +203,44 @@ document.getElementById("seerest").addEventListener("click", function () {
 
   
   document.getElementById("save-restaurant").addEventListener("click", function () {
-    let updatedRest = {
-      _id: rest._id,
-      name: document.getElementById("edit-name").value,
-      location: document.getElementById("edit-location").value,
-      amount: document.getElementById("edit-amount").value,
-      date: document.getElementById("edit-date").value,
+    let suspensionEndDate = prompt("Enter suspension end date (YYYY-MM-DD) or leave blank for indefinite:");
+    let suspensionReason = prompt("Enter suspension reason (optional):");
+
+    let suspensionData = {
+      suspensionEndDate: suspensionEndDate || null,
+      suspensionReason: suspensionReason || null
     };
 
     let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/edit_restaurant/" + rest._id, true);
+    xhr.open("POST", "http://localhost:3000/admin/suspend_restaurant/" + rest._id, true);
     xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send(JSON.stringify(updatedRest));
+    xhr.send(JSON.stringify(suspensionData));
 
     xhr.onload = function () {
       if (xhr.status == 200) {
         callAllRestaurants();
+        display.innerHTML = "<p>Restaurant suspended successfully.</p>";
+      } else {
+        alert("Error suspending restaurant: " + JSON.parse(xhr.responseText).error);
       }
     };
   });
 
 
   document.getElementById("remove-restaurant").addEventListener("click", function () {
-   
-    let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send();
+    if (confirm("Are you sure you want to delete this restaurant?")) {
+      let xhr = new XMLHttpRequest();
+      xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send();
 
-    xhr.onload = function () {
-      if (xhr.status == 200) {
-        callAllRestaurants();
-        display.innerHTML = "";
-      }
-    };
+      xhr.onload = function () {
+        if (xhr.status == 200) {
+          callAllRestaurants();
+          display.innerHTML = "";
+        }
+      };
+    }
   });
 });
 
@@ -233,6 +258,12 @@ let xhr = new XMLHttpRequest();
 
         const reqs = JSON.parse(this.response);
         document.getElementById("requestslist").innerHTML = ""; // Clear previous content
+        if (!reqs || reqs.length === 0) {
+          const noReq = document.createElement('p');
+          noReq.innerText = 'No new rest req';
+          document.getElementById("requestslist").appendChild(noReq);
+          return;
+        }
         for(let i=0;i<reqs.length;i++){
           let doc = reqs[i];
             let di = document.createElement("div");
