@@ -28,6 +28,11 @@ router.post('/orderplaced',customerController.postPaymentsSuccess);
 router.post('/orders/:orderId/reorder', customerController.reorderOrder);
 router.post('/preferences/email-notifications', customerController.updateEmailNotifications);
 
+// Favourites routes
+router.post('/favourites/add', customerController.addToFavourites);
+router.post('/favourites/remove', customerController.removeFromFavourites);
+router.get('/favourites', customerController.getFavourites);
+
 // Menu page route
 router.get('/menu/:restid', menuController.getMenu);
 

@@ -16,7 +16,8 @@ const personSchema = new Schema({
   prev_orders: [orderSchema],
   top_dishes: { type: Map, of: Number, default: {} },
   top_restaurent: { type: Map, of: Number, default: {} },
-  cart: { type: Array, default: [] }
+  cart: { type: Array, default: [] },
+  favourites: { type: [String], default: [] }
 });
 
 // Instance method to add order

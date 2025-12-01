@@ -2,6 +2,7 @@ const path = require('path');
 const Person = require('../Model/customer_model');
 const Restaurant = require('../Model/Restaurents_model').Restaurant;
 const Dish = require('../Model/Dishes_model_test').Dish;
+const { getImageUrl } = require('../util/fileUpload');
 
 
 exports.getMenu = async (req,res)=>{    
@@ -31,7 +32,7 @@ exports.getMenu = async (req,res)=>{
             price: dish.price,
             amount: dish.price, // For cart compatibility
             description: dish.description || '',
-            image: dish.image || null
+            image: getImageUrl(req, dish.image) || null
         }));
 
         // Return JSON for React frontend

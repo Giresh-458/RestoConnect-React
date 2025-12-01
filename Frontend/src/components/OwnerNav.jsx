@@ -7,40 +7,40 @@ export function OwnerNav() {
       <nav className={styles.ownerNav}>
         <NavLink 
           to={"/owner/"} 
-          className={({ isActive }) => isActive ? styles.active : ""}
+          className={({ isActive }) => (isActive ? "active" : "")}
        end >
           Homepage
         </NavLink>
         <NavLink 
           to={"/owner/dashboard"} 
-          className={({ isActive }) => isActive ? styles.active : ""}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Dashboard
         </NavLink>
         <NavLink 
           to={"/owner/menumanagement"} 
-          className={({ isActive }) => isActive ? styles.active : ""}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Management
         </NavLink>
 
         <NavLink 
           to="/owner/orders"
-          className={({ isActive }) => (isActive ? styles.active : "")}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Orders
         </NavLink>
 
         <NavLink
           to={"/owner/reservations"}
-          className={({ isActive }) => (isActive ? styles.active : "")}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Reservations
         </NavLink>
         
         <NavLink
           to={"/owner/feedback"}
-          className={({ isActive }) => (isActive ? styles.active : "")}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Feedback
         </NavLink>

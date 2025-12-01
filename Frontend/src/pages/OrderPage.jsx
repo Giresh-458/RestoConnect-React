@@ -14,8 +14,19 @@ export function OrderPage() {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [savedToFavorites, setSavedToFavorites] = useState(false);
 
-  // Generate a random order number
-  const orderNumber = Math.floor(Math.random() * 1000000);
+  // Generate a consistent order number based on cart items
+  const generateOrderNumber = (cartItems) => {
+    let hash = 0;
+    const cartString = JSON.stringify(cartItems);
+    for (let i = 0; i < cartString.length; i++) {
+      const char = cartString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    // Convert to positive 3-digit number (100-999)
+    return (Math.abs(hash) % 900 + 100).toString();
+  };
+  const orderNumber = generateOrderNumber(cartItems);
   const restaurantName = "The Corner Bistro"; // You can get this from context or props
   const estimatedTime = "30-40 minutes";
 

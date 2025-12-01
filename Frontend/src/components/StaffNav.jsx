@@ -7,14 +7,14 @@ export function StaffNav() {
       <nav className={styles.staffNav}>
         <NavLink 
           to={"/staff/"} 
-          className={({ isActive }) => isActive ? styles.active : ""}
+          className={({ isActive }) => (isActive ? "active" : "")}
        
        end>
-          Homepage
+          Home
         </NavLink>
         <NavLink 
           to={"/staff/dashboard"} 
-          className={({ isActive }) => isActive ? styles.active : ""}
+          className={({ isActive }) => (isActive ? "active" : "")}
         >
           Dashboard
         </NavLink>

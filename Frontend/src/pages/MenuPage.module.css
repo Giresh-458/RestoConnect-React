@@ -159,6 +159,7 @@
   height: 180px;
   overflow: hidden;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  position: relative;
 }
 
 .dishImage {
@@ -170,6 +171,36 @@
 
 .dishCard:hover .dishImage {
   transform: scale(1.05);
+}
+
+.favouriteButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.favouriteButton:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.favouriteButtonActive {
+  background: rgba(255, 255, 255, 1);
+}
+
+.favouriteButtonActive svg {
+  color: #ff4757;
 }
 
 .dishInfo {

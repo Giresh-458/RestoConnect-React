@@ -4,14 +4,15 @@
   padding: 1rem;
   background: #d1ecf1;
   border-bottom: 1px solid #bee5eb;
+  flex-wrap: wrap;
 }
 
 .staffNav a {
   padding: 0.5rem 1rem;
-  text-decoration: none;
   color: #0c5460;
   border-radius: 4px;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .staffNav a:hover {
@@ -23,3 +24,11 @@
   background-color: #17a2b8;
   color: white;
 }
+
+@media (max-width: 600px) {
+  .staffNav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+

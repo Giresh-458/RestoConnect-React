@@ -5,6 +5,7 @@ const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const Feedback = require("../Model/feedback");
 const { Order } = require("../Model/Order_model");
 const { User } = require("../Model/userRoleModel");
+const { getImageUrl } = require('../util/fileUpload');
 
 const formatRelativeTime = (targetDate) => {
   if (!targetDate) return "";
@@ -197,9 +198,17 @@ exports.getCustomerDashboard = async (req, res) => {
           }
         }
         
-        // Format order ID to be shorter (use first part of shortid)
-        const shortOrderId = order._id ? order._id.substring(0, 11) : 'N/A';
-        
+        // Generate consistent order ID using hash method (same as owner dashboard)
+        let hash = 0;
+        for (let i = 0; i < order._id.length; i++) {
+          const char = order._id.charCodeAt(i);
+          hash = ((hash << 5) - hash) + char;
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        // Convert to positive 3-digit number (100-999)
+        const orderNumber = (Math.abs(hash) % 900 + 100).toString();
+        const consistentOrderId = `OR${orderNumber}`;
+
         let totalAmount = Number(order.totalAmount) || 0;
         if ((!totalAmount || Number.isNaN(totalAmount)) && Array.isArray(order.dishes)) {
           totalAmount = order.dishes.reduce((sum, dishName) => {
@@ -213,7 +222,7 @@ exports.getCustomerDashboard = async (req, res) => {
         }
 
         return {
-          orderId: shortOrderId,
+          orderId: consistentOrderId,
           recordId: order._id || null,
           dishName: dishName,
           price: Number(totalAmount.toFixed(2)),
@@ -1103,12 +1112,133 @@ exports.searchRestaurants = async (req, res) => {
       }
     });
 
-    res.json({ 
+    res.json({
       restaurants: restaurantsWithStatus,
       availableCuisines: Array.from(allCuisines).sort()
     });
   } catch (error) {
     console.error("Error in searchRestaurants:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Favourites functionality
+exports.addToFavourites = async (req, res) => {
+  try {
+    const customerName = req.session.username;
+    if (!customerName) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const { dishId } = req.body;
+    if (!dishId) {
+      return res.status(400).json({ success: false, error: 'Dish ID is required' });
+    }
+
+    const person = await Person.findOne({ name: customerName });
+    if (!person) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
+    }
+
+    // Initialize favourites array if it doesn't exist
+    if (!person.favourites) {
+      person.favourites = [];
+    }
+
+    // Check if dish is already in favourites
+    if (person.favourites.includes(dishId)) {
+      return res.status(400).json({ success: false, error: 'Dish already in favourites' });
+    }
+
+    // Add to favourites
+    person.favourites.push(dishId);
+    person.markModified('favourites');
+    await person.save();
+
+    res.json({ success: true, message: 'Dish added to favourites' });
+  } catch (error) {
+    console.error('Error adding to favourites:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+exports.removeFromFavourites = async (req, res) => {
+  try {
+    const customerName = req.session.username;
+    if (!customerName) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const { dishId } = req.body;
+    if (!dishId) {
+      return res.status(400).json({ success: false, error: 'Dish ID is required' });
+    }
+
+    const person = await Person.findOne({ name: customerName });
+    if (!person) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
+    }
+
+    // Remove from favourites
+    if (person.favourites) {
+      person.favourites = person.favourites.filter(id => id !== dishId);
+      person.markModified('favourites');
+      await person.save();
+    }
+
+    res.json({ success: true, message: 'Dish removed from favourites' });
+  } catch (error) {
+    console.error('Error removing from favourites:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+exports.getFavourites = async (req, res) => {
+  try {
+    const customerName = req.session.username;
+    if (!customerName) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const person = await Person.findOne({ name: customerName });
+    if (!person) {
+      return res.status(404).json({ success: false, error: 'Customer not found' });
+    }
+
+    const favouriteDishIds = person.favourites || [];
+
+    if (favouriteDishIds.length === 0) {
+      return res.json({ success: true, favourites: [] });
+    }
+
+    // Get dish details
+    const dishes = await Promise.all(
+      favouriteDishIds.map(async (dishId) => {
+        try {
+          const dish = await Dish.findById(dishId);
+          if (!dish) return null;
+
+          return {
+            id: dish._id,
+            name: dish.name,
+            price: dish.price,
+            amount: dish.price,
+            description: dish.description || '',
+            image: getImageUrl(req, dish.image) || null
+          };
+        } catch (err) {
+          console.error(`Error fetching dish ${dishId}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null values (dishes that no longer exist)
+    const validDishes = dishes.filter(dish => dish !== null);
+
+    res.json({ success: true, favourites: validDishes });
+  } catch (error) {
+    console.error('Error getting favourites:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };

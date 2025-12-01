@@ -2,7 +2,8 @@ import { redirect, useLoaderData, useNavigate } from "react-router-dom";
 import { isLogin } from "../util/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { addItem, removeItem } from "../store/CartSlice";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { addToFavourites, removeFromFavourites, getFavourites } from "../util/favourites";
 import styles from "./MenuPage.module.css";
 
 export function MenuPage() {
@@ -14,6 +15,8 @@ export function MenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showOrderSummary, setShowOrderSummary] = useState(true);
+  const [favourites, setFavourites] = useState([]);
+  const [loadingFavourites, setLoadingFavourites] = useState(true);
 
   if (!data || !data.restaurant || !data.dishes) {
     return (
@@ -64,6 +67,48 @@ export function MenuPage() {
   const finalTotal = (parseFloat(cartTotal) + deliveryFee + parseFloat(taxes)).toFixed(2);
 
   const categories = ["All", "Appetizers", "Mains", "Desserts"];
+
+  // Load favourites on component mount
+  useEffect(() => {
+    const loadFavourites = async () => {
+      try {
+        const favs = await getFavourites();
+        setFavourites(favs);
+      } catch (error) {
+        console.error('Error loading favourites:', error);
+      } finally {
+        setLoadingFavourites(false);
+      }
+    };
+    loadFavourites();
+  }, []);
+
+  // Helper function to check if dish is favourite
+  const isFavourite = (dishId) => {
+    return favourites.includes(dishId);
+  };
+
+  // Handle adding to favourites
+  const handleAddToFavourites = async (dishId) => {
+    try {
+      await addToFavourites(dishId);
+      setFavourites(prev => [...prev, dishId]);
+    } catch (error) {
+      console.error('Error adding to favourites:', error);
+      alert('Failed to add to favourites');
+    }
+  };
+
+  // Handle removing from favourites
+  const handleRemoveFromFavourites = async (dishId) => {
+    try {
+      await removeFromFavourites(dishId);
+      setFavourites(prev => prev.filter(id => id !== dishId));
+    } catch (error) {
+      console.error('Error removing from favourites:', error);
+      alert('Failed to remove from favourites');
+    }
+  };
 
   return (
     <div className={styles.menuPage}>
@@ -125,6 +170,9 @@ export function MenuPage() {
                     quantity={getQuantity(dish.id)}
                     onAdd={() => handleAddItem(dish)}
                     onRemove={() => handleRemoveItem(dish)}
+                    isFavourite={isFavourite(dish.id)}
+                    onAddToFavourites={() => handleAddToFavourites(dish.id)}
+                    onRemoveFromFavourites={() => handleRemoveFromFavourites(dish.id)}
                   />
                 ))}
               </div>
@@ -147,6 +195,9 @@ export function MenuPage() {
                     quantity={getQuantity(dish.id)}
                     onAdd={() => handleAddItem(dish)}
                     onRemove={() => handleRemoveItem(dish)}
+                    isFavourite={isFavourite(dish.id)}
+                    onAddToFavourites={() => handleAddToFavourites(dish.id)}
+                    onRemoveFromFavourites={() => handleRemoveFromFavourites(dish.id)}
                   />
                 ))}
               </div>
@@ -266,7 +317,7 @@ export function MenuPage() {
 }
 
 // Dish Card Component
-function DishCard({ dish, quantity, onAdd, onRemove }) {
+function DishCard({ dish, quantity, onAdd, onRemove, isFavourite, onAddToFavourites, onRemoveFromFavourites }) {
   return (
     <div className={styles.dishCard}>
       <div className={styles.dishImageContainer}>
@@ -278,6 +329,15 @@ function DishCard({ dish, quantity, onAdd, onRemove }) {
             e.target.src = "https://via.placeholder.com/300x200?text=Dish";
           }}
         />
+        <button
+          className={`${styles.favouriteButton} ${isFavourite ? styles.favouriteButtonActive : ''}`}
+          onClick={() => isFavourite ? onRemoveFromFavourites() : onAddToFavourites()}
+          title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={isFavourite ? "red" : "none"} stroke="currentColor" strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </button>
       </div>
       <div className={styles.dishInfo}>
         <h3 className={styles.dishName}>{dish.name}</h3>

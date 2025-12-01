@@ -7,8 +7,8 @@ const session = require('express-session');
 const { connectDB } = require('./util/database');
 const cors = require("cors");
 // Models
-const RestaurantRequest = require('./Model/restaurent_request_model.js'); // ✅ Correct spelling
-const { Restaurant } = require('./Model/Restaurents_model.js'); // ✅ Correct spelling
+const RestaurantRequest = require('./Model/restaurent_request_model.js'); 
+const { Restaurant } = require('./Model/Restaurents_model.js');
 const {User} = require('./Model/userRoleModel.js');
 const app = express();
 
