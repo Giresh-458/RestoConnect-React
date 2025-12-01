@@ -25,10 +25,30 @@ export function StaffHomePage() {
 
       const response = await fetch("http://localhost:3000/api/staff/homepage", {
         credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch staff data: ${response.status}`);
+        // Try to read error body as text so we don't crash on non‑JSON (e.g. HTML)
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          text && text.startsWith("<")
+            ? `Failed to fetch staff data (server returned HTML, status ${response.status}). 
+Make sure the backend is running on port 3000 and you are logged in as a staff user.`
+            : `Failed to fetch staff data: ${response.status}`
+        );
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await response.text().catch(() => "");
+        throw new Error(
+          text && text.startsWith("<")
+            ? "Server returned HTML instead of JSON. Check that the backend /api/staff/homepage route is configured to send JSON and that you are authenticated as staff."
+            : "Server response was not JSON. Please check the backend."
+        );
       }
 
       const data = await response.json();

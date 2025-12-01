@@ -3,6 +3,7 @@ const { User } = require('./Model/userRoleModel');
 
 const auth_middleware = (role) => {
   return async (req, res, next) => {
+    
     const wantsJSON =
       req.headers.accept?.includes("application/json") ||
       req.headers.accept === "*/*" ||
@@ -29,6 +30,7 @@ const auth_middleware = (role) => {
     req.user = user;
 
     if (user.role === role) {
+    
       return next();
     }
 

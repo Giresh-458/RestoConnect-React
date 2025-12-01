@@ -86,7 +86,7 @@ exports.postUpdateOrder = async (req, res) => {
     );
 
     if (!updatedOrder) {
-      return res.status(404).send("Order not found");
+      return res.status(404).json({ error: "Order not found" });
     }
 
     // Also update the order in the Restaurant's orders array
@@ -108,54 +108,68 @@ exports.postUpdateOrder = async (req, res) => {
       }
     }
 
-    res.redirect("/staff/Dashboard");
+    res.json({ success: true, message: "Order status updated successfully", order: updatedOrder });
   } catch (error) {
     console.error("Error updating order:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 exports.postAllocateTable = async (req, res) => {
-  const { reservationId, tableNumber } = req.body;
-  let rest = await Restaurant.findById(req.session.rest_id);
-  if (!rest) {
-    return res.status(404).send("Restaurant not found");
-  }
+  try {
+    const { Reservation } = require("../Model/Reservation_model");
+    const { reservationId, tableNumber } = req.body;
 
-  // Find reservation by id
-  let reservation = null;
-  for (let resv of rest.reservations) {
-    if (resv.id == reservationId) {
-      reservation = resv;
-      break;
+    const rest = await Restaurant.findById(req.session.rest_id);
+    if (!rest) {
+      return res.status(404).json({ error: "Restaurant not found" });
     }
-  }
-  if (!reservation) {
-    return res.status(404).send("Reservation not found");
-  }
 
-  // Allocate table to reservation
-  if (!reservation.tables) {
-    reservation.tables = [];
-  }
-  if (!reservation.tables.includes(tableNumber)) {
-    reservation.tables.push(tableNumber);
-  }
-
-  // Mark reservation as allocated
-  reservation.allocated = true;
-
-  // Update table status in restaurant tables array
-  // Assuming tables array contains objects with number and status
-  for (let table of rest.tables) {
-    if (table.number == tableNumber) {
-      table.status = "Allocated";
-      break;
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation || reservation.rest_id !== String(rest._id)) {
+      return res.status(404).json({ error: "Reservation not found" });
     }
-  }
 
-  await rest.save();
-  res.redirect("/staff/HomePage");
+    // If table is not part of the restaurant -> reject
+    const table = rest.tables.find((t) => String(t.number) === String(tableNumber));
+    if (!table) {
+      return res.status(400).json({ error: "Table does not exist in this restaurant" });
+    }
+
+    if (table.status !== "Available") {
+      return res
+        .status(400)
+        .json({ error: "Table is not available. Please choose another table." });
+    }
+
+    // Mark reservation as allocated / confirmed
+    reservation.allocated = true;
+    reservation.status = "confirmed";
+    reservation.table_id = String(tableNumber);
+
+    if (!Array.isArray(reservation.tables)) {
+      reservation.tables = [];
+    }
+    if (!reservation.tables.includes(String(tableNumber))) {
+      reservation.tables.push(String(tableNumber));
+    }
+
+    // Update table status so it is no longer available
+    table.status = "Allocated";
+
+    await reservation.save();
+    await rest.save();
+
+    return res.json({
+      success: true,
+      message: "Table allocated successfully",
+      reservation,
+      tables: rest.tables,
+    });
+  } catch (error) {
+    console.error("Error allocating table:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 // HomePage Methods
@@ -243,40 +257,75 @@ exports.deleteHomePageTasks = async (req, res) => {
 };
 
 exports.postRemoveReservation = async (req, res) => {
-  const reservationId = req.params.id;
-  const rest = await Restaurant.findById(req.session.rest_id);
-  if (!rest) {
-    return res.status(404).send("Restaurant not found");
-  }
+  try {
+    const { Reservation } = require("../Model/Reservation_model");
+    const reservationId = req.params.id;
 
-  // Find reservation index using loose equality for id comparison
-  const reservationIndex = rest.reservations.findIndex(
-    (r) => r.id == reservationId
-  );
-  if (reservationIndex === -1) {
-    return res.status(404).send("Reservation not found");
-  }
-
-  // Get tables allocated to this reservation
-  const tablesToFree = rest.reservations[reservationIndex].tables || [];
-
-  // Remove reservation
-  rest.reservations.splice(reservationIndex, 1);
-  rest.reservations = rest.reservations; // reassign to mark change
-
-  // Free up tables by setting status to 'Available' or empty string
-  for (let table of rest.tables) {
-    if (tablesToFree.includes(table.number)) {
-      table.status = "Available";
+    const rest = await Restaurant.findById(req.session.rest_id);
+    if (!rest) {
+      return res.status(404).json({ error: "Restaurant not found" });
     }
+
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation || reservation.rest_id !== String(rest._id)) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    // Determine which tables to free
+    const tablesToFree = Array.isArray(reservation.tables) && reservation.tables.length
+      ? reservation.tables
+      : reservation.table_id
+      ? [reservation.table_id]
+      : [];
+
+    // Free the tables in the restaurant document
+    for (const table of rest.tables) {
+      if (tablesToFree.includes(String(table.number))) {
+        table.status = "Available";
+      }
+    }
+
+    await Reservation.findByIdAndDelete(reservationId);
+    await rest.save();
+
+    return res.json({
+      success: true,
+      message: "Reservation removed and tables freed",
+      freedTables: tablesToFree,
+    });
+  } catch (error) {
+    console.error("Error removing reservation:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
-  rest.tables = rest.tables; // reassign to mark change
+};
 
-  rest.markModified("reservations");
-  rest.markModified("tables");
+exports.postAddTable = async (req, res) => {
+  try {
+    const { number, capacity } = req.body;
+    const rest = await Restaurant.findById(req.session.rest_id);
+    if (!rest) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
 
-  await rest.save();
-  res.redirect("/staff/HomePage");
+    // Check if table number already exists
+    const existingTable = rest.tables.find(t => t.number == number);
+    if (existingTable) {
+      return res.status(400).json({ error: "Table number already exists" });
+    }
+
+    // Add new table
+    rest.tables.push({
+      number: number,
+      seats: capacity || 4,
+      status: "Available"
+    });
+
+    await rest.save();
+    res.json({ success: true, message: "Table added successfully" });
+  } catch (error) {
+    console.error("Error adding table:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 exports.postUpdateInventory = async (req, res) => {
@@ -312,6 +361,7 @@ exports.postAutoAllocateTable = async (req, res) => {
 };
 
 exports.getStaffHomepageData = async (req, res) => {
+  console.log("getStaffHomepageData endpoint called");
   try {
     console.log("Session username:", req.session.username);
 
@@ -322,10 +372,30 @@ exports.getStaffHomepageData = async (req, res) => {
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
-      return res.status(404).json({
-        error: "Restaurant not found",
-        staffRestId: staffMember.rest_id,
-      });
+      console.warn(
+        "Staff homepage: restaurant not found for rest_id",
+        staffMember.rest_id,
+        "– returning fallback JSON so frontend can render"
+      );
+
+      const fallbackStaffData = {
+        staff: {
+          name: staffMember.username,
+          role: staffMember.role,
+          branch: "Unassigned",
+        },
+        announcements: [],
+        shifts: [],
+        tasks: [],
+        performance: {
+          ordersServed: 0,
+          avgRating: 4.5,
+          avgServeTime: 7,
+          efficiencyScore: 90,
+        },
+      };
+
+      return res.status(200).json(fallbackStaffData);
     }
 
     const today = new Date();
@@ -531,23 +601,6 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 exports.getDashBoardData = async (req, res) => {
   try {
     const { Restaurant } = require("../Model/Restaurents_model");
@@ -616,6 +669,9 @@ exports.getDashBoardData = async (req, res) => {
 
     console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
 
+    // ✅ Get available tables
+    const availableTables = rest.tables.filter(t => t.status === "Available");
+
     // ✅ Send data
     res.json({
       rest_name: rest.name,
@@ -623,6 +679,7 @@ exports.getDashBoardData = async (req, res) => {
       reservations,
       feedback,
       inventoryStatus, // 👈 add this field for frontend
+      availableTables,
     });
 
     console.log("------ STAFF DASHBOARD DEBUG END ------");

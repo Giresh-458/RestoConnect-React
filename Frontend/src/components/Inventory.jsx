@@ -2,12 +2,7 @@ import { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
 
 export function Inventory() {
-  const [inventory, setInventory] = useState({
-    labels: [],
-    values: [],
-    units: [],
-    suppliers: [],
-  });
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,7 +11,7 @@ export function Inventory() {
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/owner/inventory", {
+      const response = await fetch("http://localhost:3000/api/inventory", {
         credentials: "include"
       });
       if (response.ok) {

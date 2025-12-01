@@ -1,0 +1,154 @@
+.ownerManagement {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.addDishForm {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  border: 1px solid #e0e0e0;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+  color: #555;
+}
+
+.formGroup {
+  margin-bottom: 15px;
+}
+
+.formLabel {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.formInput {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.formTextarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  min-height: 80px;
+  resize: vertical;
+}
+
+.addButton {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.addButton:hover {
+  background: #1d4ed8;
+}
+
+.menuItemsSection {
+  margin-top: 30px;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+  color: #555;
+}
+
+.menuItemsList {
+  display: grid;
+  gap: 15px;
+}
+
+.menuItem {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.itemName {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.itemPrice {
+  font-size: 1.1rem;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.itemDescription {
+  color: #666;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.deleteButton {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.deleteButton:hover {
+  background: #b91c1c;
+}
+
+.noItems {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 40px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.error {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #fecaca;
+}

@@ -12,29 +12,295 @@ import {
 } from "react-icons/fa";
 
 export function StaffDashBoardPage() {
-  const [data, setData] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState({
+    rest_name: '',
+    orders: [],
+    reservations: [],
+    feedback: [],
+    inventoryStatus: [],
+    availableTables: []
+  });
   const [showSettings, setShowSettings] = useState(false);
+  const [newTable, setNewTable] = useState({ number: "", capacity: "" });
+  const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("http://localhost:3000/staff/DashboardData", {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch dashboard data");
+      }
+      
+      const json = await response.json();
+      setData({
+        rest_name: json.rest_name || '',
+        orders: json.orders || [],
+        reservations: json.reservations || [],
+        feedback: json.feedback || [],
+        inventoryStatus: json.inventoryStatus || [],
+        availableTables: json.availableTables || []
+      });
+      return json;
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      setError(err.message || "Failed to load dashboard data. Please refresh the page.");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchData() {
+    let isMounted = true;
+    
+    const loadData = async () => {
       try {
-        const response = await fetch("http://localhost:3000/staff/DashboardData", {
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error("Failed to fetch staff dashboard data");
-        const json = await response.json();
-        setData(json);
-        console.log("Dashboard Data Received:", json);
-
-      } catch (err) {
-        console.error("Error loading dashboard data:", err);
+        await fetchData();
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error in useEffect:", error);
+        }
       }
-    }
-    fetchData();
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLogout = () => {
     window.location.href = "http://localhost:3000/logout";
+  };
+
+  const handleOrderDone = async (orderId) => {
+    if (!window.confirm("Mark this order as served?")) return;
+    
+    try {
+      const response = await fetch("http://localhost:3000/staff/Dashboard/update-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ orderId, status: "Served" }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || "Failed to update order");
+      }
+      
+      await fetchData();
+      alert("Order marked as served successfully!");
+    } catch (err) {
+      console.error("Error updating order:", err);
+      alert(err.message || "Failed to update order. Please try again.");
+    }
+  };
+
+  const handleTableSelect = (reservationId, tableNumber) => {
+    console.log('Selected table:', { reservationId, tableNumber });
+    setSelectedTables(prev => ({
+      ...prev,
+      [reservationId]: tableNumber
+    }));
+  };
+
+  const handleAssignTable = async (reservationId) => {
+    const tableNumber = selectedTables[reservationId];
+    if (!tableNumber) {
+      alert('Please select a table first');
+      return;
+    }
+    
+    if (!window.confirm(`Assign Table ${tableNumber} to this reservation?`)) return;
+    
+    try {
+      setIsProcessing(true);
+      const response = await fetch("http://localhost:3000/staff/Dashboard/allocate-table", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ 
+          reservationId: reservationId.toString(), 
+          tableNumber: tableNumber.toString() 
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || "Failed to allocate table");
+      }
+      
+      await fetchData();
+      alert(`Table ${tableNumber} assigned successfully!`);
+      
+      // Clear the selected table for this reservation
+      setSelectedTables(prev => {
+        const newState = {...prev};
+        delete newState[reservationId];
+        return newState;
+      });
+    } catch (err) {
+      console.error("Error allocating table:", err);
+      alert(err.message || "Failed to assign table. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRemoveReservation = async (reservationId) => {
+    if (!window.confirm("Are you sure you want to remove this reservation?")) {
+      return;
+    }
+    try {
+      const response = await fetch(
+        `http://localhost:3000/staff/Dashboard/remove-reservation/${reservationId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to remove reservation");
+      }
+      // Refresh data after update
+      await fetchData();
+      alert("Reservation removed and table freed successfully");
+    } catch (err) {
+      console.error("Error removing reservation:", err);
+      alert(err.message || "Failed to remove reservation. Please try again.");
+    }
+  };
+
+  const handleAddTable = async () => {
+    if (!newTable.number || !newTable.capacity) {
+      alert("Please enter both table number and capacity");
+      return;
+    }
+    
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      const response = await fetch("http://localhost:3000/staff/add-table", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          number: parseInt(newTable.number),
+          capacity: parseInt(newTable.capacity),
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to add table");
+      }
+      
+      alert(result.message || "Table added successfully!");
+      setNewTable({ number: "", capacity: "" });
+      // Refresh data after update
+      await fetchData();
+    } catch (err) {
+      console.error("Error adding table:", err);
+      setError(err.message || "Failed to add table. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Render reservations function
+  const renderReservations = () => {
+    if (!data.reservations || data.reservations.length === 0) {
+      return <p>No reservations found.</p>;
+    }
+
+    // Get available tables from the data.availableTables array
+    const availableTables = Array.isArray(data.availableTables) 
+      ? data.availableTables 
+      : [];
+
+    return (
+      <table>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Reservation Time</th>
+            <th>Status</th>
+            <th>Assign Table</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.reservations.map((reservation) => (
+            <tr key={reservation._id}>
+              <td>{reservation.customerName || 'N/A'}</td>
+              <td>{reservation.time || 'N/A'}</td>
+              <td>{reservation.status}</td>
+              <td>
+                <select 
+                  className="border p-1 rounded"
+                  value={selectedTables[reservation._id] || ''}
+                  onChange={(e) => handleTableSelect(reservation._id, e.target.value)}
+                  disabled={isProcessing}
+                >
+                  <option value="">Select Table</option>
+                  {availableTables.map((table) => (
+                    <option key={table.number} value={table.number}>
+                      Table {table.number} ({table.seats || 4} seats)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleAssignTable(reservation._id)}
+                  className="bg-blue-500 text-white px-3 py-1 rounded ml-2 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
+                  disabled={!selectedTables[reservation._id] || isProcessing}
+                >
+                  {isProcessing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    '👤 Assign'
+                  )}
+                </button>
+              </td>
+              <td>
+                <button 
+                  onClick={() => handleRemoveReservation(reservation._id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ❌
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   };
 
   // 🟡 Compute stats safely
@@ -103,8 +369,12 @@ export function StaffDashBoardPage() {
             >
               Close
             </button>
-            <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-              Save
+            <button 
+              onClick={handleAddTable} 
+              className={`px-4 py-2 rounded text-white ${isProcessing || !newTable.number || !newTable.capacity ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'}`}
+              disabled={isProcessing || !newTable.number || !newTable.capacity}
+            >
+              {isProcessing ? 'Adding...' : 'Add Table'}
             </button>
           </div>
         </div>
@@ -175,7 +445,7 @@ export function StaffDashBoardPage() {
                   {order.status}
                   </td>
                   <td>
-                  <button>✔ Done</button>
+                  <button onClick={() => handleOrderDone(order._id)}>✔ Done</button>
                   </td>
                </tr>
             ))}
@@ -186,9 +456,15 @@ export function StaffDashBoardPage() {
 
       {/* -------------------- Table Assignments -------------------- */}
       <section className="dashboard-section table-assignments">
-      <h2>🍴 Table Assignments</h2>
-      {!data.reservations || data.reservations.length === 0 ? (
-         <p className="text-gray-500">No table assignments available</p>
+        <h2>🍴 Pending Reservations</h2>
+        {renderReservations()}
+      </section>
+
+      {/* -------------------- Reserved Tables -------------------- */}
+      <section className="dashboard-section reserved-tables">
+      <h2>🍽️ Reserved Tables</h2>
+      {!data.reservations || data.reservations.filter(r => r.allocated).length === 0 ? (
+         <p className="text-gray-500">No reserved tables</p>
       ) : (
          <table>
             <thead>
@@ -201,20 +477,40 @@ export function StaffDashBoardPage() {
             </tr>
             </thead>
             <tbody>
-            {data.reservations.map((resv, idx) => (
-               <tr key={idx}>
-                  <td>{resv.table_id || "N/A"}</td>
+            {data.reservations.filter(r => r.allocated).map((resv) => (
+               <tr key={resv._id}>
+                  <td>{resv.tables?.join(", ") || "N/A"}</td>
                   <td>{resv.customerName || "N/A"}</td>
                   <td>{resv.time || "N/A"}</td>
-                  <td>{resv.status}</td>
+                  <td>Reserved</td>
                   <td>
-                  <button>👤 Assign</button>
+                  <button onClick={() => handleRemoveReservation(resv._id)}>❌ Remove</button>
                   </td>
                </tr>
             ))}
             </tbody>
          </table>
       )}
+      </section>
+
+      {/* -------------------- Add Table -------------------- */}
+      <section className="dashboard-section add-table">
+      <h2>➕ Add New Table</h2>
+      <div className="add-table-form">
+         <input
+            type="number"
+            placeholder="Table Number"
+            value={newTable.number}
+            onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
+         />
+         <input
+            type="number"
+            placeholder="Capacity"
+            value={newTable.capacity}
+            onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
+         />
+         <button onClick={handleAddTable}>Add Table</button>
+      </div>
       </section>
 
 

@@ -589,28 +589,36 @@ function getWeekNumber(date) {
 
 exports.getMenuManagement = async (req, res) => {
   try {
-    let rest = await Restaurant.findById(req.session.rest_id)
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    let rest = await Restaurant.findById(user.rest_id)
       .populate("dishes")
       .populate("orders");
 
-    if (!rest) return res.status(404).send("Restaurant not found");
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
-    res.render("menuManagement", { products: rest.dishes });
+    res.json({ products: rest.dishes });
   } catch (error) {
     console.error("Error in getMenuManagement:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 exports.addProduct = async (req, res) => {
   try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     const { name, price, description } = req.body;
+    console.log(`Owner ${user.username} adding dish: ${name} for restaurant ${user.rest_id}`);
     let dish = new Dish({ name, price, description: description });
-    await dish.addDish(req.session.rest_id);
-    res.redirect("/owner");
+    await dish.addDish(user.rest_id);
+    console.log(`Dish ${name} added successfully to restaurant ${user.rest_id}`);
+    res.json({ success: true, message: "Dish added successfully" });
   } catch (error) {
     console.error("Error in addProduct:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 

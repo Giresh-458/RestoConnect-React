@@ -22,6 +22,7 @@ router.delete(
 
 router.post("/update-inventory", staffController.postUpdateInventory);
 
+
 router.post("/HomePage/tasks/delete/:id", staffController.deleteHomePageTasks);
 router.post(
   "/Dashboard/remove-reservation/delete/:id",
@@ -31,5 +32,6 @@ router.post(
 router.get("/homepage", staffController.getStaffHomepageData);
 router.post("/support-message", staffController.postSupportMessage);
 router.put("/tasks/:id", staffController.updateTaskStatus);
+router.post("/add-table", staffController.postAddTable);
 
 module.exports = router;
