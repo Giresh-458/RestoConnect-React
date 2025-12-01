@@ -4,6 +4,7 @@ import { Provider } from "react-redux";
 import store from "./store/store";
 
 import { HomePage, loader as homeLoader } from "./pages/HomePage";
+import RestaurantListPage from "./pages/RestaurantListPage";
 
 import { CustomerNav } from "./components/CustomerNav";
 import { MenuPage,loader as menuLoader } from "./pages/MenuPage";
@@ -46,7 +47,8 @@ const router = createBrowserRouter([
     path: "/customer",
     element: <CustomerNav></CustomerNav>,
     children: [
-      { index: true, element: <CustomerHomepage></CustomerHomepage> ,loader:customerHomepageLoader},
+          { index: true, element: <CustomerHomepage></CustomerHomepage> ,loader:customerHomepageLoader},
+      { path: "restaurants", element: <RestaurantListPage /> },
       { path: "restaurant/:id", element: <MenuPage></MenuPage>,loader:menuLoader },
       { path: "order", element: <OrderPage></OrderPage> },
       { path: "payment", element: <PaymentPage></PaymentPage> },
