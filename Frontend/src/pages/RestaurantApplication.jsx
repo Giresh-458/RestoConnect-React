@@ -38,6 +38,9 @@ export function RestaurantApplication() {
                                     placeholder="Amelia Chen"
                                     required
                                     minLength="2"
+                                    maxLength="50"
+                                    pattern="^[A-Za-z][A-Za-z\s]{1,49}$"
+                                    title="Full name must start with a letter and can only contain letters and spaces"
                                 />
                             </div>
                             <div className="form-field">
@@ -79,6 +82,10 @@ export function RestaurantApplication() {
                                 name="restaurantName"
                                 placeholder="The Golden Spoon Bistro"
                                 required
+                                minLength="2"
+                                maxLength="80"
+                                pattern="^[A-Za-z0-9][A-Za-z0-9\s]{1,79}$"
+                                title="Restaurant name must start with a letter or number and can only contain letters, numbers, and spaces"
                             />
                         </div>
 
@@ -90,6 +97,8 @@ export function RestaurantApplication() {
                                 name="address"
                                 placeholder="123 Main Street, Anytown, CA 90210"
                                 required
+                                minLength="5"
+                                maxLength="120"
                             />
                         </div>
 

@@ -50,8 +50,30 @@ export function OwnerManagement() {
   const addDish = async (e) => {
     e.preventDefault();
 
-    if (!newDish.name.trim() || !newDish.price.trim()) {
-      alert("Please fill in at least name and price");
+    const name = newDish.name.trim();
+    const priceStr = newDish.price.trim();
+    const description = newDish.description.trim();
+
+    // Basic frontend validation
+    const nameRegex = /^[A-Za-z][A-Za-z0-9\s]{1,79}$/;
+    if (!name || !nameRegex.test(name)) {
+      alert("Please enter a valid dish name (must start with a letter and can contain only letters, numbers, and spaces).");
+      return;
+    }
+
+    if (!priceStr || isNaN(priceStr)) {
+      alert("Please enter a valid price.");
+      return;
+    }
+
+    const price = parseFloat(priceStr);
+    if (price <= 0) {
+      alert("Price must be a positive number.");
+      return;
+    }
+
+    if (description.length > 0 && description.length > 300) {
+      alert("Description is too long (maximum 300 characters).");
       return;
     }
 
@@ -63,9 +85,9 @@ export function OwnerManagement() {
         },
         credentials: "include",
         body: JSON.stringify({
-          name: newDish.name.trim(),
-          price: parseFloat(newDish.price),
-          description: newDish.description.trim()
+          name,
+          price,
+          description
         })
       });
 
