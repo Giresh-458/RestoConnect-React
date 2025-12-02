@@ -36,62 +36,123 @@ export function PaymentPage() {
       setError('Please select a payment method.');
       return;
     }
+
+    // Validate required data
+    if (!restIdEffective) {
+      setProcessing(false);
+      setError('Restaurant information is missing. Please go back and try again.');
+      return;
+    }
+
+    if (!items || items.length === 0) {
+      setProcessing(false);
+      setError('No items in cart. Please add items before payment.');
+      return;
+    }
+
     try {
       let resp, data;
       // If orderId exists, confirm it. Otherwise create then pay.
       if (orderId) {
         resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          credentials: 'include',
           body: JSON.stringify({ orderId, rest_id: restIdEffective })
         });
         data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || data.message || 'Payment failed');
+        if (!resp.ok) {
+          throw new Error(data.error || data.message || 'Payment failed');
+        }
       } else {
+        // Ensure items have the correct structure
+        const formattedItems = items.map(item => ({
+          name: item.name || item.dish || item.id || '',
+          quantity: item.quantity || 1,
+          price: item.price || item.amount || 0,
+          dish: item.dish || item.name || item.id || '',
+          id: item.id || item._id || ''
+        })).filter(item => item.name || item.dish);
+
+        if (formattedItems.length === 0) {
+          throw new Error('No valid items found. Please check your cart.');
+        }
+
         const bodyPayload = {
           ...srcPayload,
-          items,
+          items: formattedItems,
           rest_id: srcPayload.rest_id || restIdEffective,
-          totalAmount: grandTotal
+          totalAmount: grandTotal,
+          restaurantName: srcPayload.restaurantName || ''
         };
+
+        // Only include reservation if it has required fields (date and time - table_id is optional)
+        if (bodyPayload.reservation && (!bodyPayload.reservation.date || !bodyPayload.reservation.time)) {
+          // Remove incomplete reservation data
+          delete bodyPayload.reservation;
+        }
+
         // First try a two-step: create then pay
         let createdOrderId = null;
         try {
           const createResp = await fetch('http://localhost:3000/api/customer/checkout', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            credentials: 'include',
             body: JSON.stringify(bodyPayload)
           });
           const createData = await createResp.json();
-          if (!createResp.ok) throw new Error(createData.error || createData.message || 'Failed to create order');
+          if (!createResp.ok) {
+            throw new Error(createData.error || createData.message || 'Failed to create order');
+          }
           createdOrderId = (createData && createData.data && createData.data.orderId) || createData.orderId;
-          if (!createdOrderId) throw new Error('Missing orderId from checkout');
+          if (!createdOrderId) {
+            throw new Error('Missing orderId from checkout');
+          }
+          
           resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-            body: JSON.stringify({ orderId: createdOrderId, rest_id: bodyPayload.rest_id })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            credentials: 'include',
+            body: JSON.stringify({ orderId: createdOrderId, rest_id: bodyPayload.rest_id || restIdEffective })
           });
           data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || data.message || 'Payment failed');
+          if (!resp.ok) {
+            throw new Error(data.error || data.message || 'Payment failed');
+          }
         } catch (stepErr) {
           // Fallback to one-step: let backend create+pay from payload
           const payResp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            credentials: 'include',
             body: JSON.stringify({ payload: bodyPayload })
           });
           const payData = await payResp.json();
-          if (!payResp.ok) throw new Error(payData.error || payData.message || 'Payment failed');
+          if (!payResp.ok) {
+            throw new Error(payData.error || payData.message || 'Payment failed');
+          }
           data = payData;
         }
       }
 
       // Extract orderId in a tolerant way
       const newOrderId = (data && data.data && data.data.orderId) || data.orderId || (data && data.data && data.data.order?._id) || (data && data.data && data.data.order?.id);
-      if (!newOrderId) throw new Error('Missing orderId in response');
+      if (!newOrderId) {
+        throw new Error('Missing orderId in response');
+      }
 
-      try { dispatch(clearcart()); } catch (e) {}
+      try { 
+        dispatch(clearcart()); 
+      } catch (e) {
+        console.warn('Failed to clear cart:', e);
+      }
+      
       const destRest = restIdEffective;
       navigate('/customer/order-placed', { state: { restId: destRest, orderId: newOrderId } });
     } catch (err) {
       console.error('Payment error:', err);
-      setError(`Payment failed. ${err?.message || 'Please try again.'}`);
+      setError(`Payment failed. ${err?.message || 'Server error. Please try again.'}`);
     } finally {
       setProcessing(false);
     }

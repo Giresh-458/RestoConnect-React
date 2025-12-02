@@ -17,10 +17,26 @@ export function OwnerHomePage() {
     orders: []
   });
   const [recentOrders, setRecentOrders] = useState([]);
-  const [inventory, setInventory] = useState([]);
+  // Ensure inventory is always an array with proper type checking
+  const [inventory, setInventory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('inventory');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse saved inventory, using empty array', e);
+      return [];
+    }
+  });
   const [restaurantName, setRestaurantName] = useState("SpiceHub Restaurant");
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    unit: 'kg',
+    quantity: 0,
+    minStock: 0
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -55,7 +71,14 @@ export function OwnerHomePage() {
 
       setDashboardStats(stats);
       setRecentOrders(orders.orders || []);
-      setInventory(inv.inventory || []);
+      // Ensure we always set an array, even if inv or inv.inventory is not as expected
+      const inventoryData = Array.isArray(inv?.inventory) ? inv.inventory : [];
+      setInventory(inventoryData);
+      try {
+        localStorage.setItem('inventory', JSON.stringify(inventoryData));
+      } catch (e) {
+        console.error('Failed to save inventory to localStorage', e);
+      }
       setUserName(ownerInfo.username || "Owner");
       setRestaurantName(ownerInfo.restaurantName || "SpiceHub Restaurant");
 
@@ -87,12 +110,15 @@ export function OwnerHomePage() {
 
       if (response.ok) {
         const result = await response.json();
-        // Update local inventory state
-        setInventory(prevInventory =>
-          prevInventory.map(item =>
+        // Update local inventory state with null/undefined check
+        setInventory(prevInventory => {
+          if (!prevInventory || !Array.isArray(prevInventory)) {
+            return [result.inventory];
+          }
+          return prevInventory.map(item =>
             item._id === itemId ? result.inventory : item
-          )
-        );
+          );
+        });
         // Refresh dashboard stats to update stock status
         const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
           credentials: "include"
@@ -102,6 +128,100 @@ export function OwnerHomePage() {
       }
     } catch (error) {
       console.error("Error updating inventory:", error);
+      alert("Failed to update inventory. Please try again.");
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("http://localhost:3000/api/owner/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify(newItem)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (!result?.inventory) {
+          throw new Error('Invalid response from server');
+        }
+        
+        setInventory(prevInventory => {
+          const newInventory = Array.isArray(prevInventory) 
+            ? [...prevInventory, result.inventory]
+            : [result.inventory];
+          
+          try {
+            localStorage.setItem('inventory', JSON.stringify(newInventory));
+          } catch (e) {
+            console.error('Failed to update inventory in localStorage', e);
+          }
+          
+          return newInventory;
+        });
+        
+        setNewItem({ name: '', unit: 'kg', quantity: 0, minStock: 0 });
+        setShowAddForm(false);
+        
+        // Refresh dashboard stats
+        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
+          credentials: "include"
+        });
+        const stats = await statsRes.json();
+        setDashboardStats(stats);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to add inventory item");
+      }
+    } catch (error) {
+      console.error("Error adding inventory item:", error);
+      alert("Failed to add inventory item. Please try again.");
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    if (!window.confirm("Are you sure you want to delete this inventory item?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/owner/inventory/${itemId}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        setInventory(prevInventory => {
+          const newInventory = Array.isArray(prevInventory) 
+            ? prevInventory.filter(item => item?._id !== itemId)
+            : [];
+          
+          try {
+            localStorage.setItem('inventory', JSON.stringify(newInventory));
+          } catch (e) {
+            console.error('Failed to update inventory in localStorage', e);
+          }
+          
+          return newInventory;
+        });
+        
+        // Refresh dashboard stats
+        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
+          credentials: "include"
+        });
+        const stats = await statsRes.json();
+        setDashboardStats(stats);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to delete inventory item");
+      }
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      alert("Failed to delete inventory item. Please try again.");
     }
   };
 
@@ -202,33 +322,109 @@ export function OwnerHomePage() {
 
       {/* Inventory Management Section */}
       <div className={styles.inventorySection}>
-        <h2 className={styles.sectionTitle}>Inventory Management</h2>
+        <div className={styles.inventoryHeader}>
+          <h2 className={styles.sectionTitle}>Inventory Management</h2>
+          <button 
+            className={styles.addButton}
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : '+ Add Item'}
+          </button>
+        </div>
+
+        {/* Add Item Form */}
+        {showAddForm && (
+          <form className={styles.addItemForm} onSubmit={handleAddItem}>
+            <div className={styles.formRow}>
+              <input
+                type="text"
+                placeholder="Item Name"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                required
+                className={styles.formInput}
+              />
+              <select
+                value={newItem.unit}
+                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                className={styles.formSelect}
+              >
+                <option value="kg">kg</option>
+                <option value="g">g</option>
+                <option value="L">L</option>
+                <option value="ml">ml</option>
+                <option value="pieces">pieces</option>
+                <option value="boxes">boxes</option>
+                <option value="packets">packets</option>
+              </select>
+            </div>
+            <div className={styles.formRow}>
+              <input
+                type="number"
+                placeholder="Initial Quantity"
+                value={newItem.quantity}
+                onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                min="0"
+                className={styles.formInput}
+              />
+              <input
+                type="number"
+                placeholder="Min Stock Level"
+                value={newItem.minStock}
+                onChange={(e) => setNewItem({ ...newItem, minStock: parseInt(e.target.value) || 0 })}
+                min="0"
+                className={styles.formInput}
+              />
+            </div>
+            <button type="submit" className={styles.submitButton}>Add Item</button>
+          </form>
+        )}
+
         <div className={styles.inventoryList}>
           {inventory.length > 0 ? (
             inventory.map((item) => (
               <div key={item._id} className={styles.inventoryItem}>
-                <span className={styles.inventoryName}>
-                  {item.name} ({item.unit}) - {item.quantity}
-                </span>
+                <div className={styles.inventoryInfo}>
+                  <span className={styles.inventoryName}>
+                    {item.name} ({item.unit})
+                  </span>
+                  <span className={styles.inventoryQuantity}>
+                    Quantity: {item.quantity}
+                    {item.minStock > 0 && (
+                      <span className={item.quantity <= item.minStock ? styles.lowStock : ''}>
+                        {' '}(Min: {item.minStock})
+                      </span>
+                    )}
+                  </span>
+                </div>
                 <div className={styles.inventoryControls}>
                   <button
                     className={styles.quantityButton}
                     onClick={() => handleInventoryUpdate(item._id, -1)}
                     disabled={item.quantity <= 0}
+                    title="Decrease by 1"
                   >
                     -
                   </button>
                   <button
                     className={styles.quantityButton}
                     onClick={() => handleInventoryUpdate(item._id, 1)}
+                    title="Increase by 1"
                   >
                     +
+                  </button>
+                  <button
+                    className={styles.deleteButton}
+                    onClick={() => handleDeleteItem(item._id)}
+                    title="Delete item"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
             ))
           ) : (
-            <p className={styles.noData}>No inventory items. Add items to manage inventory.</p>
+            <p className={styles.noData}>No inventory items. Click "Add Item" to create inventory items.</p>
           )}
         </div>
       </div>

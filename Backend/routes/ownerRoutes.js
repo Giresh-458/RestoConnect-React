@@ -44,6 +44,7 @@ router.get("/orders/recent", ownerController.getRecentOrders);
 router.get("/inventory", ownerController.getInventoryAPI);
 router.post("/inventory", ownerController.createInventoryItem);
 router.patch("/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+router.delete("/inventory/:id", ownerController.deleteInventoryItem);
 
 router.get("/feedback", ownerController.getFeedback);
 router.put("/feedback/:id/status", ownerController.updateFeedbackStatus);

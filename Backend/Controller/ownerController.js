@@ -440,6 +440,36 @@ exports.createInventoryItem = async (req, res) => {
   }
 };
 
+// API endpoint to delete inventory item
+exports.deleteInventoryItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Verify the inventory item belongs to this restaurant
+    const inventoryItem = await Inventory.findById(id);
+    if (!inventoryItem) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    if (inventoryItem.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await Inventory.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: "Inventory item deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error in deleteInventoryItem:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.getownerDashboard_dashboard = async (req, res) => {
 
   try {
@@ -784,10 +814,15 @@ exports.getReservations = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const rest_id = user.rest_id;
-    const reservations = await Reservation.find({ rest_id })
+    // Ensure rest_id is a string for consistent querying
+    const restIdString = String(rest_id);
+    console.log('🔍 Owner querying reservations for rest_id:', restIdString);
+    
+    const reservations = await Reservation.find({ rest_id: restIdString })
       .sort({ date: -1 })
       .select("-rest_id -__v");
 
+    console.log(`✅ Owner found ${reservations.length} reservations for rest_id: ${restIdString}`);
     res.json(reservations);
   } catch (error) {
     console.error("Error in getReservations:", error);

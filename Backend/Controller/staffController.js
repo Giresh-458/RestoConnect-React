@@ -636,14 +636,38 @@ exports.getDashBoardData = async (req, res) => {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
+    console.log('🏢 Restaurant tables:', rest.tables?.length || 0, rest.tables);
+
     // ✅ Get Orders
     let orders = rest.orders || [];
     if (!orders.length) {
       orders = await Order.find({ rest_id: req.session.rest_id });
     }
 
-    // ✅ Get Reservations
-    const reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+    // ✅ Get Reservations - ensure rest_id is string for query
+    const restIdString = String(req.session.rest_id);
+    console.log('🔍 Querying reservations for rest_id:', restIdString);
+    
+    // Try multiple query formats to ensure we find reservations
+    let reservations = await Reservation.find({ rest_id: restIdString }).lean();
+    
+    // If no results, try querying without string conversion (in case rest_id is stored differently)
+    if (reservations.length === 0) {
+      console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
+      reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+    }
+    
+    // Also try querying all reservations to debug
+    const allReservations = await Reservation.find({}).lean();
+    console.log(`📊 Total reservations in DB: ${allReservations.length}`);
+    if (allReservations.length > 0) {
+      console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));
+    }
+    
+    console.log(`✅ Found ${reservations.length} reservations for rest_id: ${restIdString}`);
+    if (reservations.length > 0) {
+      console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
+    }
 
     // ✅ Get Feedback
     const feedback = await Feedback.find({ rest_id: req.session.rest_id })
@@ -669,8 +693,14 @@ exports.getDashBoardData = async (req, res) => {
 
     console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
 
-    // ✅ Get available tables
-    const availableTables = rest.tables.filter(t => t.status === "Available");
+    // ✅ Get available tables - ensure proper structure
+    const availableTables = (rest.tables || []).filter(t => t.status === "Available").map(table => ({
+      number: String(table.number || ''),
+      seats: Number(table.seats || 4),
+      status: table.status || 'Available'
+    }));
+    
+    console.log('📊 Available tables:', availableTables.length, availableTables);
 
     // ✅ Send data
     res.json({

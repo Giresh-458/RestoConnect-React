@@ -42,6 +42,13 @@ export function StaffDashBoardPage() {
       }
 
       const json = await response.json();
+      console.log('📊 Staff Dashboard Data:', {
+        ordersCount: json.orders?.length || 0,
+        reservationsCount: json.reservations?.length || 0,
+        reservations: json.reservations || [],
+        availableTablesCount: json.availableTables?.length || 0,
+        availableTables: json.availableTables || []
+      });
       setData({
         rest_name: json.rest_name || '',
         orders: json.orders || [],
@@ -236,7 +243,16 @@ export function StaffDashBoardPage() {
 
   // Render reservations function
   const renderReservations = () => {
-    if (!data.reservations || data.reservations.length === 0) {
+    // Filter for pending reservations (status: 'pending')
+    const pendingReservations = data.reservations?.filter(r => r.status === 'pending' || !r.status) || [];
+    
+    console.log('🔍 Rendering reservations:', {
+      total: data.reservations?.length || 0,
+      pending: pendingReservations.length,
+      allReservations: data.reservations
+    });
+    
+    if (pendingReservations.length === 0) {
       return <p>No reservations found.</p>;
     }
 
@@ -244,6 +260,8 @@ export function StaffDashBoardPage() {
     const availableTables = Array.isArray(data.availableTables) 
       ? data.availableTables 
       : [];
+
+    console.log('🍽️ Available tables for dropdown:', availableTables);
 
     return (
       <table>
@@ -257,25 +275,31 @@ export function StaffDashBoardPage() {
           </tr>
         </thead>
         <tbody>
-          {data.reservations.map((reservation) => (
+          {pendingReservations.map((reservation) => (
             <tr key={reservation._id}>
               <td>{reservation.customerName || 'N/A'}</td>
               <td>{reservation.time || 'N/A'}</td>
               <td>{reservation.status}</td>
               <td>
-                <select 
-                  className="border p-1 rounded"
-                  value={selectedTables[reservation._id] || ''}
-                  onChange={(e) => handleTableSelect(reservation._id, e.target.value)}
-                  disabled={isProcessing}
-                >
-                  <option value="">Select Table</option>
-                  {availableTables.map((table) => (
-                    <option key={table.number} value={table.number}>
-                      Table {table.number} ({table.seats || 4} seats)
-                    </option>
-                  ))}
-                </select>
+                {availableTables.length === 0 ? (
+                  <span className="text-gray-500 text-sm">No tables available. Add tables in settings.</span>
+                ) : (
+                  <>
+                    <select 
+                      className="border p-1 rounded"
+                      value={selectedTables[reservation._id] || ''}
+                      onChange={(e) => handleTableSelect(reservation._id, e.target.value)}
+                      disabled={isProcessing}
+                    >
+                      <option value="">Select Table</option>
+                      {availableTables.map((table) => (
+                        <option key={table.number} value={String(table.number)}>
+                          Table {table.number} ({table.seats || 4} seats)
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
                 <button
                   onClick={() => handleAssignTable(reservation._id)}
                   className="bg-blue-500 text-white px-3 py-1 rounded ml-2 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"

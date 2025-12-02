@@ -934,22 +934,47 @@ exports.apiCheckout = async (req, res) => {
       await rest.save();
     }
 
-    // If reservation provided, add to restaurant reservations
+    // If reservation provided with all required fields, add to restaurant reservations
+    // Create reservation if date and time are provided (table_id can be assigned later by staff)
     let reservationSaved = null;
     if (reservation && reservation.date && reservation.time) {
+      // Ensure rest_id is a string for consistency
+      const restIdString = String(rest_id);
+      
       const newReservation = new Reservation({
         customerName: username || reservation.name || 'guest',
         time: reservation.time,
-        table_id: reservation.table_id || '',
+        table_id: reservation.table_id || '', // Optional - staff will assign
         guests: reservation.guests || 1,
         status: 'pending',
-        rest_id,
+        rest_id: restIdString,
         date: reservation.date
       });
       await newReservation.save();
+      console.log('✅ Created reservation:', newReservation._id, 'for rest_id:', restIdString);
+      
       order.reservation_id = newReservation._id;
       await order.save();
       reservationSaved = newReservation;
+
+      // Add reservation to restaurant's reservations array
+      const restForReservation = await Restaurant.find_by_id(restIdString);
+      if (restForReservation) {
+        restForReservation.reservations = restForReservation.reservations || [];
+        restForReservation.reservations.push({
+          id: newReservation._id,
+          name: newReservation.customerName,
+          guests: newReservation.guests,
+          date: newReservation.date instanceof Date ? newReservation.date.toISOString().split('T')[0] : String(newReservation.date),
+          time: newReservation.time,
+          tables: newReservation.table_id ? [newReservation.table_id] : [],
+          allocated: false
+        });
+        await restForReservation.save();
+        console.log('✅ Added reservation to restaurant reservations array');
+      } else {
+        console.warn('⚠️ Restaurant not found for rest_id:', restIdString);
+      }
     }
 
     // Return created ids for frontend to proceed to payment
@@ -969,23 +994,75 @@ exports.apiCheckoutPay = async (req, res) => {
 
     // If orderId provided, find existing order
     if (orderId) {
+      if (!rest_id) {
+        return res.status(400).json({ success: false, error: 'rest_id is required when confirming payment for existing order' });
+      }
       order = await Order.findOne({ _id: orderId });
-      if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+      if (!order) {
+        return res.status(404).json({ success: false, error: 'Order not found' });
+      }
+
+      // If order has a reservation_id, ensure it's in the restaurant's reservations array
+      if (order.reservation_id) {
+        const existingReservation = await Reservation.findOne({ _id: order.reservation_id });
+        if (existingReservation) {
+          const orderRestId = String(rest_id || order.rest_id);
+          const restForReservation = await Restaurant.find_by_id(orderRestId);
+          if (restForReservation) {
+            // Check if reservation already exists in restaurant's reservations array
+            const reservationExists = restForReservation.reservations.some(r => r.id === existingReservation._id);
+            if (!reservationExists) {
+              restForReservation.reservations = restForReservation.reservations || [];
+              restForReservation.reservations.push({
+                id: existingReservation._id,
+                name: existingReservation.customerName,
+                guests: existingReservation.guests,
+                date: existingReservation.date instanceof Date ? existingReservation.date.toISOString().split('T')[0] : String(existingReservation.date),
+                time: existingReservation.time,
+                tables: [existingReservation.table_id],
+                allocated: existingReservation.allocated || false
+              });
+              await restForReservation.save();
+              console.log('✅ Added existing reservation to restaurant reservations array');
+            }
+          } else {
+            console.warn('⚠️ Restaurant not found for rest_id:', orderRestId);
+          }
+        } else {
+          console.warn('⚠️ Reservation not found for reservation_id:', order.reservation_id);
+        }
+      }
     } else {
       // Create order from payload
-      if (!payload || !payload.rest_id || !Array.isArray(payload.items) || payload.items.length === 0) {
-        return res.status(400).json({ success: false, message: '', error: 'Missing payload to create order' });
+      if (!payload) {
+        return res.status(400).json({ success: false, error: 'Missing payload. Please provide order details.' });
+      }
+      if (!payload.rest_id) {
+        return res.status(400).json({ success: false, error: 'Restaurant ID (rest_id) is required' });
+      }
+      if (!Array.isArray(payload.items) || payload.items.length === 0) {
+        return res.status(400).json({ success: false, error: 'Items array is required and cannot be empty' });
       }
 
       const username = req.session.username || null;
       const dishes = payload.items.map(i => i.name || i.dish || i.id || '').filter(Boolean);
+      
+      if (dishes.length === 0) {
+        return res.status(400).json({ success: false, error: 'No valid dish names found in items' });
+      }
+
+      const totalAmount = Number(payload.totalAmount) || 0;
+      if (totalAmount <= 0) {
+        return res.status(400).json({ success: false, error: 'Total amount must be greater than 0' });
+      }
+
       order = new Order({
         dishes,
         customerName: username || 'guest',
         restaurant: payload.restaurantName || '',
         rest_id: payload.rest_id,
         status: 'pending',
-        totalAmount: Number(payload.totalAmount) || 0
+        totalAmount: totalAmount
       });
       await order.save();
 
@@ -995,22 +1072,49 @@ exports.apiCheckoutPay = async (req, res) => {
         rest.orders = rest.orders || [];
         rest.orders.push(order._id);
         await rest.save();
+      } else {
+        console.warn(`Restaurant with id ${payload.rest_id} not found`);
       }
 
-      // If reservation provided, add to restaurant reservations
+      // If reservation provided with all required fields, add to restaurant reservations
+      // Create reservation if date and time are provided (table_id can be assigned later by staff)
       if (payload.reservation && payload.reservation.date && payload.reservation.time) {
+        // Ensure rest_id is a string for consistency
+        const restIdString = String(payload.rest_id);
+        
         const newReservation = new Reservation({
           customerName: username || payload.reservation.name || 'guest',
           time: payload.reservation.time,
-          table_id: payload.reservation.table_id || '',
+          table_id: payload.reservation.table_id || '', // Optional - staff will assign
           guests: payload.reservation.guests || 1,
           status: 'pending',
-          rest_id: payload.rest_id,
+          rest_id: restIdString,
           date: payload.reservation.date
         });
         await newReservation.save();
+        console.log('✅ Created reservation:', newReservation._id, 'for rest_id:', restIdString);
+        
         order.reservation_id = newReservation._id;
         await order.save();
+
+        // Add reservation to restaurant's reservations array
+        const restForReservation = await Restaurant.find_by_id(restIdString);
+        if (restForReservation) {
+          restForReservation.reservations = restForReservation.reservations || [];
+          restForReservation.reservations.push({
+            id: newReservation._id,
+            name: newReservation.customerName,
+            guests: newReservation.guests,
+            date: newReservation.date instanceof Date ? newReservation.date.toISOString().split('T')[0] : String(newReservation.date),
+            time: newReservation.time,
+            tables: newReservation.table_id ? [newReservation.table_id] : [],
+            allocated: false
+          });
+          await restForReservation.save();
+          console.log('✅ Added reservation to restaurant reservations array');
+        } else {
+          console.warn('⚠️ Restaurant not found for rest_id:', restIdString);
+        }
       }
     }
 
@@ -1044,7 +1148,8 @@ exports.apiCheckoutPay = async (req, res) => {
     return res.json({ success: true, data: { orderId: order._id }, message: 'Payment processed and order created' });
   } catch (err) {
     console.error('apiCheckoutPay error:', err);
-    return res.status(500).json({ success: false, message: '', error: 'Server error' });
+    const errorMessage = err.message || 'Server error';
+    return res.status(500).json({ success: false, message: '', error: errorMessage });
   }
 };
 

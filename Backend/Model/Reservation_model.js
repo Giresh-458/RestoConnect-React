@@ -17,7 +17,8 @@ const reservationSchema = new mongoose.Schema({
   // Primary table reserved for this booking
   table_id: {
     type: String,
-    required: true,
+    required: false, // Make optional - will be assigned by staff
+    default: '',
   },
   guests: {
     type: Number,

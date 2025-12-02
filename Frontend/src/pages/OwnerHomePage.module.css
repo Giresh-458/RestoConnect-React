@@ -182,6 +182,76 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.inventoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.addButton {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.addButton:hover {
+  background: #1d4ed8;
+}
+
+.addItemForm {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.formInput,
+.formSelect {
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.submitButton {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.submitButton:hover {
+  background: #059669;
+}
+
 .inventoryList {
   display: flex;
   flex-direction: column;
@@ -198,15 +268,51 @@
   border: 1px solid #e0e0e0;
 }
 
+.inventoryInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
 .inventoryName {
   font-size: 1rem;
   color: #333;
-  font-weight: 400;
+  font-weight: 600;
+}
+
+.inventoryQuantity {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.lowStock {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .inventoryControls {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.deleteButton {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #fee2e2;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.deleteButton:hover {
+  background: #fecaca;
 }
 
 .quantityButton {
@@ -274,6 +380,20 @@
 
   .inventoryControls {
     align-self: flex-end;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .inventoryHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .addButton {
+    width: 100%;
   }
 }
 
