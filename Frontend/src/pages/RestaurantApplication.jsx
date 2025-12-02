@@ -84,8 +84,8 @@ export function RestaurantApplication() {
                                 required
                                 minLength="2"
                                 maxLength="80"
-                                pattern="^[A-Za-z0-9][A-Za-z0-9\s]{1,79}$"
-                                title="Restaurant name must start with a letter or number and can only contain letters, numbers, and spaces"
+                                pattern="^[A-Za-z][A-Za-z0-9\s]{1,79}$"
+                                title="Restaurant name must start with a letter and can only contain letters, numbers, and spaces"
                             />
                         </div>
 
@@ -252,6 +252,12 @@ export async function action({ request }) {
 
     if (data.password.length < 6) {
         return { error: 'Password must be at least 6 characters long' };
+    }
+
+    // Restaurant name: must start with a letter; only letters, numbers and spaces (no symbols)
+    const RESTAURANT_NAME_REGEX = /^[A-Za-z][A-Za-z0-9\s]{1,79}$/;
+    if (!RESTAURANT_NAME_REGEX.test(data.restaurantName)) {
+        return { error: 'Restaurant name must start with a letter and contain only letters, numbers, and spaces.' };
     }
 
     try {

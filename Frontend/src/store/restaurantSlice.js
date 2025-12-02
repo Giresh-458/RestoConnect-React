@@ -4,7 +4,7 @@ export const fetchRestaurants = createAsyncThunk(
   'restaurants/fetchRestaurants',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch('http://localhost:8080/api/restaurants');
+      const response = await fetch('http://localhost:3000/api/restaurants');
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

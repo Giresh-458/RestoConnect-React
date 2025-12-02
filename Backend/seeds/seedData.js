@@ -208,7 +208,10 @@ async function seed() {
         { number: "5", status: "available", seats: 6 },
       ];
       rest.totalTables = rest.tables.length;
-      rest.payments = [];
+      rest.payments = [
+        { method: "UPI", amount: 500, date: new Date(), reference: `UPI-${index + 1}-A` },
+        { method: "Card", amount: 750, date: new Date(), reference: `CARD-${index + 1}-B` },
+      ];
 
       rest.inventoryData = {
         labels: [
@@ -328,7 +331,22 @@ async function seed() {
       ];
 
       // Add support messages structure
-      rest.supportMessages = [];
+      rest.supportMessages = [
+        {
+          from: `staff${index + 1}`,
+          message: "POS is running slow at counter 1",
+          status: "open",
+          createdAt: new Date(),
+          priority: "high",
+        },
+        {
+          from: `owner${index + 1}`,
+          message: "Schedule deep cleaning on weekend",
+          status: "open",
+          createdAt: new Date(),
+          priority: "medium",
+        },
+      ];
     });
 
     const createdRestaurants = await Restaurant.insertMany(restaurantsData);
@@ -395,9 +413,9 @@ async function seed() {
         email: "customer1@example.com",
         phone: "1234567890",
         prev_orders: [],
-        top_dishes: {},
-        top_restaurent: {},
-        cart: [],
+        top_dishes: { "Paneer Tikka": 3, "Veg Biryani": 2 },
+        top_restaurent: { "Tasty Bites": 5 },
+        cart: [{ name: "Paneer Tikka", qty: 1 }],
         favourites: [],
       },
       {
@@ -406,9 +424,9 @@ async function seed() {
         email: "customer2@example.com",
         phone: "1234562890",
         prev_orders: [],
-        top_dishes: {},
-        top_restaurent: {},
-        cart: [],
+        top_dishes: { "Chicken Curry": 4 },
+        top_restaurent: { "Spice Hub": 3 },
+        cart: [{ name: "Masala Dosa", qty: 2 }],
         favourites: [],
       },
       {
@@ -417,13 +435,26 @@ async function seed() {
         email: "customer3@example.com",
         phone: "1224567890",
         prev_orders: [],
-        top_dishes: {},
-        top_restaurent: {},
-        cart: [],
+        top_dishes: { "Masala Dosa": 1 },
+        top_restaurent: { "South Delight": 2 },
+        cart: [{ name: "Veg Biryani", qty: 1 }],
         favourites: [],
       },
     ];
     const createdCustomers = await Person.insertMany(customers);
+
+    // Pre-populate customer favourites with valid Dish IDs so Favorite Dishes shows data
+    if (createdCustomers && createdCustomers.length >= 3) {
+      await Person.findByIdAndUpdate(createdCustomers[0]._id, {
+        $set: { favourites: [dishes[0]._id.toString(), dishes[2]._id.toString()] }
+      });
+      await Person.findByIdAndUpdate(createdCustomers[1]._id, {
+        $set: { favourites: [dishes[1]._id.toString(), dishes[5]._id.toString()] }
+      });
+      await Person.findByIdAndUpdate(createdCustomers[2]._id, {
+        $set: { favourites: [dishes[3]._id.toString(), dishes[4]._id.toString()] }
+      });
+    }
 
     // 5. Orders for first restaurant
     const firstRestaurant = createdRestaurants[0];
@@ -748,17 +779,20 @@ async function seed() {
       if (rest.name === 'Spice Hub') {
         inventoryItems = [
           { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: rest._id },
-          { name: 'Paneer', unit: 'Kg', quantity: 0.5, minStock: 0.2, rest_id: rest._id },
-          { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: rest._id },
-          { name: 'Chicken', unit: 'Kg', quantity: 5, minStock: 1, rest_id: rest._id },
-          { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: rest._id }
+          { name: 'Paneer', unit: 'Kg', quantity: 2, minStock: 0.5, rest_id: rest._id },
+          { name: 'Rice', unit: 'Kg', quantity: 20, minStock: 5, rest_id: rest._id },
+          { name: 'Chicken', unit: 'Kg', quantity: 8, minStock: 2, rest_id: rest._id },
+          { name: 'Onions', unit: 'Kg', quantity: 6, minStock: 2, rest_id: rest._id },
+          { name: 'Cooking Oil', unit: 'L', quantity: 5, minStock: 2, rest_id: rest._id },
         ];
       } else {
         // Default inventory for all other restaurants (including Tasty Bites)
         inventoryItems = [
-          { name: 'Tomato Sauce', unit: 'L', quantity: 0.2, minStock: 0.5, rest_id: rest._id },
-          { name: 'Paneer', unit: 'Kg', quantity: 0, minStock: 0.2, rest_id: rest._id },
-          { name: 'Rice', unit: 'Kg', quantity: 10, minStock: 2, rest_id: rest._id },
+          { name: 'Tomato Sauce', unit: 'L', quantity: 1, minStock: 0.5, rest_id: rest._id },
+          { name: 'Paneer', unit: 'Kg', quantity: 1, minStock: 0.2, rest_id: rest._id },
+          { name: 'Rice', unit: 'Kg', quantity: 15, minStock: 2, rest_id: rest._id },
+          { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: rest._id },
+          { name: 'Potatoes', unit: 'Kg', quantity: 5, minStock: 2, rest_id: rest._id },
         ];
       }
 

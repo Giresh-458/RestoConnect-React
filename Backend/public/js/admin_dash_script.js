@@ -246,67 +246,92 @@ document.getElementById("seerest").addEventListener("click", function () {
 
 
 
-function getAllReq(){
+async function getAllReq() {
+  const container = document.getElementById("requestslist");
+  if (!container) return;
+  container.innerHTML = '<p>Loading requests...</p>';
+  try {
+    const res = await fetch("http://localhost:3000/admin/requests", { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`Failed to load requests (${res.status})`);
+    const reqs = await res.json();
 
-let xhr = new XMLHttpRequest();
+    container.innerHTML = ""; // Clear previous content
+    if (!reqs || reqs.length === 0) {
+      const noReq = document.createElement('p');
+      noReq.innerText = 'No new rest req';
+      container.appendChild(noReq);
+      return;
+    }
 
- xhr.open("GET", "http://localhost:3000/admin/requests", true);
- xhr.send();
-
-    xhr.onload = function () {
-      if (xhr.status == 200) {
-
-        const reqs = JSON.parse(this.response);
-        document.getElementById("requestslist").innerHTML = ""; // Clear previous content
-        if (!reqs || reqs.length === 0) {
-          const noReq = document.createElement('p');
-          noReq.innerText = 'No new rest req';
-          document.getElementById("requestslist").appendChild(noReq);
-          return;
-        }
-        for(let i=0;i<reqs.length;i++){
-          let doc = reqs[i];
-            let di = document.createElement("div");
-            di.innerHTML=`
+    for (let i = 0; i < reqs.length; i++) {
+      const doc = reqs[i];
+      const di = document.createElement("div");
+      di.innerHTML = `
         <p><strong>Name:</strong> ${doc.name}</p>
         <p><strong>Location:</strong> ${doc.location}</p>
         <p><strong>Amount:</strong> ${doc.amount}</p>
         <p><strong>Owner Username:</strong> ${doc.owner_username}</p>
         <p><strong>Owner Password:</strong> ${doc.owner_password}</p>
         <p><strong>Created At:</strong> ${new Date(doc.created_at).toLocaleString()}</p>
-
-          <button onclick="acceptRequest('${doc.owner_username}')">Accept</button>
-  <button onclick="rejectRequest('${doc.owner_username}')">Reject</button>
-
-            `
-          document.getElementById("requestslist").appendChild(di);
-        }
-
-
-      }
-    };
-
-
-}
-
-function acceptRequest(username) {
-  let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/accept_request/${username}`, true);
-  xhr.onload = function () {
-    getAllReq();
-  };
-  xhr.send();
-}
-
-function rejectRequest(username) {
-  let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/reject_request/${username}`, true);
-  xhr.onload = function () {
-    if (this.status === 200) {
-      getAllReq();
+        <button class="accept-btn" data-username="${doc.owner_username}">Accept</button>
+        <button class="reject-btn" data-username="${doc.owner_username}">Reject</button>
+      `;
+      container.appendChild(di);
     }
-  };
-  xhr.send();
+
+    // Attach async handlers
+    container.querySelectorAll('.accept-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const username = e.currentTarget.getAttribute('data-username');
+        await acceptRequest(username, e.currentTarget);
+      });
+    });
+
+    container.querySelectorAll('.reject-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const username = e.currentTarget.getAttribute('data-username');
+        await rejectRequest(username, e.currentTarget);
+      });
+    });
+
+  } catch (err) {
+    console.error('Error loading requests:', err);
+    container.innerHTML = `<p style="color:#dc3545">Failed to load requests</p>`;
+  }
+}
+
+async function acceptRequest(username, btnEl) {
+  try {
+    if (btnEl) btnEl.disabled = true;
+    const res = await fetch(`http://localhost:3000/admin/accept_request/${encodeURIComponent(username)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Accept failed (${res.status})`);
+  } catch (err) {
+    console.error('Accept error:', err);
+    alert('Failed to accept request. Please try again.');
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+    await getAllReq();
+  }
+}
+
+async function rejectRequest(username, btnEl) {
+  try {
+    if (btnEl) btnEl.disabled = true;
+    const res = await fetch(`http://localhost:3000/admin/reject_request/${encodeURIComponent(username)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Reject failed (${res.status})`);
+  } catch (err) {
+    console.error('Reject error:', err);
+    alert('Failed to reject request. Please try again.');
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+    await getAllReq();
+  }
 }
 
 getAllReq();
