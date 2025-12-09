@@ -34,8 +34,11 @@ export function OwnerNav() {
         <NavLink to={"/owner/feedback"} className={({ isActive }) => (isActive ? "active" : "")}>
           Feedback
         </NavLink>
+        <NavLink to={"/owner/inventory"} className={({ isActive }) => (isActive ? "active" : "")}>
+          Inventory
+        </NavLink>
 
-        <button onClick={handleLogout} style={{ marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer" }}>
+        <button onClick={handleLogout} style={{ marginLeft: "auto", background: "#e50914", border: "none", cursor: "pointer", color: "white", padding: "8px 12px" }}>
           Logout
         </button>
       </nav>

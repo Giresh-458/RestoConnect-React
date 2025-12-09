@@ -81,8 +81,8 @@ app.use('/api/admin', authentication('admin'), adminRouter);
 app.use('/owner', authentication('owner'), ownerRouter);
 app.use('/api/owner', authentication('owner'), ownerRouter);
 
-app.use('/staff', authentication('staff'), staffRouter);
-app.use('/api/staff', authentication('staff'), (req, res, next) => {console.log("staff middleware called"); next();}, staffController.getStaffHomepageData);
+app.use('/staff', authentication('staff'), staffController.getStaffHomepageData);
+app.use('/api/staff', authentication('staff'), staffRouter);
 app.use('/reservations', authentication('owner'), reservationRouter);
 
 

@@ -25,6 +25,10 @@ router.get("/tables", ownerController.getTables);
 router.post("/tables/add", ownerController.addTable);
 router.post("/tables/delete/:number", ownerController.deleteTable);
 
+// JSON API for tables (for React frontend)
+router.post("/tables", ownerController.addTableApi);
+router.delete("/tables/:number", ownerController.deleteTableApi);
+
 router.delete("/restaurant/delete/:id", ownerController.deleteRestaurant);
 
 router.get("/staffManagement/task", ownerController.getTasks);
@@ -41,9 +45,11 @@ router.get("/info", ownerController.getOwnerInfo);
 router.get("/dashboard/stats", ownerController.getDashboardStats);
 router.get("/dashboard/trend", ownerController.getRevenueOrdersTrend);
 router.get("/orders/recent", ownerController.getRecentOrders);
+// Inventory management routes
 router.get("/inventory", ownerController.getInventoryAPI);
 router.post("/inventory", ownerController.createInventoryItem);
 router.patch("/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+router.delete("/inventory/:id", ownerController.deleteInventoryItem);
 router.delete("/inventory/:id", ownerController.deleteInventoryItem);
 
 router.get("/feedback", ownerController.getFeedback);

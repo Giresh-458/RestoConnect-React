@@ -80,6 +80,70 @@ exports.addTable = async (req, res) => {
   }
 };
 
+// JSON API variant for adding a table
+exports.addTableApi = async (req, res) => {
+  try {
+    const { number, seats } = req.body || {};
+    if (!number || typeof number !== 'string' || !seats || isNaN(parseInt(seats))) {
+      return res.status(400).json({ error: 'Table number (string) and seats (number) are required' });
+    }
+
+    const cleanNumber = number.trim();
+    const seatCount = parseInt(seats);
+    if (seatCount <= 0) {
+      return res.status(400).json({ error: 'Seats must be a positive number' });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: 'Restaurant not found' });
+
+    if (rest.tables.some(t => t.number === cleanNumber)) {
+      return res.status(409).json({ error: 'Table number already exists' });
+    }
+
+    const table = { number: cleanNumber, seats: seatCount, status: 'Available' };
+    rest.tables.push(table);
+    rest.totalTables = rest.tables.length;
+    await rest.save();
+
+    return res.json({ success: true, table, tables: rest.tables, totalTables: rest.totalTables });
+  } catch (error) {
+    console.error('Error in addTableApi:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// JSON API variant for deleting a table
+exports.deleteTableApi = async (req, res) => {
+  try {
+    const { number } = req.params;
+    if (!number) return res.status(400).json({ error: 'Table number is required' });
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const initialLen = rest.tables.length;
+    rest.tables = rest.tables.filter(t => t.number !== number);
+    if (rest.tables.length === initialLen) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    rest.totalTables = rest.tables.length;
+    await rest.save();
+
+    return res.json({ success: true, tables: rest.tables, totalTables: rest.totalTables });
+  } catch (error) {
+    console.error('Error in deleteTableApi:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 exports.deleteTable = async (req, res) => {
   try {
     const { number } = req.params;

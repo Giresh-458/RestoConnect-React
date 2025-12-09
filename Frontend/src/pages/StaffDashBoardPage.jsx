@@ -399,13 +399,7 @@ export function StaffDashBoardPage() {
             >
               Close
             </button>
-            <button 
-              onClick={handleAddTable} 
-              className={`px-4 py-2 rounded text-white ${isProcessing || !newTable.number || !newTable.capacity ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'}`}
-              disabled={isProcessing || !newTable.number || !newTable.capacity}
-            >
-              {isProcessing ? 'Adding...' : 'Add Table'}
-            </button>
+           
           </div>
         </div>
       )}

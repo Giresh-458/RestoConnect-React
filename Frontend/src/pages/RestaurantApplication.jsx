@@ -286,8 +286,7 @@ export async function action({ request }) {
             return { error: result.error || 'Application submission failed. Please try again.' };
         }
 
-        // Show success popup and redirect to login
-        alert('✅ ' + (result.message || 'Application submitted successfully! We will review and contact you soon. You can now login.'));
+        alert((result.message || 'Application submitted successfully! We will review and contact you soon. You can now login.'));
         window.location.href = '/login';
         return null;
 

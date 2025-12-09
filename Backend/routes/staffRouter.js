@@ -4,12 +4,15 @@ const router = express.Router();
 const staffController = require("../Controller/staffController");
 
 router.get("/DashboardData", staffController.getDashBoardData);
+router.get('/dashboard', staffController.getDashBoardData);
 
 
 router.get("/Dashboard", staffController.getDashBoard);
 
 router.post("/Dashboard/update-order", staffController.postUpdateOrder);
 router.post("/Dashboard/allocate-table", staffController.postAllocateTable);
+router.post('/orders/status', staffController.postUpdateOrder);
+router.post('/reservations/allocate', staffController.postAllocateTable);
 
 router.get("/HomePage", staffController.getHomePage);
 router.post("/HomePage/tasks", staffController.postHomePageTask);
@@ -19,6 +22,7 @@ router.delete(
   "/Dashboard/remove-reservation/:id",
   staffController.postRemoveReservation
 );
+router.delete('/reservations/:id', staffController.postRemoveReservation);
 
 router.post("/update-inventory", staffController.postUpdateInventory);
 
@@ -33,5 +37,7 @@ router.get("/homepage", staffController.getStaffHomepageData);
 router.post("/support-message", staffController.postSupportMessage);
 router.put("/tasks/:id", staffController.updateTaskStatus);
 router.post("/add-table", staffController.postAddTable);
+router.post('/tables', staffController.postAddTable);
+router.post('/change-password', staffController.changePassword);
 
 module.exports = router;

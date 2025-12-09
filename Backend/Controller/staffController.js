@@ -1,6 +1,7 @@
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
+const bcrypt = require('bcrypt');
 
 // Dashboard Methods
 exports.getDashBoard = async (req, res) => {
@@ -600,6 +601,40 @@ function calculateEfficiencyScore(orders) {
   });
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
+
+// Change password for staff
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both currentPassword and newPassword are required' });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.trim().length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    const username = req.session.username;
+    if (!username) return res.status(401).json({ error: 'Unauthorized' });
+
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.role !== 'staff') return res.status(403).json({ error: 'Forbidden' });
+
+    // Compare current password
+    const matches = await bcrypt.compare(currentPassword, user.password || '');
+    if (!matches) return res.status(401).json({ error: 'Incorrect current password' });
+
+    // Hash new password and update
+    const hashed = await bcrypt.hash(newPassword.trim(), 10);
+    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
+
+    return res.status(200).json({ message: 'Password changed successfully!' });
+  } catch (err) {
+    console.error('Error in staff changePassword:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
 
 exports.getDashBoardData = async (req, res) => {
   try {

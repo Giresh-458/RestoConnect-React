@@ -17,26 +17,9 @@ export function OwnerHomePage() {
     orders: []
   });
   const [recentOrders, setRecentOrders] = useState([]);
-  // Ensure inventory is always an array with proper type checking
-  const [inventory, setInventory] = useState(() => {
-    try {
-      const saved = localStorage.getItem('inventory');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error('Failed to parse saved inventory, using empty array', e);
-      return [];
-    }
-  });
   const [restaurantName, setRestaurantName] = useState("SpiceHub Restaurant");
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({
-    name: '',
-    unit: 'kg',
-    quantity: 0,
-    minStock: 0
-  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -45,7 +28,7 @@ export function OwnerHomePage() {
   const fetchDashboardData = async () => {
     try {
       // Fetch all data in parallel
-      const [statsRes, trendRes, ordersRes, inventoryRes, ownerInfoRes] = await Promise.all([
+      const [statsRes, trendRes, ordersRes, ownerInfoRes] = await Promise.all([
         fetch("http://localhost:3000/api/owner/dashboard/stats", {
           credentials: "include"
         }),
@@ -53,9 +36,6 @@ export function OwnerHomePage() {
           credentials: "include"
         }),
         fetch("http://localhost:3000/api/owner/orders/recent", {
-          credentials: "include"
-        }),
-        fetch("http://localhost:3000/api/owner/inventory", {
           credentials: "include"
         }),
         fetch("http://localhost:3000/api/owner/info", {
@@ -66,19 +46,10 @@ export function OwnerHomePage() {
       const stats = await statsRes.json();
       const trend = await trendRes.json();
       const orders = await ordersRes.json();
-      const inv = await inventoryRes.json();
       const ownerInfo = await ownerInfoRes.json();
 
       setDashboardStats(stats);
       setRecentOrders(orders.orders || []);
-      // Ensure we always set an array, even if inv or inv.inventory is not as expected
-      const inventoryData = Array.isArray(inv?.inventory) ? inv.inventory : [];
-      setInventory(inventoryData);
-      try {
-        localStorage.setItem('inventory', JSON.stringify(inventoryData));
-      } catch (e) {
-        console.error('Failed to save inventory to localStorage', e);
-      }
       setUserName(ownerInfo.username || "Owner");
       setRestaurantName(ownerInfo.restaurantName || "SpiceHub Restaurant");
 
@@ -97,133 +68,6 @@ export function OwnerHomePage() {
     }
   };
 
-  const handleInventoryUpdate = async (itemId, change) => {
-    try {
-      const response = await fetch(`http://localhost:3000/api/owner/inventory/${itemId}/quantity`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({ change })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        // Update local inventory state with null/undefined check
-        setInventory(prevInventory => {
-          if (!prevInventory || !Array.isArray(prevInventory)) {
-            return [result.inventory];
-          }
-          return prevInventory.map(item =>
-            item._id === itemId ? result.inventory : item
-          );
-        });
-        // Refresh dashboard stats to update stock status
-        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
-          credentials: "include"
-        });
-        const stats = await statsRes.json();
-        setDashboardStats(stats);
-      }
-    } catch (error) {
-      console.error("Error updating inventory:", error);
-      alert("Failed to update inventory. Please try again.");
-    }
-  };
-
-  const handleAddItem = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await fetch("http://localhost:3000/api/owner/inventory", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify(newItem)
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (!result?.inventory) {
-          throw new Error('Invalid response from server');
-        }
-        
-        setInventory(prevInventory => {
-          const newInventory = Array.isArray(prevInventory) 
-            ? [...prevInventory, result.inventory]
-            : [result.inventory];
-          
-          try {
-            localStorage.setItem('inventory', JSON.stringify(newInventory));
-          } catch (e) {
-            console.error('Failed to update inventory in localStorage', e);
-          }
-          
-          return newInventory;
-        });
-        
-        setNewItem({ name: '', unit: 'kg', quantity: 0, minStock: 0 });
-        setShowAddForm(false);
-        
-        // Refresh dashboard stats
-        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
-          credentials: "include"
-        });
-        const stats = await statsRes.json();
-        setDashboardStats(stats);
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to add inventory item");
-      }
-    } catch (error) {
-      console.error("Error adding inventory item:", error);
-      alert("Failed to add inventory item. Please try again.");
-    }
-  };
-
-  const handleDeleteItem = async (itemId) => {
-    if (!window.confirm("Are you sure you want to delete this inventory item?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:3000/api/owner/inventory/${itemId}`, {
-        method: "DELETE",
-        credentials: "include"
-      });
-
-      if (response.ok) {
-        setInventory(prevInventory => {
-          const newInventory = Array.isArray(prevInventory) 
-            ? prevInventory.filter(item => item?._id !== itemId)
-            : [];
-          
-          try {
-            localStorage.setItem('inventory', JSON.stringify(newInventory));
-          } catch (e) {
-            console.error('Failed to update inventory in localStorage', e);
-          }
-          
-          return newInventory;
-        });
-        
-        // Refresh dashboard stats
-        const statsRes = await fetch("http://localhost:3000/api/owner/dashboard/stats", {
-          credentials: "include"
-        });
-        const stats = await statsRes.json();
-        setDashboardStats(stats);
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to delete inventory item");
-      }
-    } catch (error) {
-      console.error("Error deleting inventory item:", error);
-      alert("Failed to delete inventory item. Please try again.");
-    }
-  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -276,10 +120,6 @@ export function OwnerHomePage() {
           <h3 className={styles.kpiTitle}>Active Staff</h3>
           <p className={styles.kpiValue}>{dashboardStats.activeStaff}</p>
         </div>
-        <div className={styles.kpiCard}>
-          <h3 className={styles.kpiTitle}>Stock Status</h3>
-          <p className={styles.kpiValue}>{dashboardStats.stockStatus}%</p>
-        </div>
       </div>
 
       {/* Revenue & Orders Trend Graph */}
@@ -299,135 +139,46 @@ export function OwnerHomePage() {
       </div>
 
       {/* Recent Orders Section */}
-      <div className={styles.recentOrdersSection}>
-        <h2 className={styles.sectionTitle}>Recent Orders</h2>
-        <div className={styles.ordersList}>
+      <div className={styles.section}>
+        <h2>Recent Orders</h2>
+        <div className={styles.ordersGrid}>
           {recentOrders.length > 0 ? (
-            recentOrders.map((order) => (
-              <div key={order.id} className={styles.orderCard}>
-                <div className={styles.orderInfo}>
-                  <h3 className={styles.orderId}>{order.orderId} — {order.customerName}</h3>
-                  <p className={styles.orderDetails}>
-                    Table {order.tableNumber} • {formatCurrency(order.totalAmount)}
-                  </p>
-                  <p className={styles.orderStatus}>Status: {order.status.charAt(0).toUpperCase() + order.status.slice(1)}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className={styles.noData}>No recent orders</p>
-          )}
-        </div>
-      </div>
-
-      {/* Inventory Management Section */}
-      <div className={styles.inventorySection}>
-        <div className={styles.inventoryHeader}>
-          <h2 className={styles.sectionTitle}>Inventory Management</h2>
-          <button 
-            className={styles.addButton}
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? 'Cancel' : '+ Add Item'}
-          </button>
-        </div>
-
-        {/* Add Item Form */}
-        {showAddForm && (
-          <form className={styles.addItemForm} onSubmit={handleAddItem}>
-            <div className={styles.formRow}>
-              <input
-                type="text"
-                placeholder="Item Name"
-                value={newItem.name}
-                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                required
-                className={styles.formInput}
-              />
-              <select
-                value={newItem.unit}
-                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                className={styles.formSelect}
-              >
-                <option value="kg">kg</option>
-                <option value="g">g</option>
-                <option value="L">L</option>
-                <option value="ml">ml</option>
-                <option value="pieces">pieces</option>
-                <option value="boxes">boxes</option>
-                <option value="packets">packets</option>
-              </select>
-            </div>
-            <div className={styles.formRow}>
-              <input
-                type="number"
-                placeholder="Initial Quantity"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
-                min="0"
-                className={styles.formInput}
-              />
-              <input
-                type="number"
-                placeholder="Min Stock Level"
-                value={newItem.minStock}
-                onChange={(e) => setNewItem({ ...newItem, minStock: parseInt(e.target.value) || 0 })}
-                min="0"
-                className={styles.formInput}
-              />
-            </div>
-            <button type="submit" className={styles.submitButton}>Add Item</button>
-          </form>
-        )}
-
-        <div className={styles.inventoryList}>
-          {inventory.length > 0 ? (
-            inventory.map((item) => (
-              <div key={item._id} className={styles.inventoryItem}>
-                <div className={styles.inventoryInfo}>
-                  <span className={styles.inventoryName}>
-                    {item.name} ({item.unit})
+            recentOrders.map((order, index) => (
+              <div key={index} className={styles.orderCard}>
+                <div className={styles.orderHeader}>
+                  <span>Order #{order.orderId || index + 1}</span>
+                  <span className={`${styles.status} ${order.status === 'completed' ? styles.completed : styles.pending}`}>
+                    {order.status || 'pending'}
                   </span>
-                  <span className={styles.inventoryQuantity}>
-                    Quantity: {item.quantity}
-                    {item.minStock > 0 && (
-                      <span className={item.quantity <= item.minStock ? styles.lowStock : ''}>
-                        {' '}(Min: {item.minStock})
+                </div>
+                <div className={styles.orderItems}>
+                  {order.dishes?.map((dish, i) => (
+                    <div key={i} className={styles.orderItem}>
+                      <span className={styles.dishName}>
+                        {dish.quantity > 1 ? `${dish.quantity}x ` : ''}{dish.name}
                       </span>
-                    )}
-                  </span>
+                      <span className={styles.dishPrice}>
+                        ₹{(dish.price * (dish.quantity || 1)).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div className={styles.inventoryControls}>
-                  <button
-                    className={styles.quantityButton}
-                    onClick={() => handleInventoryUpdate(item._id, -1)}
-                    disabled={item.quantity <= 0}
-                    title="Decrease by 1"
-                  >
-                    -
-                  </button>
-                  <button
-                    className={styles.quantityButton}
-                    onClick={() => handleInventoryUpdate(item._id, 1)}
-                    title="Increase by 1"
-                  >
-                    +
-                  </button>
-                  <button
-                    className={styles.deleteButton}
-                    onClick={() => handleDeleteItem(item._id)}
-                    title="Delete item"
-                  >
-                    🗑️
-                  </button>
+                <div className={styles.orderFooter}>
+                  <span className={styles.orderTotal}>
+                    Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}
+                  </span>
+                  <span className={styles.orderTime}>
+                    {order.time ? new Date(order.time).toLocaleTimeString() : '--:--'}
+                  </span>
                 </div>
               </div>
             ))
           ) : (
-            <p className={styles.noData}>No inventory items. Click "Add Item" to create inventory items.</p>
+            <p>No recent orders</p>
           )}
         </div>
       </div>
+
     </div>
   );
 }
