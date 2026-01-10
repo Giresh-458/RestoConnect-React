@@ -8,16 +8,20 @@ export function OwnerOrders() {
   const [expandedOrder, setExpandedOrder] = useState(null);
 
   // ⭐ 1. ADD THIS FUNCTION
-  const getReadableOrderId = (order, index) => {
-    if (!order.createdAt) return "ORD-UNKNOWN";
+  const getReadableOrderId = (order) => {
+    const date = new Date(
+      order.createdAt || order.orderTime || order.date
+    );
 
-    const date = new Date(order.createdAt);
     const day = String(date.getDate()).padStart(2, "0");
     const month = date
       .toLocaleString("en-IN", { month: "short" })
       .toUpperCase();
 
-    return `ORD-${day}${month}-${index + 1}`;
+    // time-based unique part (stable)
+    const uniquePart = date.getTime().toString().slice(-4);
+
+    return `ORD-${day}${month}-${uniquePart}`;
   };
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -95,12 +99,16 @@ export function OwnerOrders() {
         <tbody>
           {filteredOrders.length > 0 ? (
             // ⭐ 2. ADD index HERE
-            filteredOrders.map((order, index) => (
+            // filteredOrders.map((order, index) => (
+            filteredOrders.map((order) => (
+
               <>
                 <tr key={order._id} className="order-row">
                   
                   {/* ⭐ 3. REPLACE ORDER ID */}
-                  <td>{getReadableOrderId(order, index)}</td>
+                  {/* <td>{getReadableOrderId(order, index)}</td> */}
+                  <td>{getReadableOrderId(order)}</td>
+
 
                   <td>{order.table_id || "N/A"}</td>
                   <td>{order.dishes?.length || 0} items</td>
