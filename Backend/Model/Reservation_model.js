@@ -14,9 +14,11 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Primary table reserved for this booking
   table_id: {
     type: String,
-    required: true,
+    required: false, // Make optional - will be assigned by staff
+    default: '',
   },
   guests: {
     type: Number,
@@ -35,6 +37,16 @@ const reservationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // 👇 Fields used by the staff dashboard to mirror the old Restaurant.reservations
+  allocated: {
+    type: Boolean,
+    default: false,
+  },
+  tables: [
+    {
+      type: String,
+    },
+  ],
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);

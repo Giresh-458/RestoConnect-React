@@ -17,7 +17,6 @@ export function OwnerHomePage() {
     orders: []
   });
   const [recentOrders, setRecentOrders] = useState([]);
-  const [inventory, setInventory] = useState([]);
   const [restaurantName, setRestaurantName] = useState("SpiceHub Restaurant");
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,20 +28,17 @@ export function OwnerHomePage() {
   const fetchDashboardData = async () => {
     try {
       // Fetch all data in parallel
-      const [statsRes, trendRes, ordersRes, inventoryRes, ownerInfoRes] = await Promise.all([
-        fetch("http://localhost:3000/owner/api/dashboard/stats", {
+      const [statsRes, trendRes, ordersRes, ownerInfoRes] = await Promise.all([
+        fetch("http://localhost:3000/api/owner/dashboard/stats", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/dashboard/trend", {
+        fetch("http://localhost:3000/api/owner/dashboard/trend", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/orders/recent", {
+        fetch("http://localhost:3000/api/owner/orders/recent", {
           credentials: "include"
         }),
-        fetch("http://localhost:3000/owner/api/inventory", {
-          credentials: "include"
-        }),
-        fetch("http://localhost:3000/owner/api/info", {
+        fetch("http://localhost:3000/api/owner/info", {
           credentials: "include"
         })
       ]);
@@ -50,12 +46,10 @@ export function OwnerHomePage() {
       const stats = await statsRes.json();
       const trend = await trendRes.json();
       const orders = await ordersRes.json();
-      const inv = await inventoryRes.json();
       const ownerInfo = await ownerInfoRes.json();
 
       setDashboardStats(stats);
       setRecentOrders(orders.orders || []);
-      setInventory(inv.inventory || []);
       setUserName(ownerInfo.username || "Owner");
       setRestaurantName(ownerInfo.restaurantName || "SpiceHub Restaurant");
 
@@ -74,36 +68,6 @@ export function OwnerHomePage() {
     }
   };
 
-  const handleInventoryUpdate = async (itemId, change) => {
-    try {
-      const response = await fetch(`http://localhost:3000/owner/api/inventory/${itemId}/quantity`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({ change })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        // Update local inventory state
-        setInventory(prevInventory =>
-          prevInventory.map(item =>
-            item._id === itemId ? result.inventory : item
-          )
-        );
-        // Refresh dashboard stats to update stock status
-        const statsRes = await fetch("http://localhost:3000/owner/api/dashboard/stats", {
-          credentials: "include"
-        });
-        const stats = await statsRes.json();
-        setDashboardStats(stats);
-      }
-    } catch (error) {
-      console.error("Error updating inventory:", error);
-    }
-  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -156,10 +120,6 @@ export function OwnerHomePage() {
           <h3 className={styles.kpiTitle}>Active Staff</h3>
           <p className={styles.kpiValue}>{dashboardStats.activeStaff}</p>
         </div>
-        <div className={styles.kpiCard}>
-          <h3 className={styles.kpiTitle}>Stock Status</h3>
-          <p className={styles.kpiValue}>{dashboardStats.stockStatus}%</p>
-        </div>
       </div>
 
       {/* Revenue & Orders Trend Graph */}
@@ -179,59 +139,46 @@ export function OwnerHomePage() {
       </div>
 
       {/* Recent Orders Section */}
-      <div className={styles.recentOrdersSection}>
-        <h2 className={styles.sectionTitle}>Recent Orders</h2>
-        <div className={styles.ordersList}>
+      <div className={styles.section}>
+        <h2>Recent Orders</h2>
+        <div className={styles.ordersGrid}>
           {recentOrders.length > 0 ? (
-            recentOrders.map((order) => (
-              <div key={order.id} className={styles.orderCard}>
-                <div className={styles.orderInfo}>
-                  <h3 className={styles.orderId}>{order.orderId} — {order.customerName}</h3>
-                  <p className={styles.orderDetails}>
-                    Table {order.tableNumber} • {formatCurrency(order.totalAmount)}
-                  </p>
-                  <p className={styles.orderStatus}>Status: {order.status.charAt(0).toUpperCase() + order.status.slice(1)}</p>
+            recentOrders.map((order, index) => (
+              <div key={index} className={styles.orderCard}>
+                <div className={styles.orderHeader}>
+                  <span>Order #{order.orderId || index + 1}</span>
+                  <span className={`${styles.status} ${order.status === 'completed' ? styles.completed : styles.pending}`}>
+                    {order.status || 'pending'}
+                  </span>
+                </div>
+                <div className={styles.orderItems}>
+                  {order.dishes?.map((dish, i) => (
+                    <div key={i} className={styles.orderItem}>
+                      <span className={styles.dishName}>
+                        {dish.quantity > 1 ? `${dish.quantity}x ` : ''}{dish.name}
+                      </span>
+                      <span className={styles.dishPrice}>
+                        ₹{(dish.price * (dish.quantity || 1)).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.orderFooter}>
+                  <span className={styles.orderTotal}>
+                    Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}
+                  </span>
+                  <span className={styles.orderTime}>
+                    {order.time ? new Date(order.time).toLocaleTimeString() : '--:--'}
+                  </span>
                 </div>
               </div>
             ))
           ) : (
-            <p className={styles.noData}>No recent orders</p>
+            <p>No recent orders</p>
           )}
         </div>
       </div>
 
-      {/* Inventory Management Section */}
-      <div className={styles.inventorySection}>
-        <h2 className={styles.sectionTitle}>Inventory Management</h2>
-        <div className={styles.inventoryList}>
-          {inventory.length > 0 ? (
-            inventory.map((item) => (
-              <div key={item._id} className={styles.inventoryItem}>
-                <span className={styles.inventoryName}>
-                  {item.name} ({item.unit}) - {item.quantity}
-                </span>
-                <div className={styles.inventoryControls}>
-                  <button
-                    className={styles.quantityButton}
-                    onClick={() => handleInventoryUpdate(item._id, -1)}
-                    disabled={item.quantity <= 0}
-                  >
-                    -
-                  </button>
-                  <button
-                    className={styles.quantityButton}
-                    onClick={() => handleInventoryUpdate(item._id, 1)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className={styles.noData}>No inventory items. Add items to manage inventory.</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

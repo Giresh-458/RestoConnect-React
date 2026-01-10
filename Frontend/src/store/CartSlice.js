@@ -8,7 +8,9 @@ name:"cart",
 initialState:{
 dishes:[],
 reservation:{},
-amount:0
+amount:0,
+restId: null,
+restName: ''
 },
 reducers:{
 
@@ -55,16 +57,37 @@ reducers:{
         state.reservation=null;
         state.amount-=(amount_remove);
     },
-   clearcart: (state) => {
-  state.dishes = [];
-  state.reservation = {};
-  state.amount = 0;
-}
+    clearcart: (state) => {
+        state.dishes = [];
+        state.reservation = {};
+        state.amount = 0;
+        state.restId = null;
+        state.restName = '';
+    },
+    replaceCart: (state, action) => {
+        const items = Array.isArray(action.payload) ? action.payload : [];
+        state.dishes = items.map(item => ({
+            ...item,
+            quantity: item.quantity ?? 1,
+            amount: item.amount ?? item.price ?? 0
+        }));
+        state.amount = state.dishes.reduce(
+            (total, item) => total + (item.amount ?? 0) * (item.quantity ?? 1),
+            0
+        );
+        if (!state.reservation) {
+            state.reservation = {};
+        }
+    },
+    setRestaurant: (state, action) => {
+        state.restId = action.payload?.restId ?? null;
+        state.restName = action.payload?.restName ?? '';
+    }
 
 
 }
 })
 
 
-export const {addItem,removeItem,addReservation,removeReservation,clearcart}=cartSlice.actions;
+export const {addItem,removeItem,addReservation,removeReservation,clearcart,replaceCart,setRestaurant}=cartSlice.actions;
 export default cartSlice.reducer;

@@ -7,8 +7,8 @@ const session = require('express-session');
 const { connectDB } = require('./util/database');
 const cors = require("cors");
 // Models
-const RestaurantRequest = require('./Model/restaurent_request_model.js'); // ✅ Correct spelling
-const { Restaurant } = require('./Model/Restaurents_model.js'); // ✅ Correct spelling
+const RestaurantRequest = require('./Model/restaurent_request_model.js'); 
+const { Restaurant } = require('./Model/Restaurents_model.js');
 const {User} = require('./Model/userRoleModel.js');
 const app = express();
 
@@ -52,6 +52,7 @@ const reservationRouter = require('./routes/reservationRoutes.js');
 
 const homepageController = require('./Controller/homePageController.js');
 const menuController = require('./Controller/menuController.js');
+const staffController = require('./Controller/staffController.js');
 const authentication = require('./authenticationMiddleWare.js');
 const validation = require('./passwordAuth.js');
 
@@ -68,11 +69,20 @@ app.get('/logout', (req, res) => {
 });
 
 app.use('/loginPage', loginPage);
-app.use('/customer', authentication('customer'), customerRouter);
-app.use('/admin', authentication('admin'), adminRouter);
-app.use('/owner', authentication('owner'), ownerRouter);
-app.use('/staff', authentication('staff'), staffRouter);
 
+// Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
+app.use('/customer', authentication('customer'), customerRouter);
+app.use('/api/customer', authentication('customer'), customerRouter);
+
+app.use('/admin', authentication('admin'), adminRouter);
+app.use('/api/admin', authentication('admin'), adminRouter);
+
+
+app.use('/owner', authentication('owner'), ownerRouter);
+app.use('/api/owner', authentication('owner'), ownerRouter);
+
+app.use('/staff', authentication('staff'), staffController.getStaffHomepageData);
+app.use('/api/staff', authentication('staff'), staffRouter);
 app.use('/reservations', authentication('owner'), reservationRouter);
 
 
@@ -126,6 +136,10 @@ app.get('/api/restaurants', async (req, res) => {
 });
 
 
-app.listen(3000, () => {
+if (require.main === module) {
+  app.listen(3000, () => {
     console.log('Server running at http://localhost:3000');
-});
+  });
+}
+
+module.exports = app;

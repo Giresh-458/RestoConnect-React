@@ -4,11 +4,13 @@ import { Provider } from "react-redux";
 import store from "./store/store";
 
 import { HomePage, loader as homeLoader } from "./pages/HomePage";
+import RestaurantListPage from "./pages/RestaurantListPage";
 
 import { CustomerNav } from "./components/CustomerNav";
 import { MenuPage,loader as menuLoader } from "./pages/MenuPage";
 import { OrderPage } from "./pages/OrderPage";
 import { PaymentPage } from "./pages/PaymentPage";
+import { OrderPlacedPage } from "./pages/OrderPlacedPage";
 import { FeedBackPage } from "./pages/FeedBackPage";
 import { DashBoardPage,loader as DashboardLoader } from "./pages/DashBoardPage";
 import { CustomerHomepage,loader as customerHomepageLoader } from "./pages/CustomerHompage";
@@ -19,6 +21,7 @@ import { OwnerManagement,loader as OwnerManagementLoader } from "./pages/OwnerMa
 import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePage";
 import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
 import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
+import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
 
 
 
@@ -46,10 +49,12 @@ const router = createBrowserRouter([
     path: "/customer",
     element: <CustomerNav></CustomerNav>,
     children: [
-      { index: true, element: <CustomerHomepage></CustomerHomepage> ,loader:customerHomepageLoader},
+          { index: true, element: <CustomerHomepage></CustomerHomepage> ,loader:customerHomepageLoader},
+      { path: "restaurants", element: <RestaurantListPage /> },
       { path: "restaurant/:id", element: <MenuPage></MenuPage>,loader:menuLoader },
       { path: "order", element: <OrderPage></OrderPage> },
       { path: "payment", element: <PaymentPage></PaymentPage> },
+      { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
       { path: "feedback", element: <FeedBackPage></FeedBackPage> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],
@@ -64,6 +69,8 @@ const router = createBrowserRouter([
       { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
       { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
       { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
+      { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
+      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
 
     ],
     loader:isLogin

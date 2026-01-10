@@ -5,7 +5,7 @@ let Dish = require("../Model/Dishes_model_test").Dish;
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { Inventory } = require("../Model/Inventory_model");
-
+const Feedback = require('../Model/feedback');
 exports.getOwnerHomepage = async (req, res) => {
   try {
     let username = req.session.username;
@@ -80,6 +80,70 @@ exports.addTable = async (req, res) => {
   }
 };
 
+// JSON API variant for adding a table
+exports.addTableApi = async (req, res) => {
+  try {
+    const { number, seats } = req.body || {};
+    if (!number || typeof number !== 'string' || !seats || isNaN(parseInt(seats))) {
+      return res.status(400).json({ error: 'Table number (string) and seats (number) are required' });
+    }
+
+    const cleanNumber = number.trim();
+    const seatCount = parseInt(seats);
+    if (seatCount <= 0) {
+      return res.status(400).json({ error: 'Seats must be a positive number' });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: 'Restaurant not found' });
+
+    if (rest.tables.some(t => t.number === cleanNumber)) {
+      return res.status(409).json({ error: 'Table number already exists' });
+    }
+
+    const table = { number: cleanNumber, seats: seatCount, status: 'Available' };
+    rest.tables.push(table);
+    rest.totalTables = rest.tables.length;
+    await rest.save();
+
+    return res.json({ success: true, table, tables: rest.tables, totalTables: rest.totalTables });
+  } catch (error) {
+    console.error('Error in addTableApi:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// JSON API variant for deleting a table
+exports.deleteTableApi = async (req, res) => {
+  try {
+    const { number } = req.params;
+    if (!number) return res.status(400).json({ error: 'Table number is required' });
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const initialLen = rest.tables.length;
+    rest.tables = rest.tables.filter(t => t.number !== number);
+    if (rest.tables.length === initialLen) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    rest.totalTables = rest.tables.length;
+    await rest.save();
+
+    return res.json({ success: true, tables: rest.tables, totalTables: rest.totalTables });
+  } catch (error) {
+    console.error('Error in deleteTableApi:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 exports.deleteTable = async (req, res) => {
   try {
     const { number } = req.params;
@@ -97,6 +161,79 @@ exports.deleteTable = async (req, res) => {
   } catch (error) {
     console.error("Error in deleteTable:", error);
     res.status(500).send("Internal Server Error");
+  }
+};
+// Add this to ownerController.js
+exports.getFeedback = async (req, res) => {
+  try {
+    const username = req.session.username;
+    const user = await User.findOne({ username });
+
+    if (!user || !user.rest_id) {
+      return res.status(404).json({ message: "User or Restaurant not found" });
+    }
+
+    const rest_id = user.rest_id;
+
+    const feedbackList = await Feedback.find({ rest_id })
+      .sort({ createdAt: -1 })
+      .select("-rest_id -__v");
+
+    // Format the data to match the dashboard table columns
+    const formattedFeedback = feedbackList.map(item => ({
+        id: item._id, 
+        customer: item.customerName,
+        rating: {
+            dining: item.diningRating || null,
+            order: item.orderRating || null
+        },
+        // Use additionalFeedback as the main comment.
+        comment: item.additionalFeedback || (item.lovedItems ? `Liked: ${item.lovedItems}` : 'No specific comment'),
+        lovedItems: item.lovedItems || '',
+        status: item.status, 
+        date: item.createdAt
+    }));
+    
+    res.json(formattedFeedback);
+  } catch (error) {
+    console.error("Error in getFeedback:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+// Add this to ownerController.js
+exports.updateFeedbackStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // Feedback ID
+    const { status } = req.body; // New status (e.g., 'Resolved')
+    
+    if (!status || (status !== 'Resolved' && status !== 'Pending')) {
+        return res.status(400).json({ error: "Invalid status. Must be 'Resolved' or 'Pending'" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user || !user.rest_id) {
+        return res.status(404).json({ message: "User or Restaurant not found" });
+    }
+
+    // Find and update the item, ensuring it belongs to the correct restaurant for security
+    const updatedFeedback = await Feedback.findOneAndUpdate(
+        { _id: id, rest_id: user.rest_id }, 
+        { $set: { status: status } },
+        { new: true } // Return the updated document
+    );
+
+    if (!updatedFeedback) {
+      return res.status(404).json({ message: "Feedback item not found or unauthorized" });
+    }
+
+    res.json({ 
+        success: true, 
+        feedback: updatedFeedback
+    });
+
+  } catch (error) {
+    console.error("Error in updateFeedbackStatus:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -367,6 +504,36 @@ exports.createInventoryItem = async (req, res) => {
   }
 };
 
+// API endpoint to delete inventory item
+exports.deleteInventoryItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Verify the inventory item belongs to this restaurant
+    const inventoryItem = await Inventory.findById(id);
+    if (!inventoryItem) {
+      return res.status(404).json({ error: "Inventory item not found" });
+    }
+
+    if (inventoryItem.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await Inventory.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: "Inventory item deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error in deleteInventoryItem:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.getownerDashboard_dashboard = async (req, res) => {
 
   try {
@@ -516,28 +683,36 @@ function getWeekNumber(date) {
 
 exports.getMenuManagement = async (req, res) => {
   try {
-    let rest = await Restaurant.findById(req.session.rest_id)
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    let rest = await Restaurant.findById(user.rest_id)
       .populate("dishes")
       .populate("orders");
 
-    if (!rest) return res.status(404).send("Restaurant not found");
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
-    res.render("menuManagement", { products: rest.dishes });
+    res.json({ products: rest.dishes });
   } catch (error) {
     console.error("Error in getMenuManagement:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 exports.addProduct = async (req, res) => {
   try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     const { name, price, description } = req.body;
+    console.log(`Owner ${user.username} adding dish: ${name} for restaurant ${user.rest_id}`);
     let dish = new Dish({ name, price, description: description });
-    await dish.addDish(req.session.rest_id);
-    res.redirect("/owner");
+    await dish.addDish(user.rest_id);
+    console.log(`Dish ${name} added successfully to restaurant ${user.rest_id}`);
+    res.json({ success: true, message: "Dish added successfully" });
   } catch (error) {
     console.error("Error in addProduct:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -703,10 +878,15 @@ exports.getReservations = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const rest_id = user.rest_id;
-    const reservations = await Reservation.find({ rest_id })
+    // Ensure rest_id is a string for consistent querying
+    const restIdString = String(rest_id);
+    console.log('🔍 Owner querying reservations for rest_id:', restIdString);
+    
+    const reservations = await Reservation.find({ rest_id: restIdString })
       .sort({ date: -1 })
       .select("-rest_id -__v");
 
+    console.log(`✅ Owner found ${reservations.length} reservations for rest_id: ${restIdString}`);
     res.json(reservations);
   } catch (error) {
     console.error("Error in getReservations:", error);

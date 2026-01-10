@@ -2,12 +2,7 @@ import { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
 
 export function Inventory() {
-  const [inventory, setInventory] = useState({
-    labels: [],
-    values: [],
-    units: [],
-    suppliers: [],
-  });
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,8 +11,8 @@ export function Inventory() {
 
   const fetchInventory = async () => {
     try {
-      const response = await fetch("http://localhost:3000/owner/inventory", {
-        credentials: "include",
+      const response = await fetch("http://localhost:3000/api/inventory", {
+        credentials: "include"
       });
       if (response.ok) {
         const data = await response.json();
@@ -30,23 +25,24 @@ export function Inventory() {
     }
   };
 
-  const updateInventory = async (item, action) => {
+  const updateInventory = async (itemId, action) => {
     try {
+      const change = action === "increase" ? 1 : -1;
       const response = await fetch(
-        "http://localhost:3000/owner/inventory/update",
+        `http://localhost:3000/api/inventory/${itemId}/quantity`,
         {
-          method: "POST",
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify({ item, action }),
+          body: JSON.stringify({ change }),
         }
       );
 
       if (response.ok) {
-        const data = await response.json();
-        setInventory(data.inventory);
+        // Refresh inventory data after update
+        fetchInventory();
       }
     } catch (error) {
       console.error("Error updating inventory:", error);
@@ -61,7 +57,7 @@ export function Inventory() {
     <div className={styles.inventoryContainer}>
       <h1 className={styles.title}>Inventory</h1>
 
-      {inventory.labels.length === 0 ? (
+      {inventory.length === 0 ? (
         <p className={styles.noItems}>No inventory items found.</p>
       ) : (
         <table className={styles.inventoryTable}>
@@ -70,30 +66,34 @@ export function Inventory() {
               <th>Item</th>
               <th>Quantity</th>
               <th>Unit</th>
-              <th>Supplier</th>
+              <th>Min Stock</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {inventory.labels.map((item, index) => (
-              <tr key={index}>
-                <td className={styles.itemName}>{item}</td>
-                <td className={styles.quantity}>{inventory.values[index]}</td>
-                <td className={styles.unit}>{inventory.units[index]}</td>
-                <td className={styles.supplier}>
-                  {inventory.suppliers[index]}
+            {inventory.map((item) => (
+              <tr key={item._id}>
+                <td className={styles.itemName}>{item.name}</td>
+                <td className={styles.quantity}>{item.quantity}</td>
+                <td className={styles.unit}>{item.unit}</td>
+                <td className={styles.minStock}>{item.minStock}</td>
+                <td className={styles.status}>
+                  <span className={item.quantity <= item.minStock ? styles.lowStock : styles.inStock}>
+                    {item.quantity <= item.minStock ? 'Low Stock' : 'In Stock'}
+                  </span>
                 </td>
                 <td className={styles.actions}>
                   <button
-                    onClick={() => updateInventory(item, "increase")}
+                    onClick={() => updateInventory(item._id, "increase")}
                     className={styles.increaseBtn}
                   >
                     +
                   </button>
                   <button
-                    onClick={() => updateInventory(item, "decrease")}
+                    onClick={() => updateInventory(item._id, "decrease")}
                     className={styles.decreaseBtn}
-                    disabled={inventory.values[index] <= 0}
+                    disabled={item.quantity <= 0}
                   >
                     -
                   </button>

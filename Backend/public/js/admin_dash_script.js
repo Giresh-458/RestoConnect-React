@@ -22,6 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Removed as per user request to not use any API for dynamic updates
 
   // Removed updateStatistics function and related calls
+
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', () => {
+      if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+        let xhr = new XMLHttpRequest();
+        xhr.open("DELETE", "/admin/delete_account", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send();
+
+        xhr.onload = function () {
+          if (xhr.status == 200) {
+            alert("Account deleted successfully.");
+            window.location.href = "/loginPage"; // Redirect to login
+          } else {
+            alert("Error deleting account: " + JSON.parse(xhr.responseText).error);
+          }
+        };
+      }
+    });
+  }
 });
 
 
@@ -37,6 +58,8 @@ xhr.onload = function(){
 if(this.status==200){
 console.log(this.response)
 users = JSON.parse(this.response);
+// Exclude admin users from the UI listing/count
+users = users.filter(u => u.role !== 'admin');
 console.log(users)
 for(let i=0;i<users.length;i++){
   let opt = document.createElement("option");
@@ -45,6 +68,7 @@ for(let i=0;i<users.length;i++){
 }
 
 
+// Only count customer/owner/staff
 document.getElementById("totalUsersCount").innerText=users.length;
 }
 }
@@ -73,52 +97,55 @@ if (!user) {
 
  dispaly.innerHTML = `
         <h3>User Profile</h3>
-        <p><b>Username:</b> <input id="edit-username" value="${user.username}"></p>
-        <p><b>Email:</b> <input id="edit-email" value="${user.email}"></p>
-        <p><b>Role:</b> <input id="edit-role" value="${user.role}"></p>
-        <p><b>Restaurant Name:</b> <input id="edit-restaurantName" value="${user.restaurantName ?? ''}"></p>
-        <button id="save1">Save</button>
+        <p><b>Username:</b> <span>${user.username}</span></p>
+        <p><b>Email:</b> <span>${user.email}</span></p>
+        <p><b>Role:</b> <span>${user.role}</span></p>
+        <p><b>Restaurant Name:</b> <span>${user.restaurantName ?? ''}</span></p>
+        <p><b>Suspended:</b> <span>${user.isSuspended ? 'Yes' : 'No'}</span></p>
+        ${user.isSuspended ? `<p><b>Suspension End Date:</b> <span>${user.suspensionEndDate ? new Date(user.suspensionEndDate).toLocaleDateString() : 'Indefinite'}</span></p>` : ''}
+        <button id="suspend1">Suspend</button>
         <button id="remove1">Remove</button>
       `;
 
 
-      document.getElementById("save1").addEventListener("click",function(){
+      document.getElementById("suspend1").addEventListener("click",function(){
+        let suspensionEndDate = prompt("Enter suspension end date (YYYY-MM-DD) or leave blank for indefinite:");
+        let suspensionReason = prompt("Enter suspension reason (optional):");
 
-         let updatedUser = {
-          _id: user._id, 
-          username: document.getElementById("edit-username").value,
-          email: document.getElementById("edit-email").value,
-          role: document.getElementById("edit-role").value,
-          restaurantName: document.getElementById("edit-restaurantName").value,
-          rest_id: document.getElementById("edit-rest_id").value
+        let suspensionData = {
+          suspensionEndDate: suspensionEndDate || null,
+          suspensionReason: suspensionReason || null
         };
 
         let xhr = new XMLHttpRequest();
-        xhr.open("post","http://localhost:3000/admin/edit_user/"+user._id,true);
+        xhr.open("post","http://localhost:3000/admin/suspend_user/"+user._id,true);
         xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send(JSON.stringify(updatedUser));
+        xhr.send(JSON.stringify(suspensionData));
 
-        callAll();
-
+        xhr.onload = function() {
+          if (xhr.status == 200) {
+            callAll();
+            dispaly.innerHTML = "<p>User suspended successfully.</p>";
+          } else {
+            alert("Error suspending user: " + JSON.parse(xhr.responseText).error);
+          }
+        };
       })
 
 
 
       document.getElementById("remove1").addEventListener("click",function(){
+        if (confirm("Are you sure you want to delete this user?")) {
+          let xhr = new XMLHttpRequest();
+          xhr.open("post", "http://localhost:3000/admin/delete_user/" + user._id, true);
 
+          xhr.setRequestHeader("Content-Type", "application/json");
+          xhr.send();
 
-
-        let xhr = new XMLHttpRequest();
-        xhr.open("post", "http://localhost:3000/admin/delete_user/" + user._id, true);
-        
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send();
-        
-let dispaly = document.getElementById("diplay");
-dispaly.innerHTML="";
+          let dispaly = document.getElementById("diplay");
+          dispaly.innerHTML="";
           callAll();
-
-
+        }
       });
 
 
@@ -176,100 +203,135 @@ document.getElementById("seerest").addEventListener("click", function () {
 
   
   document.getElementById("save-restaurant").addEventListener("click", function () {
-    let updatedRest = {
-      _id: rest._id,
-      name: document.getElementById("edit-name").value,
-      location: document.getElementById("edit-location").value,
-      amount: document.getElementById("edit-amount").value,
-      date: document.getElementById("edit-date").value,
+    let suspensionEndDate = prompt("Enter suspension end date (YYYY-MM-DD) or leave blank for indefinite:");
+    let suspensionReason = prompt("Enter suspension reason (optional):");
+
+    let suspensionData = {
+      suspensionEndDate: suspensionEndDate || null,
+      suspensionReason: suspensionReason || null
     };
 
     let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/edit_restaurant/" + rest._id, true);
+    xhr.open("POST", "http://localhost:3000/admin/suspend_restaurant/" + rest._id, true);
     xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send(JSON.stringify(updatedRest));
+    xhr.send(JSON.stringify(suspensionData));
 
     xhr.onload = function () {
       if (xhr.status == 200) {
         callAllRestaurants();
+        display.innerHTML = "<p>Restaurant suspended successfully.</p>";
+      } else {
+        alert("Error suspending restaurant: " + JSON.parse(xhr.responseText).error);
       }
     };
   });
 
 
   document.getElementById("remove-restaurant").addEventListener("click", function () {
-   
-    let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send();
+    if (confirm("Are you sure you want to delete this restaurant?")) {
+      let xhr = new XMLHttpRequest();
+      xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send();
 
-    xhr.onload = function () {
-      if (xhr.status == 200) {
-        callAllRestaurants();
-        display.innerHTML = "";
-      }
-    };
+      xhr.onload = function () {
+        if (xhr.status == 200) {
+          callAllRestaurants();
+          display.innerHTML = "";
+        }
+      };
+    }
   });
 });
 
 
 
-function getAllReq(){
+async function getAllReq() {
+  const container = document.getElementById("requestslist");
+  if (!container) return;
+  container.innerHTML = '<p>Loading requests...</p>';
+  try {
+    const res = await fetch("http://localhost:3000/admin/requests", { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`Failed to load requests (${res.status})`);
+    const reqs = await res.json();
 
-let xhr = new XMLHttpRequest();
+    container.innerHTML = ""; // Clear previous content
+    if (!reqs || reqs.length === 0) {
+      const noReq = document.createElement('p');
+      noReq.innerText = 'No new rest req';
+      container.appendChild(noReq);
+      return;
+    }
 
- xhr.open("GET", "http://localhost:3000/admin/requests", true);
- xhr.send();
-
-    xhr.onload = function () {
-      if (xhr.status == 200) {
-
-        const reqs = JSON.parse(this.response);
-        document.getElementById("requestslist").innerHTML = ""; // Clear previous content
-        for(let i=0;i<reqs.length;i++){
-          let doc = reqs[i];
-            let di = document.createElement("div");
-            di.innerHTML=`
+    for (let i = 0; i < reqs.length; i++) {
+      const doc = reqs[i];
+      const di = document.createElement("div");
+      di.innerHTML = `
         <p><strong>Name:</strong> ${doc.name}</p>
         <p><strong>Location:</strong> ${doc.location}</p>
         <p><strong>Amount:</strong> ${doc.amount}</p>
         <p><strong>Owner Username:</strong> ${doc.owner_username}</p>
         <p><strong>Owner Password:</strong> ${doc.owner_password}</p>
         <p><strong>Created At:</strong> ${new Date(doc.created_at).toLocaleString()}</p>
-
-          <button onclick="acceptRequest('${doc.owner_username}')">Accept</button>
-  <button onclick="rejectRequest('${doc.owner_username}')">Reject</button>
-
-            `
-          document.getElementById("requestslist").appendChild(di);
-        }
-
-
-      }
-    };
-
-
-}
-
-function acceptRequest(username) {
-  let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/accept_request/${username}`, true);
-  xhr.onload = function () {
-    getAllReq();
-  };
-  xhr.send();
-}
-
-function rejectRequest(username) {
-  let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/reject_request/${username}`, true);
-  xhr.onload = function () {
-    if (this.status === 200) {
-      getAllReq();
+        <button class="accept-btn" data-username="${doc.owner_username}">Accept</button>
+        <button class="reject-btn" data-username="${doc.owner_username}">Reject</button>
+      `;
+      container.appendChild(di);
     }
-  };
-  xhr.send();
+
+    // Attach async handlers
+    container.querySelectorAll('.accept-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const username = e.currentTarget.getAttribute('data-username');
+        await acceptRequest(username, e.currentTarget);
+      });
+    });
+
+    container.querySelectorAll('.reject-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const username = e.currentTarget.getAttribute('data-username');
+        await rejectRequest(username, e.currentTarget);
+      });
+    });
+
+  } catch (err) {
+    console.error('Error loading requests:', err);
+    container.innerHTML = `<p style="color:#dc3545">Failed to load requests</p>`;
+  }
+}
+
+async function acceptRequest(username, btnEl) {
+  try {
+    if (btnEl) btnEl.disabled = true;
+    const res = await fetch(`http://localhost:3000/admin/accept_request/${encodeURIComponent(username)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Accept failed (${res.status})`);
+  } catch (err) {
+    console.error('Accept error:', err);
+    alert('Failed to accept request. Please try again.');
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+    await getAllReq();
+  }
+}
+
+async function rejectRequest(username, btnEl) {
+  try {
+    if (btnEl) btnEl.disabled = true;
+    const res = await fetch(`http://localhost:3000/admin/reject_request/${encodeURIComponent(username)}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`Reject failed (${res.status})`);
+  } catch (err) {
+    console.error('Reject error:', err);
+    alert('Failed to reject request. Please try again.');
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+    await getAllReq();
+  }
 }
 
 getAllReq();

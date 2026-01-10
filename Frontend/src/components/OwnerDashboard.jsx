@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../util/auth';
 
 
 const OwnerDashboard = () => {
@@ -15,7 +17,7 @@ fetchDashboardData();
 const fetchDashboardData = async () => {
 try {
 setLoading(true);
-const response = await fetch('http://localhost:3000/owner/dashboard/ownerdashboard', {
+const response = await fetch('http://localhost:3000/api/owner/dashboard', {
 credentials: 'include'
 });
 
@@ -198,7 +200,18 @@ fontSize: '0.875rem',
 
 
 if (loading) {
-return (
+	const navigate = useNavigate();
+
+	const handleLogout = async () => {
+		try {
+			await logout();
+		} catch (e) {
+			console.error('Logout failed', e);
+		}
+		navigate('/login');
+	};
+
+	return (
 <div style={styles.loadingContainer}>
 <div style={styles.loadingContent}>
 <div style={styles.spinner}></div>
@@ -254,12 +267,12 @@ to { transform: rotate(360deg); }
 <div style={styles.headerContainer}>
 <div style={styles.headerContent}>
 <h1 style={styles.headerTitle}>RestoConnect</h1>
-<nav style={styles.nav}>
-<a  style={styles.navLink}>Dashboard</a>
-<a  style={styles.navLinkActive}>Notifications</a>
-<span style={styles.navLink}>GV</span>
-<a href="/logout" style={styles.navLink}>Logout</a>
-</nav>
+				<nav style={styles.nav}>
+					<a  style={styles.navLink}>Dashboard</a>
+					<a  style={styles.navLinkActive}>Notifications</a>
+					<span style={styles.navLink}>GV</span>
+					<button onClick={handleLogout} style={{ ...styles.navLink, background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+				</nav>
 </div>
 </div>
 </header>

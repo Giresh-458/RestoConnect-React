@@ -1,0 +1,213 @@
+/* Order Page Layout */
+.orderPage {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panels */
+.orderSummaryPanel,
+.actionPanel {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panelHeader h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #212529;
+}
+
+.restaurantName {
+  font-size: 13px;
+  color: #6c757d;
+}
+
+/* Empty cart */
+.emptyCart {
+  padding: 24px;
+  text-align: center;
+  color: #6c757d;
+}
+
+/* Order list */
+.summaryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.summaryItem {
+  padding: 12px 0;
+  border-bottom: 1px dashed #e9ecef;
+}
+
+.summaryItem:last-child {
+  border-bottom: none;
+}
+
+.summaryMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemName {
+  font-weight: 600;
+  color: #212529;
+}
+
+.itemMeta {
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.summaryPrice {
+  font-weight: 700;
+  color: #212529;
+}
+
+/* Totals */
+.summaryTotals {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f3f5;
+}
+
+.totRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  color: #495057;
+}
+
+.totTotal {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 2px solid #e9ecef;
+  font-size: 16px;
+}
+
+/* Actions */
+.editCartRow {
+  margin-top: 10px;
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: #0d6efd;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actionsRow {
+  display: flex;
+  gap: 10px;
+}
+
+.primaryButton,
+.secondaryButton {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .02s ease, box-shadow .2s ease;
+}
+
+.primaryButton {
+  background: #0d6efd;
+  color: #fff;
+  border: 1px solid #0b5ed7;
+  box-shadow: 0 4px 10px rgba(13,110,253,0.25);
+}
+
+.primaryButton:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.secondaryButton {
+  background: #f8f9fa;
+  color: #212529;
+  border: 1px solid #e9ecef;
+}
+
+.primaryButton:active,
+.secondaryButton:active {
+  transform: translateY(1px);
+}
+
+/* Reservation form */
+.reservationForm {
+  margin-top: 16px;
+  padding: 14px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+}
+
+.formTitle {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.formField span {
+  font-size: 13px;
+  color: #495057;
+}
+
+.formField input,
+.formField select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reservationActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}

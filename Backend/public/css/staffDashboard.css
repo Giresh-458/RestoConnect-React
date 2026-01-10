@@ -226,6 +226,43 @@ section.charts canvas {
   height: 100% !important;
 }
 
+.add-table-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.add-table-form input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+  width: 120px;
+}
+
+.add-table-form input:focus {
+  outline: none;
+  border-color: #e50914;
+  box-shadow: 0 0 5px rgba(229, 9, 20, 0.3);
+}
+
+.add-table-form button {
+  padding: 8px 16px;
+  background-color: #e50914;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.add-table-form button:hover {
+  background-color: #ff3030;
+}
+
 @media (max-width: 768px) {
   section {
     padding: 15px;
@@ -237,5 +274,14 @@ section.charts canvas {
 
   .chart-wrapper {
     min-width: 100%;
+  }
+
+  .add-table-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .add-table-form input {
+    width: 100%;
   }
 }

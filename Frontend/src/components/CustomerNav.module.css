@@ -4,14 +4,15 @@
   padding: 1rem;
   background: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
+  flex-wrap: wrap;
 }
 
 .customerNav a {
   padding: 0.5rem 1rem;
-  text-decoration: none;
   color: #495057;
   border-radius: 4px;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .customerNav a:hover {
@@ -23,3 +24,11 @@
   background-color: #007bff;
   color: white;
 }
+
+@media (max-width: 600px) {
+  .customerNav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+

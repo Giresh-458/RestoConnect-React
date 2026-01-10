@@ -1,0 +1,101 @@
+.dishCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.dishCard:hover {
+  transform: translateY(-4px);
+}
+
+.dishImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.dishInfo {
+  padding: 1rem;
+}
+
+.dishName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #212529;
+  margin: 0 0 0.5rem 0;
+}
+
+.dishPrice {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #28a745;
+  margin: 0 0 0.5rem 0;
+}
+
+.dishDescription {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+}
+
+.quantityControls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.addButton {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.quantityButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 20px;
+  padding: 0.25rem;
+}
+
+.quantityButton {
+  background: white;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #667eea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.quantityButton:hover {
+  background: #667eea;
+  color: white;
+}
+
+.quantity {
+  font-weight: 700;
+  color: #212529;
+  min-width: 20px;
+  text-align: center;
+}
+

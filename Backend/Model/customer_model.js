@@ -12,10 +12,12 @@ const personSchema = new Schema({
   img_url: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, default: '' },
+  emailNotificationsEnabled: { type: Boolean, default: true },
   prev_orders: [orderSchema],
   top_dishes: { type: Map, of: Number, default: {} },
   top_restaurent: { type: Map, of: Number, default: {} },
-  cart: { type: Array, default: [] }
+  cart: { type: Array, default: [] },
+  favourites: { type: [String], default: [] }
 });
 
 // Instance method to add order
@@ -69,6 +71,7 @@ personSchema.statics.get_user_function = async function(name) {
     img_url: user.img_url,
     email: user.email,
     phone: user.phone,
+    emailNotificationsEnabled: user.emailNotificationsEnabled,
     address: user.address,
     prev_order: user.prev_orders,
     item_list: topDishesData.top3,

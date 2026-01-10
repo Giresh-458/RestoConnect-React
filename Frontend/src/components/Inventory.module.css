@@ -72,8 +72,28 @@
   color: #666;
 }
 
-.supplier {
+.minStock {
   color: #666;
+}
+
+.status {
+  font-weight: 500;
+}
+
+.lowStock {
+  color: #dc3545;
+  background-color: #f8d7da;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.inStock {
+  color: #28a745;
+  background-color: #d4edda;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 .actions {

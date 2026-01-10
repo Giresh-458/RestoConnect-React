@@ -9,7 +9,7 @@ export function OwnerReservations() {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-        const response = await fetch("http://localhost:3000/owner/reservations", {
+        const response = await fetch("http://localhost:3000/api/owner/reservations", {
           method: "GET",
           credentials: "include",
         });

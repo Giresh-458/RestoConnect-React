@@ -1,46 +1,83 @@
-const mongoose = require('mongoose');
-const shortid = require('shortid');
+const mongoose = require("mongoose");
+const shortid = require("shortid");
 
 const orderSchema = new mongoose.Schema({
   _id: {
     type: String,
-    default: shortid.generate
+    default: shortid.generate,
   },
-  dishes: [{
-    type: String,
-    ref: 'Dish'
-  }],
+  dishes: [
+    {
+      type: String,
+      ref: "Dish",
+    },
+  ],
   customerName: {
     type: String,
-    required: true
+    required: true,
   },
   restaurant: {
-    type: String
+    type: String,
   },
   rest_id: {
-    type: String
+    type: String,
+  },
+  reservation_id: {
+    type: String,
+    default: null,
   },
   status: {
     type: String,
-    default: 'pending'
+    default: "pending",
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["unpaid", "paid", "refunded"],
+    default: "unpaid",
   },
   totalAmount: {
     type: Number,
-    required: true
+    required: true,
   },
   table_id: {
-    type: String
+    type: String,
   },
   tableNumber: {
     type: String,
-    default: null
+    default: null,
   },
   date: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5,
+    default: null,
+  },
+  orderTime: {
+    type: Date,
+    default: Date.now,
+  },
+  completionTime: {
+    type: Date,
+    default: null,
+  },
+  estimatedTime: {
+    type: Number,
+    default: 15,
+  },
+  assignedStaff: {
+    type: [String],
+    default: [],
+  },
+  feedback: {
+    type: String,
+    default: "",
+  },
 });
 
-const Order = mongoose.model('Order', orderSchema);
+const Order = mongoose.model("Order", orderSchema);
 
 module.exports = { Order };

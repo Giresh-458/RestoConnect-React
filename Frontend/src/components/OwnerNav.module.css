@@ -4,14 +4,15 @@
   padding: 1rem;
   background: #fff3cd;
   border-bottom: 1px solid #ffeaa7;
+  flex-wrap: wrap;
 }
 
 .ownerNav a {
   padding: 0.5rem 1rem;
-  text-decoration: none;
   color: #856404;
   border-radius: 4px;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .ownerNav a:hover {
@@ -23,3 +24,11 @@
   background-color: #ffc107;
   color: #212529;
 }
+
+@media (max-width: 600px) {
+  .ownerNav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+

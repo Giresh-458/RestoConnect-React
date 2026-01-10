@@ -1,0 +1,36 @@
+.ownerDashboard {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboardTabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tabButton {
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tabButton:hover {
+  color: #374151;
+}
+
+.tabButton.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.dashboardContent {
+  padding: 20px 0;
+}

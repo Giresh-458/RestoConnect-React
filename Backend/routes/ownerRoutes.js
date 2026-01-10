@@ -25,6 +25,10 @@ router.get("/tables", ownerController.getTables);
 router.post("/tables/add", ownerController.addTable);
 router.post("/tables/delete/:number", ownerController.deleteTable);
 
+// JSON API for tables (for React frontend)
+router.post("/tables", ownerController.addTableApi);
+router.delete("/tables/:number", ownerController.deleteTableApi);
+
 router.delete("/restaurant/delete/:id", ownerController.deleteRestaurant);
 
 router.get("/staffManagement/task", ownerController.getTasks);
@@ -37,12 +41,22 @@ router.post("/inventory/update", ownerController.updateInventory);
 router.get("/reports", ownerController.getReportsData);
 
 // API routes for owner homepage dashboard
-router.get("/api/info", ownerController.getOwnerInfo);
-router.get("/api/dashboard/stats", ownerController.getDashboardStats);
-router.get("/api/dashboard/trend", ownerController.getRevenueOrdersTrend);
-router.get("/api/orders/recent", ownerController.getRecentOrders);
-router.get("/api/inventory", ownerController.getInventoryAPI);
-router.post("/api/inventory", ownerController.createInventoryItem);
-router.patch("/api/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+router.get("/info", ownerController.getOwnerInfo);
+router.get("/dashboard/stats", ownerController.getDashboardStats);
+router.get("/dashboard/trend", ownerController.getRevenueOrdersTrend);
+router.get("/orders/recent", ownerController.getRecentOrders);
+// Inventory management routes
+router.get("/inventory", ownerController.getInventoryAPI);
+router.post("/inventory", ownerController.createInventoryItem);
+router.patch("/inventory/:id/quantity", ownerController.updateInventoryQuantity);
+router.delete("/inventory/:id", ownerController.deleteInventoryItem);
+router.delete("/inventory/:id", ownerController.deleteInventoryItem);
 
+router.get("/feedback", ownerController.getFeedback);
+router.put("/feedback/:id/status", ownerController.updateFeedbackStatus);
+
+// API routes for owner dashboard
+router.get("/owner/reports", ownerController.getReportsData);
+router.get("/owner/inventory", ownerController.getInventory);
+router.post("/owner/inventory/update", ownerController.updateInventory);
 module.exports = router;

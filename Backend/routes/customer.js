@@ -23,8 +23,18 @@ router.get('/order_reservation',customerController.postOrderAndReservation );
 router.post('/order_reservation/order', customerController.order);
 router.post('/order_reservation/reservation',customerController.reservation);
 router.post('/order_reservation/combined', customerController.postOrderAndReservationCombined);
+router.post('/checkout', customerController.apiCheckout);
+router.post('/checkout/pay', customerController.apiCheckoutPay);
+router.get('/orders/:orderId', customerController.getOrderById);
 router.get('/payments',customerController.getPayments);
 router.post('/orderplaced',customerController.postPaymentsSuccess);
+router.post('/orders/:orderId/reorder', customerController.reorderOrder);
+router.post('/preferences/email-notifications', customerController.updateEmailNotifications);
+
+// Favourites routes
+router.post('/favourites/add', customerController.addToFavourites);
+router.post('/favourites/remove', customerController.removeFromFavourites);
+router.get('/favourites', customerController.getFavourites);
 
 // Menu page route
 router.get('/menu/:restid', menuController.getMenu);
@@ -40,6 +50,6 @@ router.post('/cart/decrease', menuController.decreaseDishQuantity);
 router.post('/cart/order', menuController.orderCart);
 
 // Customer homepage - search and filter restaurants
-router.get('/api/restaurants/search', customerController.searchRestaurants);
+router.get('/restaurants/search', customerController.searchRestaurants);
 
 module.exports = router;

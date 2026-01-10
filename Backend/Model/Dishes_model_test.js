@@ -15,6 +15,10 @@ const dishSchema = new mongoose.Schema({
     required: true
   },
   description: String,
+  image: {
+    type: String,
+    default: 'default-dish.jpg' // Default image path
+  },
 });
 
 dishSchema.methods.addDish = async function(rest_id) {
