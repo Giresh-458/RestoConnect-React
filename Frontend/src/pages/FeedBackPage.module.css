@@ -280,6 +280,168 @@
   color: #999;
 }
 
+/* Orders Section - Favorite Items Grid */
+.ordersSection {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #eee;
+}
+
+.ordersTitle {
+  color: #333;
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+}
+
+.noOrdersMessage {
+  text-align: center;
+  padding: 2rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  color: #666;
+}
+
+.noOrdersMessage p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dishesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.dishCard {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  padding-right: 50px;
+}
+
+.dishCard:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+  transform: translateY(-2px);
+}
+
+.dishCardContent {
+  padding: 1rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.dishCardName {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #212529;
+  line-height: 1.3;
+  min-height: 2.2em;
+}
+
+.dishCardPrice {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #28a745;
+}
+
+.dishCardDescription {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: #6c757d;
+  line-height: 1.4;
+  flex-grow: 1;
+}
+
+.dishCardHeartButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dishCardHeartButton:hover:not(:disabled) {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+  transform: scale(1.1);
+}
+
+.dishCardHeartButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dishCardHeartButton.loading {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.favMessage {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: center;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.favMessage.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.favMessage.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .feedbackContainer {
@@ -290,8 +452,9 @@
     font-size: 1.5rem;
   }
 
-  .feedbackTable {
-    font-size: 0.85rem;
+  .dishesGrid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
   }
 
   .feedbackTable th,
@@ -303,4 +466,3 @@
     max-width: 150px;
   }
 }
-

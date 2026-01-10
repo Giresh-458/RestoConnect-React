@@ -6,15 +6,18 @@ import styles from "./CustomerHomepage.module.css";
 
 export async function loader() {
   let role = await isLogin();
-  if (role != 'customer') {
-    return redirect('/login');
+  if (role != "customer") {
+    return redirect("/login");
   }
-  
+
   // Fetch restaurants on load
   try {
-    const response = await fetch("http://localhost:3000/api/customer/restaurants/search", {
-      credentials: "include"
-    });
+    const response = await fetch(
+      "http://localhost:3000/api/customer/restaurants/search",
+      {
+        credentials: "include",
+      }
+    );
     const data = await response.json();
     return { restaurants: data.restaurants || [] };
   } catch (error) {
@@ -35,7 +38,7 @@ export function CustomerHomepage() {
   const [locations, setLocations] = useState([]);
   const [cuisines, setCuisines] = useState(["All"]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState("all");
   const [favorites, setFavorites] = useState([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const navigate = useNavigate();
@@ -43,10 +46,12 @@ export function CustomerHomepage() {
   const fetchLocations = useCallback(async () => {
     try {
       const response = await fetch("http://localhost:3000/api/restaurants", {
-        credentials: "include"
+        credentials: "include",
       });
       const data = await response.json();
-      const uniqueLocations = [...new Set(data.map(r => r.location).filter(Boolean))];
+      const uniqueLocations = [
+        ...new Set(data.map((r) => r.location).filter(Boolean)),
+      ];
       setLocations(["All", ...uniqueLocations]);
     } catch (error) {
       console.error("Error fetching locations:", error);
@@ -61,18 +66,19 @@ export function CustomerHomepage() {
       if (openNow) params.append("openNow", "true");
       if (maxDistance) params.append("maxDistance", maxDistance.toString());
       if (sortBy) params.append("sortBy", sortBy);
-      if (selectedCuisine && selectedCuisine !== "All") params.append("cuisine", selectedCuisine);
+      if (selectedCuisine && selectedCuisine !== "All")
+        params.append("cuisine", selectedCuisine);
       if (location && location !== "All") params.append("location", location);
 
       const response = await fetch(
         `http://localhost:3000/api/customer/restaurants/search?${params.toString()}`,
         {
-          credentials: "include"
+          credentials: "include",
         }
       );
       const data = await response.json();
       setRestaurants(data.restaurants || []);
-      
+
       // Update available cuisines
       if (data.availableCuisines && data.availableCuisines.length > 0) {
         setCuisines(["All", ...data.availableCuisines]);
@@ -90,16 +96,16 @@ export function CustomerHomepage() {
 
   // Fetch favorites when the component mounts and when activeTab changes to 'favorites'
   useEffect(() => {
-    if (activeTab === 'favorites') {
+    if (activeTab === "favorites") {
       const fetchFavorites = async () => {
         try {
-          console.log('Fetching favorites...');
+          console.log("Fetching favorites...");
           setLoadingFavorites(true);
           const favoritesData = await getFavourites();
-          console.log('Received favorites data:', favoritesData);
+          console.log("Received favorites data:", favoritesData);
           setFavorites(Array.isArray(favoritesData) ? favoritesData : []);
         } catch (error) {
-          console.error('Error fetching favorites:', error);
+          console.error("Error fetching favorites:", error);
           setFavorites([]);
         } finally {
           setLoadingFavorites(false);
@@ -139,14 +145,24 @@ export function CustomerHomepage() {
     navigate(`/customer/restaurant/${restaurantId}`);
   };
 
-  // Get popular restaurants (top rated)
+  // Get popular restaurants (top rated or according to selected sort)
+  const sortFunctions = {
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0),
+    name: (a, b) => {
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    },
+    distance: (a, b) => (a.distance || Infinity) - (b.distance || Infinity),
+  };
+
   const popularRestaurants = [...restaurants]
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    .sort(sortFunctions[sortBy] || sortFunctions.rating)
     .slice(0, 6);
 
   // Get nearby restaurants (sorted by distance)
   const nearbyRestaurants = [...restaurants]
-    .filter(r => r.distance !== undefined)
+    .filter((r) => r.distance !== undefined)
     .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity))
     .slice(0, 6);
 
@@ -154,14 +170,18 @@ export function CustomerHomepage() {
   const renderTabs = () => (
     <div className={styles.tabs}>
       <button
-        className={`${styles.tab} ${activeTab === 'all' ? styles.activeTab : ''}`}
-        onClick={() => setActiveTab('all')}
+        className={`${styles.tab} ${
+          activeTab === "all" ? styles.activeTab : ""
+        }`}
+        onClick={() => setActiveTab("all")}
       >
         All Restaurants
       </button>
       <button
-        className={`${styles.tab} ${activeTab === 'favorites' ? styles.activeTab : ''}`}
-        onClick={() => setActiveTab('favorites')}
+        className={`${styles.tab} ${
+          activeTab === "favorites" ? styles.activeTab : ""
+        }`}
+        onClick={() => setActiveTab("favorites")}
       >
         My Favorites
       </button>
@@ -170,8 +190,13 @@ export function CustomerHomepage() {
 
   // Render content based on active tab
   const renderContent = () => {
-    console.log('Rendering content, activeTab:', activeTab, 'favorites:', favorites);
-    if (activeTab === 'favorites') {
+    console.log(
+      "Rendering content, activeTab:",
+      activeTab,
+      "favorites:",
+      favorites
+    );
+    if (activeTab === "favorites") {
       if (loadingFavorites) {
         return (
           <div className={styles.loading}>
@@ -184,7 +209,14 @@ export function CustomerHomepage() {
       if (favorites.length === 0) {
         return (
           <div className={styles.noResults}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
             </svg>
             <h3>No favorite dishes yet</h3>
@@ -193,7 +225,7 @@ export function CustomerHomepage() {
         );
       }
 
-      console.log('Rendering favorites:', favorites);
+      console.log("Rendering favorites:", favorites);
       return (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
@@ -201,16 +233,21 @@ export function CustomerHomepage() {
               <span className={styles.sectionIcon}>❤️</span>
               My Favorite Dishes
             </h2>
-            <p className={styles.sectionSubtitle}>Your saved favorite dishes from all restaurants</p>
+            <p className={styles.sectionSubtitle}>
+              Your saved favorite dishes from all restaurants
+            </p>
           </div>
           {favorites.length > 0 ? (
             <div className={styles.restaurantsGrid}>
               {favorites.map((dish) => (
-                <div key={dish._id || dish.id} className={styles.restaurantCard}>
+                <div
+                  key={dish._id || dish.id}
+                  className={styles.restaurantCard}
+                >
                   <div className={styles.restaurantImageContainer}>
-                    <img 
-                      src={dish.image || '/placeholder-dish.jpg'} 
-                      alt={dish.name} 
+                    <img
+                      src={dish.image || "/placeholder-dish.jpg"}
+                      alt={dish.name}
                       className={styles.restaurantImage}
                     />
                   </div>
@@ -219,7 +256,9 @@ export function CustomerHomepage() {
                       <h3 className={styles.restaurantName}>{dish.name}</h3>
                       {dish.price && (
                         <div className={styles.ratingBadge}>
-                          <span className={styles.ratingValue}>${dish.price.toFixed(2)}</span>
+                          <span className={styles.ratingValue}>
+                            ${dish.price.toFixed(2)}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -229,7 +268,7 @@ export function CustomerHomepage() {
                       </p>
                     )}
                     <p className={styles.dishDescription}>
-                      {dish.description || 'No description available'}
+                      {dish.description || "No description available"}
                     </p>
                   </div>
                 </div>
@@ -237,7 +276,14 @@ export function CustomerHomepage() {
             </div>
           ) : (
             <div className={styles.noResults}>
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                width="64"
+                height="64"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
               </svg>
               <h3>No favorite dishes yet</h3>
@@ -258,7 +304,9 @@ export function CustomerHomepage() {
                 <span className={styles.sectionIcon}>⭐</span>
                 Popular Restaurants
               </h2>
-              <p className={styles.sectionSubtitle}>Top rated restaurants loved by customers</p>
+              <p className={styles.sectionSubtitle}>
+                Top rated restaurants loved by customers
+              </p>
             </div>
             <div className={styles.restaurantsGrid}>
               {popularRestaurants.map((restaurant) => (
@@ -281,8 +329,15 @@ export function CustomerHomepage() {
             </h2>
             {selectedCuisine !== "All" && (
               <div className={styles.filterIndicator}>
-                <span>Filtered by: <strong>{selectedCuisine}</strong></span>
-                <button className={styles.filterClear} onClick={clearCuisineFilter}>× Clear</button>
+                <span>
+                  Filtered by: <strong>{selectedCuisine}</strong>
+                </span>
+                <button
+                  className={styles.filterClear}
+                  onClick={clearCuisineFilter}
+                >
+                  × Clear
+                </button>
               </div>
             )}
           </div>
@@ -294,7 +349,14 @@ export function CustomerHomepage() {
             </div>
           ) : restaurants.length === 0 ? (
             <div className={styles.noResults}>
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                width="64"
+                height="64"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
@@ -328,11 +390,20 @@ export function CustomerHomepage() {
             <span className={styles.heroIcon}>🍴</span>
           </h1>
           <p className={styles.heroSubtitle}>
-            Discover the best local restaurants and get your favorite food delivered to your door.
+            Discover the best local restaurants and get your favorite food
+            delivered to your door.
           </p>
           <form className={styles.searchForm} onSubmit={handleSearch}>
             <div className={styles.searchBar}>
-              <svg className={styles.searchIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className={styles.searchIcon}
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
               </svg>
@@ -341,11 +412,33 @@ export function CustomerHomepage() {
                 className={styles.searchInput}
                 placeholder="Enter location or restaurant name"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchQuery(val);
+                  // If user types a place that's different from the currently
+                  // selected location, clear the location filter so search
+                  // isn't constrained to the previous selection.
+                  if (
+                    val &&
+                    val.trim().length > 0 &&
+                    location &&
+                    location !== "All" &&
+                    val.trim().toLowerCase() !== location.toLowerCase()
+                  ) {
+                    setLocation("All");
+                  }
+                }}
               />
               <button type="submit" className={styles.searchButton}>
                 <span>Search</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M5 12h14M12 5l7 7-7 7"></path>
                 </svg>
               </button>
@@ -371,7 +464,9 @@ export function CustomerHomepage() {
             </div>
 
             <div className={styles.filterItem}>
-              <label className={styles.filterLabel}>Distance: {maxDistance} km</label>
+              <label className={styles.filterLabel}>
+                Distance: {maxDistance} km
+              </label>
               <input
                 type="range"
                 min="1"
@@ -400,10 +495,15 @@ export function CustomerHomepage() {
               <select
                 className={styles.select}
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setSearchQuery("");
+                }}
               >
                 {locations.map((loc) => (
-                  <option key={loc} value={loc}>{loc}</option>
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
                 ))}
               </select>
             </div>
@@ -443,14 +543,23 @@ function RestaurantCard({ restaurant, onClick }) {
   };
 
   return (
-    <div className={styles.restaurantCard} onClick={onClick} tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === 'Enter') onClick(); }}>
+    <div
+      className={styles.restaurantCard}
+      onClick={onClick}
+      tabIndex={0}
+      role="button"
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onClick();
+      }}
+    >
       <div className={styles.restaurantImageContainer}>
         <img
           src={restaurant.image || "/images/default-restaurant.jpg"}
           alt={restaurant.name}
           className={styles.restaurantImage}
           onError={(e) => {
-            e.target.src = "https://via.placeholder.com/400x250?text=Restaurant";
+            e.target.src =
+              "https://via.placeholder.com/400x250?text=Restaurant";
           }}
         />
         <div className={styles.restaurantOverlay}>
@@ -474,15 +583,15 @@ function RestaurantCard({ restaurant, onClick }) {
           {restaurant.rating && (
             <div className={styles.ratingBadge}>
               <span className={styles.star}>⭐</span>
-              <span className={styles.ratingValue}>{restaurant.rating.toFixed(1)}</span>
+              <span className={styles.ratingValue}>
+                {restaurant.rating.toFixed(1)}
+              </span>
             </div>
           )}
         </div>
-        
+
         {restaurant.location && (
-          <p className={styles.restaurantLocation}>
-            📍 {restaurant.location}
-          </p>
+          <p className={styles.restaurantLocation}>📍 {restaurant.location}</p>
         )}
 
         {restaurant.cuisine && restaurant.cuisine.length > 0 && (
@@ -493,7 +602,9 @@ function RestaurantCard({ restaurant, onClick }) {
               </span>
             ))}
             {restaurant.cuisine.length > 2 && (
-              <span className={styles.cuisineChip}>+{restaurant.cuisine.length - 2}</span>
+              <span className={styles.cuisineChip}>
+                +{restaurant.cuisine.length - 2}
+              </span>
             )}
           </div>
         )}
@@ -504,11 +615,19 @@ function RestaurantCard({ restaurant, onClick }) {
           </span>
           {restaurant.operatingHours && (
             <span className={styles.hours}>
-              {restaurant.operatingHours.open} - {restaurant.operatingHours.close}
+              {restaurant.operatingHours.open} -{" "}
+              {restaurant.operatingHours.close}
             </span>
           )}
-          <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
-            <button className={styles.viewMenuBtn} onClick={() => onClick && onClick()} aria-label={`View menu for ${restaurant.name}`}>
+          <div
+            className={styles.cardActions}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.viewMenuBtn}
+              onClick={() => onClick && onClick()}
+              aria-label={`View menu for ${restaurant.name}`}
+            >
               View Menu
             </button>
           </div>

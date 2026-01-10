@@ -6,7 +6,7 @@ const Feedback = require("../Model/feedback");
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { User } = require("../Model/userRoleModel");
-const { getImageUrl } = require('../util/fileUpload');
+const { getImageUrl } = require("../util/fileUpload");
 // Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
@@ -61,7 +61,6 @@ exports.validateReservationDateTime = (date, time) => {
 
   return true;
 };
-
 
 /*exports.getCustomerDashboard = async (req, res) => {
   try {
@@ -129,26 +128,19 @@ exports.validateReservationDateTime = (date, time) => {
   }
 };*/
 
-
-
-
-
-
 exports.getCustomerDashboard = async (req, res) => {
   try {
     const customerName =
-      req.session.username ||
-      req.params.customerName ||
-      req.query.customerName;
+      req.session.username || req.params.customerName || req.query.customerName;
 
     if (!customerName) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     // =================== USER DATA ===================
     const userData = await Person.get_user_function(customerName);
     if (!userData) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const prevOrders = Array.isArray(userData.prev_order)
@@ -156,11 +148,11 @@ exports.getCustomerDashboard = async (req, res) => {
       : [];
     const restaurantList = Array.isArray(userData.restaurent_list)
       ? userData.restaurent_list.filter(
-          (name) => typeof name === 'string' && name.trim() && name !== 'others'
+          (name) => typeof name === "string" && name.trim() && name !== "others"
         )
       : [];
     const emailNotificationsEnabled =
-      typeof userData.emailNotificationsEnabled === 'boolean'
+      typeof userData.emailNotificationsEnabled === "boolean"
         ? userData.emailNotificationsEnabled
         : true;
 
@@ -171,11 +163,15 @@ exports.getCustomerDashboard = async (req, res) => {
 
     const recentOrders = await Promise.all(
       orders.map(async (order) => {
-        let dishName = 'No items';
-        let dishImage = '/dish-placeholder.png';
-        
+        let dishName = "No items";
+        let dishImage = "/dish-placeholder.png";
+
         // Orders store dish NAMES (not IDs) in the dishes array, but some may have IDs
-        if (order.dishes && Array.isArray(order.dishes) && order.dishes.length > 0) {
+        if (
+          order.dishes &&
+          Array.isArray(order.dishes) &&
+          order.dishes.length > 0
+        ) {
           const firstDishIdentifier = order.dishes[0];
 
           // Try to find the dish by name first
@@ -183,7 +179,7 @@ exports.getCustomerDashboard = async (req, res) => {
           try {
             dish = await Dish.findOne({ name: firstDishIdentifier });
           } catch (err) {
-            console.error('Error finding dish by name:', err);
+            console.error("Error finding dish by name:", err);
           }
 
           // If not found by name, try to find by ID (in case the order stores IDs)
@@ -191,13 +187,13 @@ exports.getCustomerDashboard = async (req, res) => {
             try {
               dish = await Dish.findById(firstDishIdentifier);
             } catch (err) {
-              console.error('Error finding dish by ID:', err);
+              console.error("Error finding dish by ID:", err);
             }
           }
 
           if (dish) {
             dishName = dish.name;
-            dishImage = dish.image || dish.img_url || '/dish-placeholder.png';
+            dishImage = dish.image || dish.img_url || "/dish-placeholder.png";
           } else {
             // If dish not found in DB, use the identifier from order as fallback
             dishName = firstDishIdentifier;
@@ -208,23 +204,28 @@ exports.getCustomerDashboard = async (req, res) => {
             dishName = `${dishName} + ${order.dishes.length - 1} more`;
           }
         }
-        
+
         // Generate consistent order ID using hash method (same as owner dashboard)
         let hash = 0;
         for (let i = 0; i < order._id.length; i++) {
           const char = order._id.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
+          hash = (hash << 5) - hash + char;
           hash = hash & hash; // Convert to 32bit integer
         }
         // Convert to positive 3-digit number (100-999)
-        const orderNumber = (Math.abs(hash) % 900 + 100).toString();
+        const orderNumber = ((Math.abs(hash) % 900) + 100).toString();
         const consistentOrderId = `OR${orderNumber}`;
 
         let totalAmount = Number(order.totalAmount) || 0;
-        if ((!totalAmount || Number.isNaN(totalAmount)) && Array.isArray(order.dishes)) {
+        if (
+          (!totalAmount || Number.isNaN(totalAmount)) &&
+          Array.isArray(order.dishes)
+        ) {
           totalAmount = order.dishes.reduce((sum, dishName) => {
             try {
-              const dishDoc = Dish.findByName ? Dish.findByName(dishName) : null;
+              const dishDoc = Dish.findByName
+                ? Dish.findByName(dishName)
+                : null;
               return sum + (dishDoc?.price || 0);
             } catch {
               return sum;
@@ -237,11 +238,11 @@ exports.getCustomerDashboard = async (req, res) => {
           recordId: order._id || null,
           dishName: dishName,
           price: Number(totalAmount.toFixed(2)),
-          status: order.status || 'pending',
+          status: order.status || "pending",
           date: order.date,
           image: dishImage,
-          restaurant: order.restaurant || 'Unknown Restaurant',
-          restId: order.rest_id || null
+          restaurant: order.restaurant || "Unknown Restaurant",
+          restId: order.rest_id || null,
         };
       })
     );
@@ -261,7 +262,7 @@ exports.getCustomerDashboard = async (req, res) => {
             restId: restaurant._id,
             name: dish ? dish.name : restaurantName,
             restaurant: restaurantName,
-            image: restaurant.image || '/dish-placeholder.png'
+            image: restaurant.image || "/dish-placeholder.png",
           };
         })
       )
@@ -281,7 +282,7 @@ exports.getCustomerDashboard = async (req, res) => {
               time: reservation.time,
               guests: reservation.guests,
               id: reservation.id,
-              reservationDate: new Date(reservation.date)
+              reservationDate: new Date(reservation.date),
             });
           }
         });
@@ -303,7 +304,7 @@ exports.getCustomerDashboard = async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const weekOrders = await Order.find({
       customerName,
-      date: { $gte: sevenDaysAgo }
+      date: { $gte: sevenDaysAgo },
     });
     const weeklySpending = [0, 0, 0, 0, 0, 0, 0];
     weekOrders.forEach((order) => {
@@ -316,8 +317,12 @@ exports.getCustomerDashboard = async (req, res) => {
     // =================== USER STATS ===================
     const allOrders = await Order.find({ customerName });
     const totalOrders = allOrders.length;
-    const totalSpent = allOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const avgSpend = totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : '0.00';
+    const totalSpent = allOrders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    );
+    const avgSpend =
+      totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : "0.00";
     const totalVisits = totalOrders;
 
     // =================== FEEDBACK STATS ===================
@@ -329,12 +334,15 @@ exports.getCustomerDashboard = async (req, res) => {
 
     if (totalReviews > 0) {
       const ratingValues = feedbacks.flatMap((fb) =>
-        [fb.orderRating, fb.diningRating].filter((val) => typeof val === "number")
+        [fb.orderRating, fb.diningRating].filter(
+          (val) => typeof val === "number"
+        )
       );
 
       if (ratingValues.length > 0) {
         const avgRating =
-          ratingValues.reduce((sum, rating) => sum + rating, 0) / ratingValues.length;
+          ratingValues.reduce((sum, rating) => sum + rating, 0) /
+          ratingValues.length;
         satisfactionRate = Math.round((avgRating / 5) * 100);
       }
 
@@ -344,7 +352,7 @@ exports.getCustomerDashboard = async (req, res) => {
       const restaurantLookup = {};
       if (restaurantIdSet.length > 0) {
         const feedbackRestaurants = await Restaurant.find({
-          _id: { $in: restaurantIdSet }
+          _id: { $in: restaurantIdSet },
         }).select("name");
         feedbackRestaurants.forEach((rest) => {
           restaurantLookup[rest._id.toString()] = rest.name;
@@ -372,7 +380,7 @@ exports.getCustomerDashboard = async (req, res) => {
             diningRating: fb.diningRating,
             comment: fb.additionalFeedback || "",
             lovedItems: fb.lovedItems || "",
-            createdAt: fb.createdAt
+            createdAt: fb.createdAt,
           };
         });
     }
@@ -382,12 +390,14 @@ exports.getCustomerDashboard = async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const monthOrders = await Order.find({
       customerName,
-      date: { $gte: thirtyDaysAgo }
+      date: { $gte: thirtyDaysAgo },
     });
     const visitFrequency = [0, 0, 0, 0];
     monthOrders.forEach((order) => {
       const orderDate = new Date(order.date);
-      const daysDiff = Math.floor((new Date() - orderDate) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.floor(
+        (new Date() - orderDate) / (1000 * 60 * 60 * 24)
+      );
       const weekIndex = Math.floor(daysDiff / 7);
       if (weekIndex < 4) visitFrequency[weekIndex]++;
     });
@@ -397,21 +407,23 @@ exports.getCustomerDashboard = async (req, res) => {
 
     // Add notifications for recent orders (limit to last 3 orders with pending/delivered status)
     const recentOrderNotifications = recentOrders
-      .filter(order => order.status === 'pending' || order.status === 'delivered')
+      .filter(
+        (order) => order.status === "pending" || order.status === "delivered"
+      )
       .slice(0, 3)
       .map((order) => {
         const statusText =
-          order.status === 'delivered'
-            ? 'has been delivered successfully!'
-            : order.status === 'pending'
-            ? 'is being prepared'
+          order.status === "delivered"
+            ? "has been delivered successfully!"
+            : order.status === "pending"
+            ? "is being prepared"
             : `is currently ${order.status}`;
         return {
           id: `order-${order.orderId}`,
-          type: 'order',
-          icon: order.status === 'delivered' ? '✓' : '⏳',
+          type: "order",
+          icon: order.status === "delivered" ? "✓" : "⏳",
           message: `Your order #${order.orderId} ${statusText}`,
-          timeAgo: order.date ? formatRelativeTime(new Date(order.date)) : ''
+          timeAgo: order.date ? formatRelativeTime(new Date(order.date)) : "",
         };
       });
     notifications.push(...recentOrderNotifications);
@@ -420,26 +432,36 @@ exports.getCustomerDashboard = async (req, res) => {
     if (upcoming.length > 0) {
       upcoming.slice(0, 2).forEach((reservation) => {
         const reservationDateTime = reservation.date
-          ? new Date(`${reservation.date}T${reservation.time || '00:00'}`)
+          ? new Date(`${reservation.date}T${reservation.time || "00:00"}`)
           : null;
         const hoursUntilReservation = reservationDateTime
-          ? Math.round((reservationDateTime.getTime() - Date.now()) / (1000 * 60 * 60))
+          ? Math.round(
+              (reservationDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
+            )
           : null;
-        
+
         let message = `Your table booking is confirmed at ${reservation.restaurant}`;
         if (reservation.time) {
           message += ` for ${reservation.time}`;
         }
-        if (hoursUntilReservation !== null && hoursUntilReservation < 24 && hoursUntilReservation > 0) {
-          message += ` (in ${hoursUntilReservation} hour${hoursUntilReservation !== 1 ? 's' : ''})`;
+        if (
+          hoursUntilReservation !== null &&
+          hoursUntilReservation < 24 &&
+          hoursUntilReservation > 0
+        ) {
+          message += ` (in ${hoursUntilReservation} hour${
+            hoursUntilReservation !== 1 ? "s" : ""
+          })`;
         }
-        
+
         notifications.push({
           id: `reservation-${reservation.id || Date.now()}`,
-          type: 'reservation',
-          icon: '📅',
+          type: "reservation",
+          icon: "📅",
           message: message,
-          timeAgo: reservationDateTime ? formatRelativeTime(reservationDateTime) : ''
+          timeAgo: reservationDateTime
+            ? formatRelativeTime(reservationDateTime)
+            : "",
         });
       });
     }
@@ -449,21 +471,22 @@ exports.getCustomerDashboard = async (req, res) => {
       const latestReview = recentReviews[0];
       notifications.push({
         id: `review-${Date.now()}`,
-        type: 'info',
-        icon: '⭐',
+        type: "info",
+        icon: "⭐",
         message: `Thank you for your ${latestReview.rating}-star review!`,
-        timeAgo: ''
+        timeAgo: "",
       });
     }
 
     // Ensure at least one notification is always present
     if (notifications.length === 0) {
       notifications.push({
-        id: 'welcome',
-        type: 'info',
-        icon: 'ℹ️',
-        message: 'Welcome! Your order updates and reservations will appear here.',
-        timeAgo: ''
+        id: "welcome",
+        type: "info",
+        icon: "ℹ️",
+        message:
+          "Welcome! Your order updates and reservations will appear here.",
+        timeAgo: "",
       });
     }
 
@@ -478,7 +501,7 @@ exports.getCustomerDashboard = async (req, res) => {
         totalVisits,
         avgSpend,
         totalSpent: totalSpent.toFixed(2),
-        topRestaurant: restaurantList[0] || 'N/A'
+        topRestaurant: restaurantList[0] || "N/A",
       },
       recentOrders,
       favoriteRestaurants,
@@ -488,15 +511,17 @@ exports.getCustomerDashboard = async (req, res) => {
       feedbackStats: {
         satisfactionRate,
         totalReviews,
-        recentReviews
+        recentReviews,
       },
       visitFrequency,
       notifications,
-      emailNotificationsEnabled
+      emailNotificationsEnabled,
     });
   } catch (error) {
-    console.error('Error in getCustomerDashboard:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error("Error in getCustomerDashboard:", error);
+    res
+      .status(500)
+      .json({ error: "Internal server error", details: error.message });
   }
 };
 
@@ -504,17 +529,21 @@ exports.reorderOrder = async (req, res) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     }
 
     const { orderId } = req.params;
     if (!orderId) {
-      return res.status(400).json({ success: false, error: 'Order ID is required' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Order ID is required" });
     }
 
     const order = await Order.findOne({ _id: orderId, customerName });
     if (!order) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
+      return res.status(404).json({ success: false, error: "Order not found" });
     }
 
     const dishCounts = {};
@@ -537,7 +566,7 @@ exports.reorderOrder = async (req, res) => {
             price,
             amount: price,
             image: dishDoc?.image || dishDoc?.img_url || null,
-            quantity
+            quantity,
           };
         } catch (err) {
           console.error(`Failed to load dish ${dishName}`, err);
@@ -547,7 +576,7 @@ exports.reorderOrder = async (req, res) => {
             price: 0,
             amount: 0,
             image: null,
-            quantity: dishCounts[dishName]
+            quantity: dishCounts[dishName],
           };
         }
       })
@@ -557,9 +586,9 @@ exports.reorderOrder = async (req, res) => {
     if (person) {
       person.cart = uniqueDishNames.map((dishName) => ({
         dish: dishName,
-        quantity: dishCounts[dishName]
+        quantity: dishCounts[dishName],
       }));
-      person.markModified('cart');
+      person.markModified("cart");
       await person.save();
     }
 
@@ -567,13 +596,13 @@ exports.reorderOrder = async (req, res) => {
       success: true,
       restaurant: {
         id: order.rest_id || null,
-        name: order.restaurant || 'Restaurant'
+        name: order.restaurant || "Restaurant",
       },
-      items
+      items,
     });
   } catch (error) {
-    console.error('Error in reorderOrder:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error("Error in reorderOrder:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
 
@@ -581,17 +610,23 @@ exports.updateEmailNotifications = async (req, res) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     }
 
     const { enabled } = req.body;
-    if (typeof enabled !== 'boolean') {
-      return res.status(400).json({ success: false, error: 'Enabled flag must be boolean' });
+    if (typeof enabled !== "boolean") {
+      return res
+        .status(400)
+        .json({ success: false, error: "Enabled flag must be boolean" });
     }
 
     const person = await Person.findOne({ name: customerName });
     if (!person) {
-      return res.status(404).json({ success: false, error: 'Customer profile not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer profile not found" });
     }
 
     person.emailNotificationsEnabled = enabled;
@@ -599,57 +634,137 @@ exports.updateEmailNotifications = async (req, res) => {
 
     return res.json({
       success: true,
-      emailNotificationsEnabled: person.emailNotificationsEnabled
+      emailNotificationsEnabled: person.emailNotificationsEnabled,
     });
   } catch (error) {
-    console.error('Error updating email notifications:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error("Error updating email notifications:", error);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 };
 
 exports.getFeedBack = async (req, res) => {
   try {
     const username = req.session.username;
+    console.log("=== getFeedBack called for username:", username);
+
     const user = await Person.findOne({ name: username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Get recent orders for the customer to select restaurant
     const recentOrders = await Order.find({ customerName: username })
       .sort({ date: -1 })
       .limit(10)
-      .select('rest_id restaurant date totalAmount')
       .lean();
 
-    // Get unique restaurants from recent orders
-    const restaurantIds = [...new Set(recentOrders.map(o => o.rest_id).filter(Boolean))];
+    console.log("Found orders count:", recentOrders.length);
+    if (recentOrders.length > 0) {
+      console.log(
+        "First order sample:",
+        JSON.stringify(recentOrders[0], null, 2)
+      );
+    }
+
+    const ordersWithDishes = await Promise.all(
+      recentOrders.map(async (order) => {
+        let dishes = [];
+        console.log(
+          "Processing order:",
+          order._id,
+          "with dishes array:",
+          order.dishes
+        );
+
+        if (
+          order.dishes &&
+          Array.isArray(order.dishes) &&
+          order.dishes.length > 0
+        ) {
+          try {
+            console.log("Fetching dishes with IDs:", order.dishes);
+            dishes = await Dish.find({ _id: { $in: order.dishes } }).lean();
+
+            if (dishes.length === 0 && order.dishes.length > 0) {
+              console.log(
+                "No dishes found by ID, trying by name:",
+                order.dishes
+              );
+              dishes = await Dish.find({ name: { $in: order.dishes } }).lean();
+            }
+
+            console.log(
+              "Fetched",
+              dishes.length,
+              "dishes for order",
+              order._id
+            );
+          } catch (err) {
+            console.log("Could not fetch dish details:", err.message);
+            dishes = [];
+          }
+        }
+
+        return {
+          ...order,
+          items: dishes.map((d) => ({
+            id: d._id,
+            _id: d._id,
+            name: d.name,
+            price: d.price,
+            image: d.image,
+            description: d.description,
+            dish: d,
+          })),
+          dishes: dishes.map((d) => ({
+            id: d._id,
+            _id: d._id,
+            name: d.name,
+            price: d.price,
+            image: d.image,
+            description: d.description,
+          })),
+        };
+      })
+    );
+
+    const restaurantIds = [
+      ...new Set(recentOrders.map((o) => o.rest_id).filter(Boolean)),
+    ];
     const restaurants = await Restaurant.find({ _id: { $in: restaurantIds } })
-      .select('name _id')
+      .select("name _id")
       .lean();
 
-    // Fetch the feedbacks for this user (using customerName, not username)
     const feedbacks = await Feedback.find({ customerName: username })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
-    // Return JSON for React frontend
-    res.json({ 
+    const responseData = {
       user: {
         name: user.name,
-        email: user.email
+        email: user.email,
       },
-      recentOrders: recentOrders.map(order => ({
+      recentOrders: ordersWithDishes.map((order) => ({
         id: order._id,
         restaurant: order.restaurant,
         rest_id: order.rest_id,
         date: order.date,
-        totalAmount: order.totalAmount
+        totalAmount: order.totalAmount,
+        items: order.items || [],
+        dishes: order.dishes || [],
       })),
-      restaurants: restaurants.map(r => ({
+      orders: ordersWithDishes.map((order) => ({
+        id: order._id,
+        restaurant: order.restaurant,
+        rest_id: order.rest_id,
+        date: order.date,
+        totalAmount: order.totalAmount,
+        items: order.items || [],
+        dishes: order.dishes || [],
+      })),
+      restaurants: restaurants.map((r) => ({
         id: r._id,
-        name: r.name
+        name: r.name,
       })),
-      feedbacks: feedbacks.map(fb => ({
+      feedbacks: feedbacks.map((fb) => ({
         id: fb._id,
         rest_id: fb.rest_id,
         diningRating: fb.diningRating,
@@ -657,20 +772,42 @@ exports.getFeedBack = async (req, res) => {
         lovedItems: fb.lovedItems,
         additionalFeedback: fb.additionalFeedback,
         status: fb.status,
-        createdAt: fb.createdAt
-      }))
-    });
+        createdAt: fb.createdAt,
+      })),
+    };
+
+    console.log(
+      "Response data - recentOrders count:",
+      responseData.recentOrders.length
+    );
+    console.log("Response data - orders count:", responseData.orders.length);
+    if (responseData.recentOrders[0]) {
+      console.log(
+        "Sample items from first order count:",
+        responseData.recentOrders[0].items.length
+      );
+      console.log(
+        "Sample items:",
+        JSON.stringify(responseData.recentOrders[0].items.slice(0, 2), null, 2)
+      );
+    }
+
+    res.json(responseData);
   } catch (error) {
     console.error("Error fetching feedback data:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-
-
 exports.submitFeedback = async (req, res) => {
   try {
-    const { rest_id, diningRating, lovedItems, orderRating, additionalFeedback } = req.body;
+    const {
+      rest_id,
+      diningRating,
+      lovedItems,
+      orderRating,
+      additionalFeedback,
+    } = req.body;
     const username = req.session.username;
 
     if (!username) {
@@ -679,7 +816,9 @@ exports.submitFeedback = async (req, res) => {
 
     // Validate rest_id is provided
     if (!rest_id) {
-      return res.status(400).json({ error: "Restaurant ID is required. Please select a restaurant." });
+      return res.status(400).json({
+        error: "Restaurant ID is required. Please select a restaurant.",
+      });
     }
 
     // Verify the restaurant exists
@@ -696,13 +835,13 @@ exports.submitFeedback = async (req, res) => {
       lovedItems: lovedItems || "",
       orderRating: orderRating ? parseInt(orderRating) : null,
       additionalFeedback: additionalFeedback || "",
-      status: 'Pending',
-      createdAt: new Date()
+      status: "Pending",
+      createdAt: new Date(),
     });
 
     // Return JSON response for React frontend
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: "Feedback submitted successfully!",
       feedback: {
         id: feedback._id,
@@ -713,8 +852,8 @@ exports.submitFeedback = async (req, res) => {
         lovedItems: feedback.lovedItems,
         additionalFeedback: feedback.additionalFeedback,
         status: feedback.status,
-        createdAt: feedback.createdAt
-      }
+        createdAt: feedback.createdAt,
+      },
     });
   } catch (err) {
     console.error("Error submitting feedback:", err);
@@ -722,13 +861,9 @@ exports.submitFeedback = async (req, res) => {
   }
 };
 
-
-
-
 // Orders and reservations
 exports.postOrderAndReservation = async (req, res) => {
   try {
-    
     let restaurantName, cart, rest_id;
     console.log(req.session.cart);
     if (req.body.restaurant) {
@@ -764,7 +899,12 @@ exports.postOrderAndReservation = async (req, res) => {
 
 exports.order = async (req, res) => {
   const { restaurant, specialRequests } = req.body;
-  const newOrder = { id: Date.now(), restaurant, specialRequests, status: "Pending" };
+  const newOrder = {
+    id: Date.now(),
+    restaurant,
+    specialRequests,
+    status: "Pending",
+  };
   req.session.tempOrder = newOrder;
   const dishes_temp = req.session.temp_cart || [];
   let sum = 0;
@@ -774,9 +914,15 @@ exports.order = async (req, res) => {
   }
   req.session.bill = sum;
   // If the request expects JSON (from SPA), respond with JSON instead of redirect
-  const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+  const wantsJson =
+    req.headers["content-type"]?.includes("application/json") ||
+    req.headers["accept"]?.includes("application/json");
   if (wantsJson) {
-    return res.json({ success: true, message: 'Order stored in session', bill: req.session.bill });
+    return res.json({
+      success: true,
+      message: "Order stored in session",
+      bill: req.session.bill,
+    });
   }
   res.redirect("/customer/payments");
 };
@@ -792,9 +938,15 @@ exports.reservation = async (req, res) => {
     guests,
   };
   req.session.reservation = newReservation;
-  const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+  const wantsJson =
+    req.headers["content-type"]?.includes("application/json") ||
+    req.headers["accept"]?.includes("application/json");
   if (wantsJson) {
-    return res.json({ success: true, message: 'Reservation stored in session', reservation: req.session.reservation });
+    return res.json({
+      success: true,
+      message: "Reservation stored in session",
+      reservation: req.session.reservation,
+    });
   }
   res.redirect("/customer/payments");
 };
@@ -803,7 +955,12 @@ exports.postOrderAndReservationCombined = async (req, res) => {
   try {
     const { restaurant, specialRequests, date, time, guests } = req.body;
 
-    const newOrder = { id: Date.now(), restaurant, specialRequests, status: "Pending" };
+    const newOrder = {
+      id: Date.now(),
+      restaurant,
+      specialRequests,
+      status: "Pending",
+    };
     req.session.tempOrder = newOrder;
 
     let dishes_temp = req.session.temp_cart || [];
@@ -824,15 +981,20 @@ exports.postOrderAndReservationCombined = async (req, res) => {
     };
     req.session.reservation = newReservation;
 
-
     const user = await Person.findOne({ name: req.session.username });
     if (user) {
       user.cart = [];
       await user.save();
     }
-    const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+    const wantsJson =
+      req.headers["content-type"]?.includes("application/json") ||
+      req.headers["accept"]?.includes("application/json");
     if (wantsJson) {
-      return res.json({ success: true, message: 'Order+Reservation stored in session', bill: req.session.bill });
+      return res.json({
+        success: true,
+        message: "Order+Reservation stored in session",
+        bill: req.session.bill,
+      });
     }
     res.redirect("/customer/payments");
   } catch (error) {
@@ -894,9 +1056,14 @@ exports.postPaymentsSuccess = async (req, res) => {
     req.session.rest_id = undefined;
     req.session.bill = undefined;
 
-    const wantsJson = req.headers['content-type']?.includes('application/json') || req.headers['accept']?.includes('application/json');
+    const wantsJson =
+      req.headers["content-type"]?.includes("application/json") ||
+      req.headers["accept"]?.includes("application/json");
     if (wantsJson) {
-      return res.json({ success: true, message: 'Payment successful, order/reservation completed' });
+      return res.json({
+        success: true,
+        message: "Payment successful, order/reservation completed",
+      });
     }
     res.redirect("/customer/feedback");
   } catch (error) {
@@ -911,18 +1078,26 @@ exports.apiCheckout = async (req, res) => {
     const username = req.session.username || null;
     const { rest_id, items, totalAmount, reservation } = req.body;
 
-    if (!rest_id) return res.status(400).json({ success: false, message: '', error: 'rest_id is required' });
-    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: '', error: 'items are required' });
+    if (!rest_id)
+      return res
+        .status(400)
+        .json({ success: false, message: "", error: "rest_id is required" });
+    if (!Array.isArray(items) || items.length === 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "", error: "items are required" });
 
     // Create Order
-    const dishes = items.map(i => i.name || i.dish || i.id || '').filter(Boolean);
+    const dishes = items
+      .map((i) => i.name || i.dish || i.id || "")
+      .filter(Boolean);
     const order = new Order({
       dishes,
-      customerName: username || 'guest',
-      restaurant: req.body.restaurantName || '',
+      customerName: username || "guest",
+      restaurant: req.body.restaurantName || "",
       rest_id,
-      status: 'pending',
-      totalAmount: Number(totalAmount) || 0
+      status: "pending",
+      totalAmount: Number(totalAmount) || 0,
     });
     await order.save();
 
@@ -940,19 +1115,24 @@ exports.apiCheckout = async (req, res) => {
     if (reservation && reservation.date && reservation.time) {
       // Ensure rest_id is a string for consistency
       const restIdString = String(rest_id);
-      
+
       const newReservation = new Reservation({
-        customerName: username || reservation.name || 'guest',
+        customerName: username || reservation.name || "guest",
         time: reservation.time,
-        table_id: reservation.table_id || '', // Optional - staff will assign
+        table_id: reservation.table_id || "", // Optional - staff will assign
         guests: reservation.guests || 1,
-        status: 'pending',
+        status: "pending",
         rest_id: restIdString,
-        date: reservation.date
+        date: reservation.date,
       });
       await newReservation.save();
-      console.log('✅ Created reservation:', newReservation._id, 'for rest_id:', restIdString);
-      
+      console.log(
+        "✅ Created reservation:",
+        newReservation._id,
+        "for rest_id:",
+        restIdString
+      );
+
       order.reservation_id = newReservation._id;
       await order.save();
       reservationSaved = newReservation;
@@ -965,23 +1145,36 @@ exports.apiCheckout = async (req, res) => {
           id: newReservation._id,
           name: newReservation.customerName,
           guests: newReservation.guests,
-          date: newReservation.date instanceof Date ? newReservation.date.toISOString().split('T')[0] : String(newReservation.date),
+          date:
+            newReservation.date instanceof Date
+              ? newReservation.date.toISOString().split("T")[0]
+              : String(newReservation.date),
           time: newReservation.time,
           tables: newReservation.table_id ? [newReservation.table_id] : [],
-          allocated: false
+          allocated: false,
         });
         await restForReservation.save();
-        console.log('✅ Added reservation to restaurant reservations array');
+        console.log("✅ Added reservation to restaurant reservations array");
       } else {
-        console.warn('⚠️ Restaurant not found for rest_id:', restIdString);
+        console.warn("⚠️ Restaurant not found for rest_id:", restIdString);
       }
     }
 
     // Return created ids for frontend to proceed to payment
-    return res.json({ success: true, data: { orderId: order._id, reservation: reservationSaved ? { id: reservationSaved._id } : null, amount: order.totalAmount }, message: '' });
+    return res.json({
+      success: true,
+      data: {
+        orderId: order._id,
+        reservation: reservationSaved ? { id: reservationSaved._id } : null,
+        amount: order.totalAmount,
+      },
+      message: "",
+    });
   } catch (err) {
-    console.error('apiCheckout error:', err);
-    return res.status(500).json({ success: false, message: '', error: 'Server error' });
+    console.error("apiCheckout error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "", error: "Server error" });
   }
 };
 
@@ -995,74 +1188,110 @@ exports.apiCheckoutPay = async (req, res) => {
     // If orderId provided, find existing order
     if (orderId) {
       if (!rest_id) {
-        return res.status(400).json({ success: false, error: 'rest_id is required when confirming payment for existing order' });
+        return res.status(400).json({
+          success: false,
+          error:
+            "rest_id is required when confirming payment for existing order",
+        });
       }
       order = await Order.findOne({ _id: orderId });
       if (!order) {
-        return res.status(404).json({ success: false, error: 'Order not found' });
+        return res
+          .status(404)
+          .json({ success: false, error: "Order not found" });
       }
 
       // If order has a reservation_id, ensure it's in the restaurant's reservations array
       if (order.reservation_id) {
-        const existingReservation = await Reservation.findOne({ _id: order.reservation_id });
+        const existingReservation = await Reservation.findOne({
+          _id: order.reservation_id,
+        });
         if (existingReservation) {
           const orderRestId = String(rest_id || order.rest_id);
           const restForReservation = await Restaurant.find_by_id(orderRestId);
           if (restForReservation) {
             // Check if reservation already exists in restaurant's reservations array
-            const reservationExists = restForReservation.reservations.some(r => r.id === existingReservation._id);
+            const reservationExists = restForReservation.reservations.some(
+              (r) => r.id === existingReservation._id
+            );
             if (!reservationExists) {
-              restForReservation.reservations = restForReservation.reservations || [];
+              restForReservation.reservations =
+                restForReservation.reservations || [];
               restForReservation.reservations.push({
                 id: existingReservation._id,
                 name: existingReservation.customerName,
                 guests: existingReservation.guests,
-                date: existingReservation.date instanceof Date ? existingReservation.date.toISOString().split('T')[0] : String(existingReservation.date),
+                date:
+                  existingReservation.date instanceof Date
+                    ? existingReservation.date.toISOString().split("T")[0]
+                    : String(existingReservation.date),
                 time: existingReservation.time,
                 tables: [existingReservation.table_id],
-                allocated: existingReservation.allocated || false
+                allocated: existingReservation.allocated || false,
               });
               await restForReservation.save();
-              console.log('✅ Added existing reservation to restaurant reservations array');
+              console.log(
+                "✅ Added existing reservation to restaurant reservations array"
+              );
             }
           } else {
-            console.warn('⚠️ Restaurant not found for rest_id:', orderRestId);
+            console.warn("⚠️ Restaurant not found for rest_id:", orderRestId);
           }
         } else {
-          console.warn('⚠️ Reservation not found for reservation_id:', order.reservation_id);
+          console.warn(
+            "⚠️ Reservation not found for reservation_id:",
+            order.reservation_id
+          );
         }
       }
     } else {
       // Create order from payload
       if (!payload) {
-        return res.status(400).json({ success: false, error: 'Missing payload. Please provide order details.' });
+        return res.status(400).json({
+          success: false,
+          error: "Missing payload. Please provide order details.",
+        });
       }
       if (!payload.rest_id) {
-        return res.status(400).json({ success: false, error: 'Restaurant ID (rest_id) is required' });
+        return res.status(400).json({
+          success: false,
+          error: "Restaurant ID (rest_id) is required",
+        });
       }
       if (!Array.isArray(payload.items) || payload.items.length === 0) {
-        return res.status(400).json({ success: false, error: 'Items array is required and cannot be empty' });
+        return res.status(400).json({
+          success: false,
+          error: "Items array is required and cannot be empty",
+        });
       }
 
       const username = req.session.username || null;
-      const dishes = payload.items.map(i => i.name || i.dish || i.id || '').filter(Boolean);
-      
+      const dishes = payload.items
+        .map((i) => i.name || i.dish || i.id || "")
+        .filter(Boolean);
+
       if (dishes.length === 0) {
-        return res.status(400).json({ success: false, error: 'No valid dish names found in items' });
+        return res.status(400).json({
+          success: false,
+          error: "No valid dish names found in items",
+        });
       }
 
       const totalAmount = Number(payload.totalAmount) || 0;
       if (totalAmount <= 0) {
-        return res.status(400).json({ success: false, error: 'Total amount must be greater than 0' });
+        return res.status(400).json({
+          success: false,
+          error: "Total amount must be greater than 0",
+        });
       }
 
       order = new Order({
         dishes,
-        customerName: username || 'guest',
-        restaurant: payload.restaurantName || '',
+        customerName: username || "guest",
+        restaurant: payload.restaurantName || "",
         rest_id: payload.rest_id,
-        status: 'pending',
-        totalAmount: totalAmount
+        status: "pending",
+        totalAmount: totalAmount,
       });
       await order.save();
 
@@ -1078,54 +1307,68 @@ exports.apiCheckoutPay = async (req, res) => {
 
       // If reservation provided with all required fields, add to restaurant reservations
       // Create reservation if date and time are provided (table_id can be assigned later by staff)
-      if (payload.reservation && payload.reservation.date && payload.reservation.time) {
+      if (
+        payload.reservation &&
+        payload.reservation.date &&
+        payload.reservation.time
+      ) {
         // Ensure rest_id is a string for consistency
         const restIdString = String(payload.rest_id);
-        
+
         const newReservation = new Reservation({
-          customerName: username || payload.reservation.name || 'guest',
+          customerName: username || payload.reservation.name || "guest",
           time: payload.reservation.time,
-          table_id: payload.reservation.table_id || '', // Optional - staff will assign
+          table_id: payload.reservation.table_id || "", // Optional - staff will assign
           guests: payload.reservation.guests || 1,
-          status: 'pending',
+          status: "pending",
           rest_id: restIdString,
-          date: payload.reservation.date
+          date: payload.reservation.date,
         });
         await newReservation.save();
-        console.log('✅ Created reservation:', newReservation._id, 'for rest_id:', restIdString);
-        
+        console.log(
+          "✅ Created reservation:",
+          newReservation._id,
+          "for rest_id:",
+          restIdString
+        );
+
         order.reservation_id = newReservation._id;
         await order.save();
 
         // Add reservation to restaurant's reservations array
         const restForReservation = await Restaurant.find_by_id(restIdString);
         if (restForReservation) {
-          restForReservation.reservations = restForReservation.reservations || [];
+          restForReservation.reservations =
+            restForReservation.reservations || [];
           restForReservation.reservations.push({
             id: newReservation._id,
             name: newReservation.customerName,
             guests: newReservation.guests,
-            date: newReservation.date instanceof Date ? newReservation.date.toISOString().split('T')[0] : String(newReservation.date),
+            date:
+              newReservation.date instanceof Date
+                ? newReservation.date.toISOString().split("T")[0]
+                : String(newReservation.date),
             time: newReservation.time,
             tables: newReservation.table_id ? [newReservation.table_id] : [],
-            allocated: false
+            allocated: false,
           });
           await restForReservation.save();
-          console.log('✅ Added reservation to restaurant reservations array');
+          console.log("✅ Added reservation to restaurant reservations array");
         } else {
-          console.warn('⚠️ Restaurant not found for rest_id:', restIdString);
+          console.warn("⚠️ Restaurant not found for rest_id:", restIdString);
         }
       }
     }
 
     // At this point we have an order object; mark as paid
-    order.status = 'paid';
-    order.paymentStatus = 'paid';
+    order.status = "paid";
+    order.paymentStatus = "paid";
     order.completionTime = new Date();
     await order.save();
 
     // Add payment to restaurant record
-    const finalRestId = rest_id || (order && order.rest_id) || (payload && payload.rest_id);
+    const finalRestId =
+      rest_id || (order && order.rest_id) || (payload && payload.rest_id);
     if (finalRestId) {
       const rest = await Restaurant.find_by_id(finalRestId);
       if (rest) {
@@ -1139,17 +1382,26 @@ exports.apiCheckoutPay = async (req, res) => {
     if (req.session.username) {
       const person = await Person.findOne({ name: req.session.username });
       if (person) {
-        await person.add_order({ name: order.restaurant || '', items: order.dishes });
+        await person.add_order({
+          name: order.restaurant || "",
+          items: order.dishes,
+        });
         person.cart = [];
         await person.save();
       }
     }
 
-    return res.json({ success: true, data: { orderId: order._id }, message: 'Payment processed and order created' });
+    return res.json({
+      success: true,
+      data: { orderId: order._id },
+      message: "Payment processed and order created",
+    });
   } catch (err) {
-    console.error('apiCheckoutPay error:', err);
-    const errorMessage = err.message || 'Server error';
-    return res.status(500).json({ success: false, message: '', error: errorMessage });
+    console.error("apiCheckoutPay error:", err);
+    const errorMessage = err.message || "Server error";
+    return res
+      .status(500)
+      .json({ success: false, message: "", error: errorMessage });
   }
 };
 
@@ -1158,15 +1410,25 @@ exports.getOrderById = async (req, res) => {
   try {
     const { orderId } = req.params;
     if (!orderId) {
-      return res.status(400).json({ success: false, message: '', error: 'orderId is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "", error: "orderId is required" });
     }
     const order = await Order.findOne({ _id: orderId });
     if (!order) {
-      return res.status(404).json({ success: false, message: '', error: 'Order not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "", error: "Order not found" });
     }
     // Optional: ensure current user owns the order
-    if (req.session?.username && order.customerName && order.customerName !== req.session.username) {
-      return res.status(403).json({ success: false, message: '', error: 'Forbidden' });
+    if (
+      req.session?.username &&
+      order.customerName &&
+      order.customerName !== req.session.username
+    ) {
+      return res
+        .status(403)
+        .json({ success: false, message: "", error: "Forbidden" });
     }
 
     let reservation = null;
@@ -1174,10 +1436,16 @@ exports.getOrderById = async (req, res) => {
       reservation = await Reservation.findOne({ _id: order.reservation_id });
     }
 
-    return res.json({ success: true, data: { order, reservation }, message: '' });
+    return res.json({
+      success: true,
+      data: { order, reservation },
+      message: "",
+    });
   } catch (err) {
-    console.error('getOrderById error:', err);
-    return res.status(500).json({ success: false, message: '', error: 'Server error' });
+    console.error("getOrderById error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "", error: "Server error" });
   }
 };
 
@@ -1194,23 +1462,23 @@ exports.getEditProfile = async (req, res) => {
 };
 
 exports.postEditProfile = async (req, res) => {
-
-  function sendAlert(msg){
+  function sendAlert(msg) {
     res.send(`
   <script>
     alert(${msg});
     window.history.back();
   </script>
-`)
+`);
   }
 
   try {
     const currentUsername = req.session.username;
-    const { name, email, phone, img_url, newPassword, confirmPassword } = req.body;
-   
+    const { name, email, phone, img_url, newPassword, confirmPassword } =
+      req.body;
+
     const userRole = await User.findOne({ username: currentUsername });
-    const adding = await User.findOne({username:name});
-   /* if(adding!=null){
+    const adding = await User.findOne({ username: name });
+    /* if(adding!=null){
       return res.send(`
   <script>
     alert('user already exists');
@@ -1218,14 +1486,14 @@ exports.postEditProfile = async (req, res) => {
   </script>
 `);
 
-    }*/   
+    }*/
     if (!userRole) return sendAlert("user not found");
 
     if (newPassword || confirmPassword) {
       if (!newPassword || !confirmPassword)
         return sendAlert("bot password are required");
       if (newPassword !== confirmPassword)
-        return sendAlert("both passwords must be equal")
+        return sendAlert("both passwords must be equal");
 
       // Set password - User model's pre-save hook will automatically hash it
       // No need to hash manually as the model has a pre('save') hook that does this
@@ -1236,21 +1504,20 @@ exports.postEditProfile = async (req, res) => {
     userRole.email = email || userRole.email;
     await userRole.save();
 
-
-    
-
-    const personUsername = name && name !== currentUsername ? name : currentUsername;
+    const personUsername =
+      name && name !== currentUsername ? name : currentUsername;
     const user = await Person.findOne({ name: req.session.username });
-    
+
     if (!user) {
-      if (req.headers['content-type']?.includes('application/json')) {
-        return res.status(404).json({ success: false, error: "Customer profile not found" });
+      if (req.headers["content-type"]?.includes("application/json")) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Customer profile not found" });
       }
       return res.status(404).send("Customer profile not found");
     }
 
     if (name && name !== currentUsername) req.session.username = name;
-   
 
     user.name = name || user.name;
     user.email = email || user.email;
@@ -1259,26 +1526,30 @@ exports.postEditProfile = async (req, res) => {
     await user.save();
 
     // Check if request wants JSON response (from React frontend)
-    const wantsJson = req.headers['content-type']?.includes('application/json');
+    const wantsJson = req.headers["content-type"]?.includes("application/json");
     if (wantsJson) {
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: "Profile updated successfully",
         data: {
           name: user.name,
           email: user.email,
           phone: user.phone,
-          img_url: user.img_url
-        }
+          img_url: user.img_url,
+        },
       });
     }
 
     res.redirect("/customer/customerDashboard");
   } catch (error) {
     console.error("Error updating user profile:", error);
-    const wantsJson = req.headers['content-type']?.includes('application/json');
+    const wantsJson = req.headers["content-type"]?.includes("application/json");
     if (wantsJson) {
-      return res.status(500).json({ success: false, error: "Internal server error", details: error.message });
+      return res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        details: error.message,
+      });
     }
     res.status(500).send("Internal Server Error");
   }
@@ -1287,32 +1558,26 @@ exports.postEditProfile = async (req, res) => {
 // Search and filter restaurants for customer homepage
 exports.searchRestaurants = async (req, res) => {
   try {
-    const { 
-      search, 
-      cuisine, 
-      openNow, 
-      maxDistance, 
-      sortBy,
-      location 
-    } = req.query;
+    const { search, cuisine, openNow, maxDistance, sortBy, location } =
+      req.query;
 
     let query = {};
 
     // Search by name or location
     if (search) {
       query.$or = [
-        { name: { $regex: new RegExp(search.trim(), 'i') } },
-        { location: { $regex: new RegExp(search.trim(), 'i') } }
+        { name: { $regex: new RegExp(search.trim(), "i") } },
+        { location: { $regex: new RegExp(search.trim(), "i") } },
       ];
     }
 
     // Filter by location
-    if (location && location !== 'All') {
-      query.location = { $regex: new RegExp(location.trim(), 'i') };
+    if (location && location !== "All") {
+      query.location = { $regex: new RegExp(location.trim(), "i") };
     }
 
     // Filter by cuisine
-    if (cuisine && cuisine !== 'All') {
+    if (cuisine && cuisine !== "All") {
       query.cuisine = { $in: [cuisine] };
     }
 
@@ -1324,30 +1589,38 @@ exports.searchRestaurants = async (req, res) => {
     let restaurants = await Restaurant.find(query);
 
     // Filter by open now (simplified - check isOpen field and operating hours)
-    if (openNow === 'true') {
+    if (openNow === "true") {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
-      restaurants = restaurants.filter(restaurant => {
+
+      restaurants = restaurants.filter((restaurant) => {
         if (!restaurant.isOpen) return false;
-        
+
         // Check operating hours if they exist
-        if (restaurant.operatingHours && restaurant.operatingHours.open && restaurant.operatingHours.close) {
+        if (
+          restaurant.operatingHours &&
+          restaurant.operatingHours.open &&
+          restaurant.operatingHours.close
+        ) {
           try {
-            const [openHour, openMin] = restaurant.operatingHours.open.split(':').map(Number);
-            const [closeHour, closeMin] = restaurant.operatingHours.close.split(':').map(Number);
+            const [openHour, openMin] = restaurant.operatingHours.open
+              .split(":")
+              .map(Number);
+            const [closeHour, closeMin] = restaurant.operatingHours.close
+              .split(":")
+              .map(Number);
             const openTime = openHour * 60 + openMin;
             const closeTime = closeHour * 60 + closeMin;
             const currentTime = currentHour * 60 + currentMinute;
-            
+
             return currentTime >= openTime && currentTime <= closeTime;
           } catch (e) {
             // If parsing fails, just check isOpen
             return restaurant.isOpen;
           }
         }
-        
+
         return restaurant.isOpen;
       });
     }
@@ -1355,13 +1628,13 @@ exports.searchRestaurants = async (req, res) => {
     // Sort results
     if (sortBy) {
       switch (sortBy) {
-        case 'rating':
+        case "rating":
           restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
           break;
-        case 'name':
+        case "name":
           restaurants.sort((a, b) => a.name.localeCompare(b.name));
           break;
-        case 'distance':
+        case "distance":
           restaurants.sort((a, b) => (a.distance || 0) - (b.distance || 0));
           break;
         default:
@@ -1375,19 +1648,30 @@ exports.searchRestaurants = async (req, res) => {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    
-    const restaurantsWithStatus = restaurants.map(restaurant => {
+
+    const restaurantsWithStatus = restaurants.map((restaurant) => {
       let isCurrentlyOpen = restaurant.isOpen;
-      
-      if (restaurant.operatingHours && restaurant.operatingHours.open && restaurant.operatingHours.close) {
+
+      if (
+        restaurant.operatingHours &&
+        restaurant.operatingHours.open &&
+        restaurant.operatingHours.close
+      ) {
         try {
-          const [openHour, openMin] = restaurant.operatingHours.open.split(':').map(Number);
-          const [closeHour, closeMin] = restaurant.operatingHours.close.split(':').map(Number);
+          const [openHour, openMin] = restaurant.operatingHours.open
+            .split(":")
+            .map(Number);
+          const [closeHour, closeMin] = restaurant.operatingHours.close
+            .split(":")
+            .map(Number);
           const openTime = openHour * 60 + openMin;
           const closeTime = closeHour * 60 + closeMin;
           const currentTime = currentHour * 60 + currentMinute;
-          
-          isCurrentlyOpen = restaurant.isOpen && (currentTime >= openTime && currentTime <= closeTime);
+
+          isCurrentlyOpen =
+            restaurant.isOpen &&
+            currentTime >= openTime &&
+            currentTime <= closeTime;
         } catch (e) {
           isCurrentlyOpen = restaurant.isOpen;
         }
@@ -1402,22 +1686,22 @@ exports.searchRestaurants = async (req, res) => {
         cuisine: restaurant.cuisine || [],
         isOpen: isCurrentlyOpen,
         distance: restaurant.distance || 0,
-        operatingHours: restaurant.operatingHours
+        operatingHours: restaurant.operatingHours,
       };
     });
 
     // Get all unique cuisines from all restaurants
     const allRestaurants = await Restaurant.find({});
     const allCuisines = new Set();
-    allRestaurants.forEach(rest => {
+    allRestaurants.forEach((rest) => {
       if (rest.cuisine && Array.isArray(rest.cuisine)) {
-        rest.cuisine.forEach(c => allCuisines.add(c));
+        rest.cuisine.forEach((c) => allCuisines.add(c));
       }
     });
 
     res.json({
       restaurants: restaurantsWithStatus,
-      availableCuisines: Array.from(allCuisines).sort()
+      availableCuisines: Array.from(allCuisines).sort(),
     });
   } catch (error) {
     console.error("Error in searchRestaurants:", error);
@@ -1430,40 +1714,61 @@ exports.addToFavourites = async (req, res) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     }
 
     const { dishId } = req.body;
     if (!dishId) {
-      return res.status(400).json({ success: false, error: 'Dish ID is required' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Dish ID is required" });
     }
 
-    console.log(`[Favorites] Adding dish ${dishId} for user ${customerName}`);
+    // Normalize dishId to string for comparison
+    const dishIdStr = String(dishId);
+    console.log(
+      `[Favorites] Adding dish ${dishIdStr} for user ${customerName}`
+    );
+
     const person = await Person.findOne({ name: customerName });
-    
+
     if (!person) {
-      return res.status(404).json({ success: false, error: 'Customer not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
     }
 
     if (!person.favourites) person.favourites = [];
 
-    if (person.favourites.includes(dishId)) {
-      console.log(`[Favorites] Dish ${dishId} already in favorites`);
-      return res.status(400).json({ success: false, error: 'Dish already in favourites' });
+    // Check if already favorited by comparing as strings
+    const alreadyFavourited = person.favourites.some(
+      (fav) => String(fav) === dishIdStr
+    );
+
+    if (alreadyFavourited) {
+      console.log(`[Favorites] Dish ${dishIdStr} already in favorites`);
+      return res
+        .status(400)
+        .json({ success: false, error: "Dish already in favourites" });
     }
 
-    person.favourites.push(dishId);
-    person.markModified('favourites');
+    person.favourites.push(dishIdStr);
+    person.markModified("favourites");
     await person.save();
-    
-    console.log(`[Favorites] Added dish ${dishId} to favorites for ${customerName}`);
-    res.json({ success: true, message: 'Dish added to favourites' });
+
+    console.log(
+      `[Favorites] Added dish ${dishIdStr} to favorites for ${customerName}`
+    );
+    res.json({ success: true, message: "Dish added to favourites" });
   } catch (error) {
-    console.error('[Favorites] Add error:', error.message);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error("[Favorites] Add error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -1472,30 +1777,50 @@ exports.removeFromFavourites = async (req, res) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     }
 
     const { dishId } = req.body;
     if (!dishId) {
-      return res.status(400).json({ success: false, error: 'Dish ID is required' });
+      return res
+        .status(400)
+        .json({ success: false, error: "Dish ID is required" });
     }
+
+    // Normalize dishId to string for comparison
+    const dishIdStr = String(dishId);
+    console.log(
+      `[Favorites] Removing dish ${dishIdStr} for user ${customerName}`
+    );
 
     const person = await Person.findOne({ name: customerName });
     if (!person) {
-      return res.status(404).json({ success: false, error: 'Customer not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
     }
 
-    // Remove from favourites
+    // Remove from favourites using string comparison
     if (person.favourites) {
-      person.favourites = person.favourites.filter(id => id !== dishId);
-      person.markModified('favourites');
+      person.favourites = person.favourites.filter(
+        (id) => String(id) !== dishIdStr
+      );
+      person.markModified("favourites");
       await person.save();
     }
 
-    res.json({ success: true, message: 'Dish removed from favourites' });
+    console.log(`[Favorites] Removed dish ${dishIdStr} for ${customerName}`);
+    res.json({ success: true, message: "Dish removed from favourites" });
   } catch (error) {
-    console.error('Error removing from favourites:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    console.error("[Favorites] Remove error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
@@ -1503,14 +1828,18 @@ exports.getFavourites = async (req, res) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
-      return res.status(401).json({ success: false, error: 'Not authenticated' });
+      return res
+        .status(401)
+        .json({ success: false, error: "Not authenticated" });
     }
 
     console.log(`[Favorites] Fetching favorites for user: ${customerName}`);
     const person = await Person.findOne({ name: customerName });
-    
+
     if (!person) {
-      return res.status(404).json({ success: false, error: 'Customer not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
     }
 
     const favouriteDishIds = person.favourites || [];
@@ -1532,30 +1861,38 @@ exports.getFavourites = async (req, res) => {
             name: dish.name,
             price: dish.price,
             amount: dish.price,
-            description: dish.description || '',
-            image: getImageUrl(req, dish.image) || null
+            description: dish.description || "",
+            image: getImageUrl(req, dish.image) || null,
           };
         } catch (err) {
-          console.error(`[Favorites] Error fetching dish ${dishId}:`, err.message);
+          console.error(
+            `[Favorites] Error fetching dish ${dishId}:`,
+            err.message
+          );
           return null;
         }
       })
     );
 
     // Filter out null values (dishes that no longer exist)
-    const validDishes = dishes.filter(dish => dish !== null);
-    
+    const validDishes = dishes.filter((dish) => dish !== null);
+
     if (validDishes.length !== dishes.length) {
-      console.log(`[Favorites] Filtered out ${dishes.length - validDishes.length} invalid dishes`);
+      console.log(
+        `[Favorites] Filtered out ${
+          dishes.length - validDishes.length
+        } invalid dishes`
+      );
     }
 
     res.json({ success: true, favourites: validDishes });
   } catch (error) {
-    console.error('[Favorites] Get error:', error.message);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error("[Favorites] Get error:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
