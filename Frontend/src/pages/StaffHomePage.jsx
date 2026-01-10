@@ -16,7 +16,7 @@ async function fetchWithFallback(primaryUrl, fallbackUrl, options = {}) {
     try {
       res = await fetch(fallbackUrl, options);
     } catch (e) {
-      // ignore
+     
     }
   }
   return res;
