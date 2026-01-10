@@ -7,18 +7,31 @@ export function OwnerOrders() {
   const [orders, setOrders] = useState([]);
   const [expandedOrder, setExpandedOrder] = useState(null);
 
+  // ⭐ 1. ADD THIS FUNCTION
+  const getReadableOrderId = (order, index) => {
+    if (!order.createdAt) return "ORD-UNKNOWN";
+
+    const date = new Date(order.createdAt);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = date
+      .toLocaleString("en-IN", { month: "short" })
+      .toUpperCase();
+
+    return `ORD-${day}${month}-${index + 1}`;
+  };
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await fetch("http://localhost:3000/api/owner/orders", {
           method: "GET",
-          credentials: "include", // keep cookies/session
+          credentials: "include",
         });
 
         if (!response.ok) throw new Error("Failed to fetch orders");
 
         const data = await response.json();
-        console.log("Fetched orders:", data); // Debug log
+        console.log("Fetched orders:", data);
         setOrders(data);
       } catch (error) {
         console.error("Error fetching orders:", error);
@@ -46,27 +59,40 @@ export function OwnerOrders() {
 
         <tbody>
           {orders.length > 0 ? (
-            orders.map((order) => (
+            // ⭐ 2. ADD index HERE
+            orders.map((order, index) => (
               <>
                 <tr key={order._id} className="order-row">
-                  <td>{order._id.substring(0, 6)}...</td>
+                  
+                  {/* ⭐ 3. REPLACE ORDER ID */}
+                  <td>{getReadableOrderId(order, index)}</td>
+
                   <td>{order.table_id || "N/A"}</td>
                   <td>{order.dishes?.length || 0} items</td>
-                  <td>₹{order.totalAmount?.toFixed(2) || '0.00'}</td>
+                  <td>₹{order.totalAmount?.toFixed(2) || "0.00"}</td>
                   <td>
-                    <span className={`status-badge status-${order.status?.toLowerCase()}`}>
-                      {order.status || 'PENDING'}
+                    <span
+                      className={`status-badge status-${order.status?.toLowerCase()}`}
+                    >
+                      {order.status || "PENDING"}
                     </span>
                   </td>
                   <td>
-                    <button 
+                    <button
                       className="view-items-btn"
-                      onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
+                      onClick={() =>
+                        setExpandedOrder(
+                          expandedOrder === order._id ? null : order._id
+                        )
+                      }
                     >
-                      {expandedOrder === order._id ? 'Hide Items' : 'View Items'}
+                      {expandedOrder === order._id
+                        ? "Hide Items"
+                        : "View Items"}
                     </button>
                   </td>
                 </tr>
+
                 {expandedOrder === order._id && (
                   <tr className="order-details">
                     <td colSpan="6">
@@ -86,24 +112,42 @@ export function OwnerOrders() {
                               <tr key={index}>
                                 <td>{item.name || `Item ${index + 1}`}</td>
                                 <td>{item.quantity || 1}</td>
-                                <td>₹{item.price ? item.price.toFixed(2) : '0.00'}</td>
-                                <td>₹{((item.quantity || 1) * (item.price || 0)).toFixed(2)}</td>
+                                <td>
+                                  ₹
+                                  {item.price
+                                    ? item.price.toFixed(2)
+                                    : "0.00"}
+                                </td>
+                                <td>
+                                  ₹
+                                  {(
+                                    (item.quantity || 1) *
+                                    (item.price || 0)
+                                  ).toFixed(2)}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
+
                         <div className="order-summary">
                           <div className="summary-row">
                             <span>Subtotal:</span>
-                            <span>₹{order.subtotal?.toFixed(2) || '0.00'}</span>
+                            <span>
+                              ₹{order.subtotal?.toFixed(2) || "0.00"}
+                            </span>
                           </div>
                           <div className="summary-row">
                             <span>Tax ({order.taxRate || 0}%):</span>
-                            <span>₹{order.taxAmount?.toFixed(2) || '0.00'}</span>
+                            <span>
+                              ₹{order.taxAmount?.toFixed(2) || "0.00"}
+                            </span>
                           </div>
                           <div className="summary-row total">
                             <span>Total:</span>
-                            <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+                            <span>
+                              ₹{order.totalAmount?.toFixed(2) || "0.00"}
+                            </span>
                           </div>
                         </div>
                       </div>
