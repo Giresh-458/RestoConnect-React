@@ -81,8 +81,13 @@ app.use('/api/admin', authentication('admin'), adminRouter);
 app.use('/owner', authentication('owner'), ownerRouter);
 app.use('/api/owner', authentication('owner'), ownerRouter);
 
-app.use('/staff', authentication('staff'), staffController.getStaffHomepageData);
-app.use('/api/staff', authentication('staff'), staffRouter);
+// Staff routes - use router for all /staff and /api/staff paths
+app.use('/api/staff', (req, res, next) => {
+  console.log(`📍 /api/staff route matched, path: ${req.path}, originalUrl: ${req.originalUrl}`);
+  next();
+}, authentication('staff'), staffRouter);
+// Also mount staffRouter at /staff for API routes (like /staff/homepage)
+app.use('/staff', authentication('staff'), staffRouter);
 app.use('/reservations', authentication('owner'), reservationRouter);
 
 

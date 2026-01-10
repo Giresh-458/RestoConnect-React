@@ -84,8 +84,8 @@ export function RestaurantApplication() {
                                 required
                                 minLength="2"
                                 maxLength="80"
-                                pattern="^[A-Za-z][A-Za-z0-9\s]{1,79}$"
-                                title="Restaurant name must start with a letter and can only contain letters, numbers, and spaces"
+                                pattern="^[A-Za-z0-9][A-Za-z0-9\s]{1,79}$"
+                                title="Restaurant name must start with a letter or number and can only contain letters, numbers, and spaces"
                             />
                         </div>
 
@@ -254,12 +254,6 @@ export async function action({ request }) {
         return { error: 'Password must be at least 6 characters long' };
     }
 
-    // Restaurant name: must start with a letter; only letters, numbers and spaces (no symbols)
-    const RESTAURANT_NAME_REGEX = /^[A-Za-z][A-Za-z0-9\s]{1,79}$/;
-    if (!RESTAURANT_NAME_REGEX.test(data.restaurantName)) {
-        return { error: 'Restaurant name must start with a letter and contain only letters, numbers, and spaces.' };
-    }
-
     try {
         const response = await fetch('http://localhost:3000/req_res', {
             method: 'POST',
@@ -286,7 +280,8 @@ export async function action({ request }) {
             return { error: result.error || 'Application submission failed. Please try again.' };
         }
 
-        alert((result.message || 'Application submitted successfully! We will review and contact you soon. You can now login.'));
+        // Show success popup and redirect to login
+        alert('✅ ' + (result.message || 'Application submitted successfully! We will review and contact you soon. You can now login.'));
         window.location.href = '/login';
         return null;
 

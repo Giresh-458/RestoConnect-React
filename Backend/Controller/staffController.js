@@ -1,7 +1,7 @@
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
-const bcrypt = require('bcrypt');
+const bcrypt = require("bcrypt");
 
 // Dashboard Methods
 exports.getDashBoard = async (req, res) => {
@@ -173,9 +173,13 @@ exports.postAllocateTable = async (req, res) => {
   }
 };
 
-// HomePage Methods
+// HomePage Methods - Legacy route that renders HTML (for backward compatibility)
 exports.getHomePage = async (req, res) => {
-  let rest = await Restaurant.findById(req.session.rest_id);
+  console.log("in the the controller method this will teturn json -------------------------------")
+  // Only render HTML if this is NOT an API route
+
+
+  let rest = await Restaurant.findById(req.user.rest_id);
   if (!rest) {
     return res.status(404).send("Restaurant not found");
   }
@@ -208,7 +212,7 @@ exports.getHomePage = async (req, res) => {
     }
   }
   let rest_name = rest.name;
-  res.render("staffHomepage", {
+  res.json({
     tasks: rest.tasks || [],
     allocatedTables,
     reservationsNeedingAllocation,
@@ -362,13 +366,33 @@ exports.postAutoAllocateTable = async (req, res) => {
 };
 
 exports.getStaffHomepageData = async (req, res) => {
+  // Explicitly set Content-Type to JSON for all responses
+  res.setHeader('Content-Type', 'application/json');
+  
   console.log("getStaffHomepageData endpoint called");
+  console.log("Request path:", req.path);
+  console.log("Request URL:", req.url);
+  console.log("Request originalUrl:", req.originalUrl);
+  console.log("Request baseUrl:", req.baseUrl);
+  console.log("Session username:", req.session.username);
+  console.log("Session rest_id:", req.session.rest_id);
+  
   try {
-    console.log("Session username:", req.session.username);
+    if (!req.session.username) {
+      console.error("❌ No username in session");
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
     const staffMember = await User.findOne({ username: req.session.username });
     if (!staffMember) {
+      console.error("❌ Staff member not found in database");
       return res.status(404).json({ error: "Staff member not found" });
+    }
+
+    // Ensure rest_id is set in session if available (important for first visit)
+    if (!req.session.rest_id && staffMember.rest_id) {
+      req.session.rest_id = String(staffMember.rest_id);
+      console.log("✅ Set rest_id in session for homepage:", req.session.rest_id);
     }
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
@@ -400,8 +424,10 @@ exports.getStaffHomepageData = async (req, res) => {
     }
 
     const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
 
     console.log(`Looking for orders for restaurant: ${restaurant._id}`);
     console.log(`Date range: ${startOfDay} to ${endOfDay}`);
@@ -532,6 +558,43 @@ exports.postSupportMessage = async (req, res) => {
   }
 };
 
+exports.changePassword = async (req, res) => {
+  const currentStaffUsername = req.session.username;
+  if (!currentStaffUsername) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Missing password fields" });
+    }
+
+    const user = await User.findOne({ username: currentStaffUsername });
+    if (!user) {
+      return res.status(404).json({ error: "Staff member not found" });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect current password" });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.updateOne(
+      { username: currentStaffUsername },
+      { $set: { password: hashedPassword } }
+    );
+
+    res.status(200).json({ message: "Password changed successfully!" });
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.updateTaskStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -602,40 +665,6 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
-// Change password for staff
-exports.changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body || {};
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Both currentPassword and newPassword are required' });
-    }
-
-    if (typeof newPassword !== 'string' || newPassword.trim().length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-    }
-
-    const username = req.session.username;
-    if (!username) return res.status(401).json({ error: 'Unauthorized' });
-
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.role !== 'staff') return res.status(403).json({ error: 'Forbidden' });
-
-    // Compare current password
-    const matches = await bcrypt.compare(currentPassword, user.password || '');
-    if (!matches) return res.status(401).json({ error: 'Incorrect current password' });
-
-    // Hash new password and update
-    const hashed = await bcrypt.hash(newPassword.trim(), 10);
-    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
-
-    return res.status(200).json({ message: 'Password changed successfully!' });
-  } catch (err) {
-    console.error('Error in staff changePassword:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
 exports.getDashBoardData = async (req, res) => {
   try {
     const { Restaurant } = require("../Model/Restaurents_model");
@@ -648,12 +677,12 @@ exports.getDashBoardData = async (req, res) => {
     console.log("------ STAFF DASHBOARD DEBUG START ------");
     console.log("Session data:", req.session);
 
-    // Recover rest_id if missing
+    // Recover rest_id if missing - ensure it's always set for staff
     if (!req.session.rest_id && req.session.username) {
       const staffUser = await User.findOne({ username: req.session.username });
       if (staffUser && staffUser.rest_id) {
         req.session.rest_id = staffUser.rest_id;
-        console.log("Recovered rest_id:", req.session.rest_id);
+        console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
       }
     }
 
