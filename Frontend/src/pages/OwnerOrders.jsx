@@ -20,6 +20,8 @@ export function OwnerOrders() {
     return `ORD-${day}${month}-${index + 1}`;
   };
 
+  const [statusFilter, setStatusFilter] = useState("all");
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -41,9 +43,42 @@ export function OwnerOrders() {
     fetchOrders();
   }, []);
 
+
+
+  const filteredOrders = orders.filter((order) => {
+  if (statusFilter === "all") return true;
+
+  // Paid is based on paymentStatus
+  if (statusFilter === "paid") {
+    return order.paymentStatus === "paid";
+  }
+
+  // Other statuses come from order.status
+  return order.status?.toLowerCase() === statusFilter;
+});
+
+
   return (
     <div className="orders-container">
       <h2 className="orders-heading">Orders</h2>
+
+
+    <div className="orders-filter">
+      <label htmlFor="statusFilter">Filter by status: </label>
+
+      <select
+        id="statusFilter"
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value)}
+      >
+        <option value="all">All</option>
+        <option value="completed">Completed</option>
+        <option value="preparing">Preparing</option>
+        <option value="pending">Pending</option>
+        <option value="paid">Paid</option>
+      </select>
+    </div>
+
 
       <table className="orders-table">
         <thead>
@@ -58,9 +93,9 @@ export function OwnerOrders() {
         </thead>
 
         <tbody>
-          {orders.length > 0 ? (
+          {filteredOrders.length > 0 ? (
             // ⭐ 2. ADD index HERE
-            orders.map((order, index) => (
+            filteredOrders.map((order, index) => (
               <>
                 <tr key={order._id} className="order-row">
                   
