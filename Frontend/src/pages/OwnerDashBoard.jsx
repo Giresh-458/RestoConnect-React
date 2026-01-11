@@ -1,41 +1,36 @@
-import { useEffect, useState } from "react";
-import { isLogin } from "../util/auth";
-import { redirect } from "react-router-dom";
-import { Reports } from "../components/OwnerReports";
-import { Inventory } from "../components/Inventory";
-import styles from "./OwnerDashBoard.module.css";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import styles from "./OwnerNav.module.css";
+import { logout } from "../util/auth";
 
-export function OwnerDashBoard() {
-  const [activeTab, setActiveTab] = useState("reports");
+export function OwnerNav() {
+  const navigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Logout failed", e);
+    }
+    navigate("/login");
+  };
 
   return (
-    <div className={styles.ownerDashboard}>
-      <div className={styles.dashboardTabs}>
-        <button
-          className={`${styles.tabButton} ${activeTab === "reports" ? styles.active : ""}`}
-          onClick={() => setActiveTab("reports")}
-        >
-          Reports
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === "inventory" ? styles.active : ""}`}
-          onClick={() => setActiveTab("inventory")}
-        >
-          Inventory
-        </button>
-      </div>
+    <>
+      <nav className={styles.ownerNav}>
+        <NavLink to={"/owner/"} className={({ isActive }) => (isActive ? "active" : "")} end>
+          Homepage
+        </NavLink>
+          <NavLink
+            to="/owner/dashboard"
+            className={({ isActive }) => (isActive ? "active" : "")}
+          >
+            Dashboard
+          </NavLink>
 
-      <div className={styles.dashboardContent}>
-        {activeTab === "reports" && <Reports />}
-        {activeTab === "inventory" && <Inventory />}
-      </div>
-    </div>
+        <button onClick={handleLogout} style={{ marginLeft: "auto", background: "#e50914", border: "none", cursor: "pointer", color: "white", padding: "8px 12px" }}>
+          Logout
+        </button>
+      </nav>
+      <Outlet />
+    </>
   );
-}
-
-export async function loader() {
-  let role = await isLogin();
-  if (role != 'owner') {
-    return redirect('/login');
-  }
 }
