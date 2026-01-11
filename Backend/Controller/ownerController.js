@@ -894,63 +894,7 @@ exports.getReservations = async (req, res) => {
   }
 };
 
-exports.getInventory = async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const restaurant = await Restaurant.findById(user.rest_id);
-    if (!restaurant)
-      return res.status(404).json({ error: "Restaurant not found" });
-
-    // Return inventory data
-    res.json({
-      inventory: restaurant.inventoryData || {
-        labels: [],
-        values: [],
-        units: [],
-        suppliers: [],
-      },
-    });
-  } catch (error) {
-    console.error("Error in getInventory:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-exports.updateInventory = async (req, res) => {
-  try {
-    const { item, action } = req.body;
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const restaurant = await Restaurant.findById(user.rest_id);
-    if (!restaurant || !restaurant.inventoryData)
-      return res.status(404).json({ error: "Restaurant not found" });
-
-    const index = restaurant.inventoryData.labels.indexOf(item);
-    if (index === -1) return res.status(404).json({ error: "Item not found" });
-
-    // Safe quantity update
-    if (action === "increase") {
-      restaurant.inventoryData.values[index] += 1;
-    } else if (
-      action === "decrease" &&
-      restaurant.inventoryData.values[index] > 0
-    ) {
-      restaurant.inventoryData.values[index] -= 1;
-    }
-
-    await restaurant.save();
-    res.json({
-      success: true,
-      inventory: restaurant.inventoryData,
-    });
-  } catch (error) {
-    console.error("Error updating inventory:", error);
-    res.status(500).json({ error: "Error updating inventory" });
-  }
-};
 
 exports.getReportsData = async (req, res) => {
   try {
