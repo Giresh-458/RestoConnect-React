@@ -735,6 +735,33 @@ exports.getDashBoardData = async (req, res) => {
       console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
     }
 
+    // ✅ Cleanup: Reset tables that are allocated but have no corresponding reservation
+    const allocatedReservations = reservations.filter(r => r.allocated && r.status === 'confirmed');
+    const allocatedTableNumbers = new Set();
+    allocatedReservations.forEach(reservation => {
+      if (Array.isArray(reservation.tables)) {
+        reservation.tables.forEach(tableNum => allocatedTableNumbers.add(String(tableNum)));
+      }
+      if (reservation.table_id) {
+        allocatedTableNumbers.add(String(reservation.table_id));
+      }
+    });
+
+    let tablesUpdated = false;
+    if (rest.tables && rest.tables.length > 0) {
+      rest.tables.forEach(table => {
+        if (table.status === 'Allocated' && !allocatedTableNumbers.has(String(table.number))) {
+          console.log(`🔧 Resetting orphaned table ${table.number} to Available`);
+          table.status = 'Available';
+          tablesUpdated = true;
+        }
+      });
+      if (tablesUpdated) {
+        await Restaurant.findByIdAndUpdate(rest._id, { tables: rest.tables });
+        console.log('✅ Cleaned up orphaned allocated tables');
+      }
+    }
+
     // ✅ Get Feedback
     const feedback = await Feedback.find({ rest_id: req.session.rest_id })
       .sort({ createdAt: -1 })
@@ -765,8 +792,25 @@ exports.getDashBoardData = async (req, res) => {
       seats: Number(table.seats || 4),
       status: table.status || 'Available'
     }));
-    
+
+    // ✅ Get all tables for occupied count
+    const allTables = (rest.tables || []).map(table => ({
+      number: String(table.number || ''),
+      seats: Number(table.seats || 4),
+      status: table.status || 'Available'
+    }));
+
     console.log('📊 Available tables:', availableTables.length, availableTables);
+    console.log('🏢 All tables:', allTables.length, allTables);
+
+    // ✅ Get Staff Tasks
+    const staffTasks = (rest.staffTasks || []).map((task) => ({
+      id: task._id,
+      name: task.description,
+      status: task.status,
+      priority: task.priority,
+      assignedTo: task.assignedTo,
+    }));
 
     // ✅ Send data
     res.json({
@@ -776,6 +820,8 @@ exports.getDashBoardData = async (req, res) => {
       feedback,
       inventoryStatus, // 👈 add this field for frontend
       availableTables,
+      allTables, // 👈 add all tables for occupied count
+      staffTasks, // 👈 add staffTasks for pending tasks
     });
 
     console.log("------ STAFF DASHBOARD DEBUG END ------");

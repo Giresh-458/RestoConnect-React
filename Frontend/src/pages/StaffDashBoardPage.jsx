@@ -20,7 +20,9 @@ export function StaffDashBoardPage() {
     reservations: [],
     feedback: [],
     inventoryStatus: [],
-    availableTables: []
+    availableTables: [],
+    allTables: [],
+    staffTasks: []
   });
   const [showSettings, setShowSettings] = useState(false);
   const navigate = useNavigate();
@@ -42,24 +44,18 @@ export function StaffDashBoardPage() {
       }
 
       const json = await response.json();
-      console.log('📊 Staff Dashboard Data:', {
-        ordersCount: json.orders?.length || 0,
-        reservationsCount: json.reservations?.length || 0,
-        reservations: json.reservations || [],
-        availableTablesCount: json.availableTables?.length || 0,
-        availableTables: json.availableTables || []
-      });
       setData({
         rest_name: json.rest_name || '',
         orders: json.orders || [],
         reservations: json.reservations || [],
         feedback: json.feedback || [],
         inventoryStatus: json.inventoryStatus || [],
-        availableTables: json.availableTables || []
+        availableTables: json.availableTables || [],
+        allTables: json.allTables || [],
+        staffTasks: json.staffTasks || []
       });
       return json;
     } catch (err) {
-      console.error("Error loading dashboard data:", err);
       setError(err.message || "Failed to load dashboard data. Please refresh the page.");
       throw err;
     } finally {
@@ -97,8 +93,8 @@ export function StaffDashBoardPage() {
    };
 
   const handleOrderDone = async (orderId) => {
-    if (!window.confirm("Mark this order as served?")) return;
-    
+    if (!window.confirm("Mark this order as done?")) return;
+
     try {
       const response = await fetch("http://localhost:3000/staff/Dashboard/update-order", {
         method: "POST",
@@ -106,16 +102,16 @@ export function StaffDashBoardPage() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ orderId, status: "Served" }),
+        body: JSON.stringify({ orderId, status: "done" }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.message || "Failed to update order");
       }
-      
+
       await fetchData();
-      alert("Order marked as served successfully!");
+      alert("Order marked as done successfully!");
     } catch (err) {
       console.error("Error updating order:", err);
       alert(err.message || "Failed to update order. Please try again.");
@@ -123,7 +119,6 @@ export function StaffDashBoardPage() {
   };
 
   const handleTableSelect = (reservationId, tableNumber) => {
-    console.log('Selected table:', { reservationId, tableNumber });
     setSelectedTables(prev => ({
       ...prev,
       [reservationId]: tableNumber
@@ -261,7 +256,7 @@ export function StaffDashBoardPage() {
       ? data.availableTables 
       : [];
 
-    console.log('🍽️ Available tables for dropdown:', availableTables);
+    // Removed console.log for available tables
 
     return (
       <table>
@@ -334,8 +329,15 @@ export function StaffDashBoardPage() {
   };
 
   // 🟡 Compute stats safely
-  const activeOrders = data.orders?.filter((o) => o.status !== "completed").length || 0;
-  const occupiedTables = data.reservations?.filter((r) => r.status === "confirmed").length || 0;
+  const today = new Date().toDateString();
+  const activeOrdersList = data.orders?.filter((o) => {
+    const orderDate = new Date(o.date).toDateString();
+    return (o.status === "active" || o.status === "waiting") && orderDate === today;
+  }) || [];
+  
+  const activeOrders = activeOrdersList.length;
+  
+  const occupiedTables = data.allTables?.filter((t) => t.status && t.status.toLowerCase() !== "available").length || 0;
 
   // ✅ Build inventory summary from backend inventory array
   const inventoryItems = data.inventoryStatus || [];
@@ -436,15 +438,15 @@ export function StaffDashBoardPage() {
       </div>
       <div className="summary-card red">
          <h3>Pending Tasks</h3>
-         <p>{data.orders?.filter((o) => o.status === "pending").length || 0}</p>
+         <p>{data.staffTasks?.filter((t) => t.status !== "Done").length || 0}</p>
       </div>
       </div>
 
 
-            {/* -------------------- Active Orders -------------------- */}
+      {/* -------------------- Active Orders -------------------- */}
       <section className="dashboard-section active-orders">
       <h2>🍽️ Active Orders</h2>
-      {!data.orders || data.orders.length === 0 ? (
+      {activeOrdersList.length === 0 ? (
          <p className="text-gray-500">No active orders</p>
       ) : (
          <table>
@@ -458,7 +460,7 @@ export function StaffDashBoardPage() {
             </tr>
             </thead>
             <tbody>
-            {data.orders.map((order) => (
+            {activeOrdersList.map((order) => (
                <tr key={order._id}>
                   <td>#{order._id.slice(-4)}</td>
                   <td>{order.table_id || "N/A"}</td>
@@ -475,7 +477,7 @@ export function StaffDashBoardPage() {
                   {order.status}
                   </td>
                   <td>
-                  <button onClick={() => handleOrderDone(order._id)}>✔ Done</button>
+                  <button onClick={() => handleOrderDone(order._id)}>Mark Completed</button>
                   </td>
                </tr>
             ))}

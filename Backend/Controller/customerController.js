@@ -870,7 +870,7 @@ exports.postPaymentsSuccess = async (req, res) => {
         customerName: username,
         restaurant: rest_name,
         rest_id,
-        status: "Pending",
+        status: "waiting",
         totalAmount: req.session.bill,
       });
       await newOrder.save();
@@ -921,7 +921,7 @@ exports.apiCheckout = async (req, res) => {
       customerName: username || 'guest',
       restaurant: req.body.restaurantName || '',
       rest_id,
-      status: 'pending',
+      status: 'waiting',
       totalAmount: Number(totalAmount) || 0
     });
     await order.save();
@@ -1061,7 +1061,7 @@ exports.apiCheckoutPay = async (req, res) => {
         customerName: username || 'guest',
         restaurant: payload.restaurantName || '',
         rest_id: payload.rest_id,
-        status: 'pending',
+        status: 'waiting',
         totalAmount: totalAmount
       });
       await order.save();
@@ -1119,7 +1119,7 @@ exports.apiCheckoutPay = async (req, res) => {
     }
 
     // At this point we have an order object; mark as paid
-    order.status = 'paid';
+    order.status = 'waiting';
     order.paymentStatus = 'paid';
     order.completionTime = new Date();
     await order.save();

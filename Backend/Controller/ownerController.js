@@ -1130,26 +1130,7 @@ exports.deleteAnnouncement = async (req, res) => {
   }
 };
 
-/*exports.getStaffTasks = async (req, res) => {
-  try {
-    const { staffId } = req.params;
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
-    
-    const restaurant = await Restaurant.findById(user.rest_id);
-    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
 
-    // Filter tasks assigned to the specific staff member
-    const staffTasks = restaurant.staffTasks.filter(task =>
-      task.assignedTo && task.assignedTo.includes(staffId)
-    );
-    console.log(staffTasks)
-    res.json({ tasks: staffTasks });
-  } catch (error) {
-    console.error("Error in getStaffTasks:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};*/
 
 
 exports.getStaffTasks = async (req, res) => {

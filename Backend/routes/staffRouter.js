@@ -80,15 +80,5 @@ router.post("/add-table", staffController.postAddTable);
 router.post('/tables', staffController.postAddTable);
 router.post('/change-password', staffController.changePassword);
 
-// Debug: Catch-all route to see what requests are coming in (must be last)
-// Temporarily disabled to test if it's interfering
-// router.use((req, res, next) => {
-//   console.log(`⚠️⚠️⚠️ Staff router: Unmatched route!`);
-//   console.log(`  Method: ${req.method}`);
-//   console.log(`  Path: ${req.path}`);
-//   console.log(`  OriginalUrl: ${req.originalUrl}`);
-//   console.log(`  BaseUrl: ${req.baseUrl}`);
-//   res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
-// });
 
 module.exports = router;
