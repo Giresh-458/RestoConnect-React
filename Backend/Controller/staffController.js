@@ -175,7 +175,7 @@ exports.postAllocateTable = async (req, res) => {
 
 // HomePage Methods - Legacy route that renders HTML (for backward compatibility)
 exports.getHomePage = async (req, res) => {
-  console.log("in the the controller method this will teturn json -------------------------------")
+ 
   // Only render HTML if this is NOT an API route
 
 
@@ -216,7 +216,7 @@ exports.getHomePage = async (req, res) => {
     tasks: rest.tasks || [],
     allocatedTables,
     reservationsNeedingAllocation,
-    availableTables,
+    availableTables
   });
 };
 
@@ -369,6 +369,7 @@ exports.getStaffHomepageData = async (req, res) => {
   // Explicitly set Content-Type to JSON for all responses
   res.setHeader('Content-Type', 'application/json');
   
+  console.log("...........................................")
   console.log("getStaffHomepageData endpoint called");
   console.log("Request path:", req.path);
   console.log("Request URL:", req.url);
@@ -455,6 +456,7 @@ exports.getStaffHomepageData = async (req, res) => {
         staff: shift.assignedStaff,
       }));
 
+    
     const staffTasks = (restaurant.staffTasks || [])
       .filter((task) => task.assignedTo.includes(staffMember.username))
       .map((task) => ({

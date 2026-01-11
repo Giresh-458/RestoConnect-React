@@ -87,7 +87,7 @@ app.use('/api/staff', (req, res, next) => {
   next();
 }, authentication('staff'), staffRouter);
 // Also mount staffRouter at /staff for API routes (like /staff/homepage)
-app.use('/staff', authentication('staff'), staffRouter);
+app.use('/staff', authentication('staff'),staffRouter);
 app.use('/reservations', authentication('owner'), reservationRouter);
 
 

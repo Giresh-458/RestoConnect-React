@@ -3,6 +3,9 @@ const router = express.Router();
 
 const staffController = require("../Controller/staffController");
 
+
+
+
 router.get("/DashboardData", staffController.getDashBoardData);
 router.get('/dashboard', staffController.getDashBoardData);
 
@@ -14,11 +17,10 @@ router.post("/Dashboard/allocate-table", staffController.postAllocateTable);
 router.post('/orders/status', staffController.postUpdateOrder);
 router.post('/reservations/allocate', staffController.postAllocateTable);
 
+
+
 // Legacy HomePage route (renders HTML) - keep for backward compatibility
-router.get("/HomePage", (req,res,next)=>{
-  console.log("int hte middleware this should be called-------------------------------------")
-  next();
-},staffController.getHomePage);
+//router.get("/HomePage",staffController.getHomePage);
 router.post("/HomePage/tasks", staffController.postHomePageTask);
 router.delete("/HomePage/tasks/:id", staffController.deleteHomePageTasks);
 
@@ -29,6 +31,7 @@ router.delete(
 router.delete('/reservations/:id', staffController.postRemoveReservation);
 
 router.post("/update-inventory", staffController.postUpdateInventory);
+
 
 
 router.post("/HomePage/tasks/delete/:id", staffController.deleteHomePageTasks);
@@ -67,7 +70,10 @@ router.get("/homepage", async (req, res, next) => {
 });
 
 // Also support /homepage/ for consistency
-router.get("/homepage/", staffController.getStaffHomepageData);
+router.get("/homepage", (req,res,next)=>{
+  console.log("in correct route");
+  next();
+},staffController.getStaffHomepageData);
 router.post("/support-message", staffController.postSupportMessage);
 router.put("/tasks/:id", staffController.updateTaskStatus);
 router.post("/add-table", staffController.postAddTable);

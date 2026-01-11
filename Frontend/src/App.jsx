@@ -22,6 +22,7 @@ import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePa
 import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
 import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
 import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
+import StaffManagement from "./pages/StaffManagement";
 
 
 
@@ -71,6 +72,7 @@ const router = createBrowserRouter([
       { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
       { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
       { path: "feedback", element: <FeedBackPage></FeedBackPage> },
+      { path: "staffmanagement", element: <StaffManagement></StaffManagement> },
 
     ],
     loader:isLogin

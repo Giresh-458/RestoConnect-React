@@ -685,7 +685,7 @@ exports.deleteProduct = async (req, res) => {
 
 exports.getStaffList = async (req, res) => {
   try {
-    const rest_id = req.session.rest_id;
+    const rest_id = req.user.rest_id;
     const staffList = await User.find({ rest_id: rest_id, role: "staff" });
     res.json(staffList);
   } catch (error) {
@@ -748,7 +748,7 @@ exports.deleteStaff = async (req, res) => {
 };
 
 exports.getTasks = async (req, res) => {
-  const rest_id = req.session.rest_id;
+  const rest_id = req.user.rest_id;
 
   const rest = await Restaurant.findById(rest_id).select("tasks");
 
@@ -983,6 +983,234 @@ exports.getReportsData = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getReportsData:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Staff Management Methods
+exports.addTask = async (req, res) => {
+  try {
+    const { description, assignedTo, priority } = req.body;
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const newTask = {
+      description,
+      assignedTo: assignedTo || [],
+      priority: priority || "medium",
+      status: "Pending",
+      createdAt: new Date()
+    };
+
+    restaurant.staffTasks.push(newTask);
+    await restaurant.save();
+
+    res.json({ success: true, message: "Task added successfully", task: newTask });
+  } catch (error) {
+    console.error("Error in addTask:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.addAnnouncement = async (req, res) => {
+  try {
+    const { message, priority } = req.body;
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const newAnnouncement = {
+      message,
+      priority: priority || "normal",
+      active: true,
+      createdAt: new Date()
+    };
+
+    restaurant.announcements.push(newAnnouncement);
+    await restaurant.save();
+
+    res.json({ success: true, message: "Announcement added successfully", announcement: newAnnouncement });
+  } catch (error) {
+    console.error("Error in addAnnouncement:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.addShift = async (req, res) => {
+  try {
+    const { name, date, startTime, endTime, assignedStaff } = req.body;
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const newShift = {
+      name,
+      date: new Date(date),
+      startTime,
+      endTime,
+      assignedStaff: assignedStaff || [],
+      completed: false
+    };
+
+    restaurant.staffShifts.push(newShift);
+    await restaurant.save();
+
+    res.json({ success: true, message: "Shift added successfully", shift: newShift });
+  } catch (error) {
+    console.error("Error in addShift:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.getSupportMessages = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const supportMessages = restaurant.supportMessages || [];
+    res.json({ supportMessages });
+  } catch (error) {
+    console.error("Error in getSupportMessages:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.getAnnouncements = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const announcements = restaurant.announcements || [];
+    res.json({ announcements });
+  } catch (error) {
+    console.error("Error in getAnnouncements:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.deleteAnnouncement = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Find the announcement by index or ID
+    const announcementIndex = restaurant.announcements.findIndex((ann, index) =>
+      ann._id ? ann._id.toString() === id : index.toString() === id
+    );
+
+    if (announcementIndex === -1) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+
+    // Remove the announcement
+    restaurant.announcements.splice(announcementIndex, 1);
+    await restaurant.save();
+
+    res.json({ success: true, message: "Announcement deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteAnnouncement:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+/*exports.getStaffTasks = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Filter tasks assigned to the specific staff member
+    const staffTasks = restaurant.staffTasks.filter(task =>
+      task.assignedTo && task.assignedTo.includes(staffId)
+    );
+    console.log(staffTasks)
+    res.json({ tasks: staffTasks });
+  } catch (error) {
+    console.error("Error in getStaffTasks:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};*/
+
+
+exports.getStaffTasks = async (req, res) => {
+  try {
+    const { staffId } = req.params;
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    // 🔥 find staff to get username
+   const staff = await User.findById(staffId);
+
+
+    if (!staff) {
+      return res.status(404).json({ error: "Staff not found" });
+    }
+    console.log(restaurant.staffTasks+" "+staff.username)
+    const staffTasks = restaurant.staffTasks.filter(task =>
+      Array.isArray(task.assignedTo) &&
+      task.assignedTo.includes(staff.username)
+    );
+
+
+    console.log("Filtered tasks:", staffTasks);
+    res.json({ tasks: staffTasks });
+
+  } catch (error) {
+    console.error("Error in getStaffTasks:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+
+exports.deleteStaffTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Find the task by ID
+    const taskIndex = restaurant.staffTasks.findIndex((task, index) =>
+      task._id ? task._id.toString() === taskId : index.toString() === taskId
+    );
+
+    if (taskIndex === -1) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    // Remove the task
+    restaurant.staffTasks.splice(taskIndex, 1);
+    await restaurant.save();
+
+    res.json({ success: true, message: "Task deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteStaffTask:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
