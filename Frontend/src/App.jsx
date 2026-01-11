@@ -55,7 +55,7 @@ const router = createBrowserRouter([
       { path: "order", element: <OrderPage></OrderPage> },
       { path: "payment", element: <PaymentPage></PaymentPage> },
       { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
-      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
+      { path: "feedback", element: <FeedBackPage mode="customer" /> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],
     loader:isLogin
@@ -66,11 +66,6 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <OwnerHomePage></OwnerHomePage>,loader:OwnerHomePageLoader },
       { path: "dashboard", element: <OwnerDashBoard></OwnerDashBoard>,loader:OwnerDashBoardLoader },
-      { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
-      { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
-      { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
-      { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
-      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
 
     ],
     loader:isLogin
