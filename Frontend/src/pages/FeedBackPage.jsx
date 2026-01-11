@@ -6,10 +6,11 @@ import '../styles/owner_dashboard.css';
 import styles from './FeedBackPage.module.css';
 import { CheckoutSteps } from '../components/CheckoutSteps';
 
-export function FeedBackPage() {
+export function FeedBackPage({ mode }) {
     const location = useLocation();
-    const isOwnerView = location.pathname.includes('/owner/feedback');
-    const isCustomerView = location.pathname.includes('/customer/feedback');
+    const isOwnerView = mode === "owner";
+    const isCustomerView = mode === "customer";
+
 
     // Customer state
     const [customerData, setCustomerData] = useState(null);
@@ -476,5 +477,5 @@ export function FeedBackPage() {
         );
     }
 
-    return <div>Invalid route</div>;
+    return null;
 }
