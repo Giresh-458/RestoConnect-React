@@ -34,9 +34,6 @@ router.delete("/restaurant/delete/:id", ownerController.deleteRestaurant);
 router.get("/staffManagement/task", ownerController.getTasks);
 
 // Orders route for owner
-// router.get('/orders', ownerController.getOrders);
-// router.get("/inventory", ownerController.getInventory);
-// router.post("/inventory/update", ownerController.updateInventory);
 
 router.get("/reports", ownerController.getReportsData);
 
