@@ -8,6 +8,7 @@ import { CheckoutSteps } from "../components/CheckoutSteps";
 
 export function FeedBackPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isOwnerView = location.pathname.includes("/owner/feedback");
   const isCustomerView = location.pathname.includes("/customer/feedback");
 
@@ -18,12 +19,14 @@ export function FeedBackPage() {
     diningRating: "",
     orderRating: "",
     additionalFeedback: "",
+    lovedItems: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [favMessage, setFavMessage] = useState(null);
   const [addingDishId, setAddingDishId] = useState(null);
+  const [selectedFavoriteDishes, setSelectedFavoriteDishes] = useState([]);
 
   // Owner state
   const [feedbackData, setFeedbackData] = useState([]);
@@ -165,9 +168,6 @@ export function FeedBackPage() {
       });
     });
 
-    console.log("Final dishes extracted:", dishes); // Debug log
-
-    // Remove duplicates and ensure proper IDs
     const map = new Map();
     dishes.forEach((d) => {
       if (!d) return;
@@ -220,6 +220,16 @@ export function FeedBackPage() {
     setSubmitSuccess(false);
 
     try {
+      const lovedItemsText =
+        selectedFavoriteDishes.length > 0
+          ? selectedFavoriteDishes.join(", ")
+          : "";
+
+      const submitData = {
+        ...formData,
+        lovedItems: lovedItemsText,
+      };
+
       const response = await fetch(
         "http://localhost:3000/api/customer/submit-feedback",
         {
@@ -228,7 +238,7 @@ export function FeedBackPage() {
             "Content-Type": "application/json",
           },
           credentials: "include",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         }
       );
 
@@ -246,12 +256,11 @@ export function FeedBackPage() {
         lovedItems: "",
         additionalFeedback: "",
       });
+      setSelectedFavoriteDishes([]);
 
-      // Refresh customer data to show new feedback and navigate home shortly
       setTimeout(() => {
         fetchCustomerData();
         setSubmitSuccess(false);
-        navigate("/customer");
       }, 1200);
     } catch (err) {
       console.error("Error submitting feedback:", err);
@@ -404,6 +413,10 @@ export function FeedBackPage() {
                         type="button"
                         className={`${styles.dishCardHeartButton} ${
                           addingDishId === id ? styles.loading : ""
+                        } ${
+                          selectedFavoriteDishes.includes(dishName)
+                            ? styles.selected
+                            : ""
                         }`}
                         onClick={async () => {
                           if (!formData.rest_id) {
@@ -423,10 +436,28 @@ export function FeedBackPage() {
                           try {
                             setAddingDishId(id);
                             await addToFavourites(id);
-                            setFavMessage({
-                              type: "success",
-                              text: ` Added "${dishName}" to favourites!`,
-                            });
+
+                            // Track the dish in feedback form
+                            if (selectedFavoriteDishes.includes(dishName)) {
+                              setSelectedFavoriteDishes(
+                                selectedFavoriteDishes.filter(
+                                  (d) => d !== dishName
+                                )
+                              );
+                              setFavMessage({
+                                type: "info",
+                                text: `Removed "${dishName}" from liked items.`,
+                              });
+                            } else {
+                              setSelectedFavoriteDishes([
+                                ...selectedFavoriteDishes,
+                                dishName,
+                              ]);
+                              setFavMessage({
+                                type: "success",
+                                text: ` Added "${dishName}" to favourites!`,
+                              });
+                            }
                             setTimeout(() => setFavMessage(null), 3000);
                           } catch (err) {
                             console.error("Failed to add to favourites:", err);
@@ -443,7 +474,11 @@ export function FeedBackPage() {
                         disabled={addingDishId === id || !formData.rest_id}
                         title="Add to favorites"
                       >
-                        {addingDishId === id ? "..." : "❤️"}
+                        {addingDishId === id
+                          ? "..."
+                          : selectedFavoriteDishes.includes(dishName)
+                          ? "❤️"
+                          : "🤍"}
                       </button>
                     </div>
                   );
@@ -455,6 +490,14 @@ export function FeedBackPage() {
                 className={`${styles.favMessage} ${styles[favMessage.type]}`}
               >
                 {favMessage.text}
+              </div>
+            )}
+            {selectedFavoriteDishes.length > 0 && (
+              <div className={styles.selectedItemsDisplay}>
+                <strong>Items you loved: </strong>
+                <span className={styles.selectedItemsList}>
+                  {selectedFavoriteDishes.join(", ")}
+                </span>
               </div>
             )}
           </div>

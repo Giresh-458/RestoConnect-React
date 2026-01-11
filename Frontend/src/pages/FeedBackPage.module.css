@@ -399,6 +399,35 @@
   animation: pulse 1s ease-in-out infinite;
 }
 
+.dishCardHeartButton.selected {
+  background: #e50914;
+  border-color: #e50914;
+  color: white;
+  box-shadow: 0 2px 10px rgba(229, 9, 20, 0.3);
+}
+
+.dishCardHeartButton.selected:hover:not(:disabled) {
+  background: #c82333;
+  border-color: #c82333;
+  box-shadow: 0 4px 14px rgba(229, 9, 20, 0.4);
+}
+
+.selectedItemsDisplay {
+  background: #f8f9fa;
+  border-left: 4px solid #e50914;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #212529;
+}
+
+.selectedItemsList {
+  color: #e50914;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
 @keyframes pulse {
   0%,
   100% {

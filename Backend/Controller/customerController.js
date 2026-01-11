@@ -62,72 +62,6 @@ exports.validateReservationDateTime = (date, time) => {
   return true;
 };
 
-/*exports.getCustomerDashboard = async (req, res) => {
-  try {
-    // Fetch user data
-    const data = await Person.get_user_function(req.session.username);
-    if (!data) return res.status(404).send("User not found");
-
-    // Filter restaurants by location if query exists
-    const locationFilter = req.query.location;
-    const restaurantQuery = locationFilter
-      ? { location: { $regex: new RegExp(locationFilter.trim(), "i") } }
-      : {};
-
-    const restaurants = await Restaurant.find(restaurantQuery);
-
-    // Get previous orders
-    const prev_order = data.prev_order || [];
-
-    // Aggregate item and restaurant counts
-    const itemCountMap = {};
-    const restaurantCountMap = {};
-    prev_order.forEach((order) => {
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((dish) => {
-          itemCountMap[dish] = (itemCountMap[dish] || 0) + 1;
-        });
-      }
-      if (order.name) {
-        restaurantCountMap[order.name] =
-          (restaurantCountMap[order.name] || 0) + 1;
-      }
-    });
-
-    const item_list = Object.keys(itemCountMap);
-    const item_counts = Object.values(itemCountMap);
-    const restaurent_list = Object.keys(restaurantCountMap);
-    const restaurent_counts = Object.values(restaurantCountMap);
-
-    // Fetch recent orders for display
-    const recentOrders = await Order.find({ customerName: req.session.username })
-      .sort({ _id: -1 })
-      .limit(5);
-
-    // ✅ Fetch the last 5 feedbacks submitted by this customer
-    const feedbackList = await Feedback.find({ customerName: req.session.username })
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    // Render the dashboard EJS
-    res.render(path.join(__dirname, "..", "views", "customerDashboard"), {
-      ...data,
-      item_list,
-      item_counts,
-      restaurent_list,
-      restaurent_counts,
-      prev_order,
-      restaurants,
-      locationFilter,
-      recentOrders,
-      feedbackList, // ✅ pass feedback to EJS
-    });
-  } catch (error) {
-    console.error("Error fetching customer dashboard data:", error);
-    res.status(500).send("Internal Server Error  1");
-  }
-};*/
-
 exports.getCustomerDashboard = async (req, res) => {
   try {
     const customerName =
@@ -276,13 +210,24 @@ exports.getCustomerDashboard = async (req, res) => {
       if (restaurant.reservations && restaurant.reservations.length > 0) {
         restaurant.reservations.forEach((reservation) => {
           if (reservation.name === customerName) {
+            // Create proper datetime by combining date and time
+            let reservationDateTime = new Date(reservation.date);
+            if (reservation.time) {
+              const [hours, minutes] = reservation.time.split(":");
+              reservationDateTime.setHours(
+                parseInt(hours) || 0,
+                parseInt(minutes) || 0,
+                0,
+                0
+              );
+            }
             allReservations.push({
               restaurant: restaurant.name,
               date: reservation.date,
               time: reservation.time,
               guests: reservation.guests,
               id: reservation.id,
-              reservationDate: new Date(reservation.date),
+              reservationDate: reservationDateTime,
             });
           }
         });
@@ -1360,9 +1305,9 @@ exports.apiCheckoutPay = async (req, res) => {
       }
     }
 
-    // At this point we have an order object; mark as paid
-    order.status = "paid";
-    order.paymentStatus = "paid";
+    // At this point we have an order object; mark payment as paid but keep status as pending for kitchen
+    order.status = "pending"; // Keep as pending until kitchen prepares it
+    order.paymentStatus = "paid"; // Mark payment as completed
     order.completionTime = new Date();
     await order.save();
 
@@ -1462,54 +1407,87 @@ exports.getEditProfile = async (req, res) => {
 };
 
 exports.postEditProfile = async (req, res) => {
-  function sendAlert(msg) {
-    res.send(`
-  <script>
-    alert(${msg});
-    window.history.back();
-  </script>
-`);
-  }
-
   try {
     const currentUsername = req.session.username;
     const { name, email, phone, img_url, newPassword, confirmPassword } =
       req.body;
 
+    // First, find and update the User model (authentication)
     const userRole = await User.findOne({ username: currentUsername });
-    const adding = await User.findOne({ username: name });
-    /* if(adding!=null){
-      return res.send(`
-  <script>
-    alert('user already exists');
-    window.history.back();
-  </script>
-`);
+    if (!userRole) {
+      const wantsJson =
+        req.headers["content-type"]?.includes("application/json");
+      if (wantsJson) {
+        return res
+          .status(404)
+          .json({ success: false, error: "User not found" });
+      }
+      return res.status(404).send("User not found");
+    }
 
-    }*/
-    if (!userRole) return sendAlert("user not found");
-
+    // Handle password change
     if (newPassword || confirmPassword) {
-      if (!newPassword || !confirmPassword)
-        return sendAlert("bot password are required");
-      if (newPassword !== confirmPassword)
-        return sendAlert("both passwords must be equal");
-
-      // Set password - User model's pre-save hook will automatically hash it
-      // No need to hash manually as the model has a pre('save') hook that does this
+      if (!newPassword || !confirmPassword) {
+        const wantsJson =
+          req.headers["content-type"]?.includes("application/json");
+        if (wantsJson) {
+          return res.status(400).json({
+            success: false,
+            error: "Both password fields are required",
+          });
+        }
+        return res.status(400).send("Both password fields are required");
+      }
+      if (newPassword !== confirmPassword) {
+        const wantsJson =
+          req.headers["content-type"]?.includes("application/json");
+        if (wantsJson) {
+          return res
+            .status(400)
+            .json({ success: false, error: "Passwords do not match" });
+        }
+        return res.status(400).send("Passwords do not match");
+      }
+      if (newPassword.length < 6) {
+        const wantsJson =
+          req.headers["content-type"]?.includes("application/json");
+        if (wantsJson) {
+          return res.status(400).json({
+            success: false,
+            error: "Password must be at least 6 characters",
+          });
+        }
+        return res.status(400).send("Password must be at least 6 characters");
+      }
       userRole.password = newPassword;
     }
 
-    userRole.username = name || userRole.username;
-    userRole.email = email || userRole.email;
+    // Update username in User model only if name changed
+    if (name && name !== currentUsername) {
+      const existingUser = await User.findOne({ username: name });
+      if (existingUser && existingUser.username !== currentUsername) {
+        const wantsJson =
+          req.headers["content-type"]?.includes("application/json");
+        if (wantsJson) {
+          return res
+            .status(400)
+            .json({ success: false, error: "Username already exists" });
+        }
+        return res.status(400).send("Username already exists");
+      }
+      userRole.username = name;
+    }
+
+    // Update email and role in User model
+    if (email) userRole.email = email;
     await userRole.save();
 
-    const personUsername =
-      name && name !== currentUsername ? name : currentUsername;
-    const user = await Person.findOne({ name: req.session.username });
-
-    if (!user) {
-      if (req.headers["content-type"]?.includes("application/json")) {
+    // Now update the Person model (customer profile)
+    const person = await Person.findOne({ name: currentUsername });
+    if (!person) {
+      const wantsJson =
+        req.headers["content-type"]?.includes("application/json");
+      if (wantsJson) {
         return res
           .status(404)
           .json({ success: false, error: "Customer profile not found" });
@@ -1517,13 +1495,47 @@ exports.postEditProfile = async (req, res) => {
       return res.status(404).send("Customer profile not found");
     }
 
-    if (name && name !== currentUsername) req.session.username = name;
+    // If name is changing, also update related documents
+    if (name && name !== currentUsername) {
+      // Update all Orders with the old customer name
+      const { Order } = require("../Model/Order_model");
+      await Order.updateMany(
+        { customerName: currentUsername },
+        { customerName: name }
+      );
 
-    user.name = name || user.name;
-    user.email = email || user.email;
-    user.phone = phone || user.phone;
-    user.img_url = img_url || user.img_url;
-    await user.save();
+      // Update all Feedback with the old customer name
+      const Feedback = require("../Model/feedback");
+      await Feedback.updateMany(
+        { customerName: currentUsername },
+        { customerName: name }
+      );
+
+      // Update reservations in restaurants
+      const Restaurant = require("../Model/Restaurents_model").Restaurant;
+      await Restaurant.updateMany(
+        { "reservations.name": currentUsername },
+        { $set: { "reservations.$[elem].name": name } },
+        { arrayFilters: [{ "elem.name": currentUsername }] }
+      );
+
+      console.log(
+        `✅ Updated all references from ${currentUsername} to ${name}`
+      );
+    }
+
+    // Update session if name changed
+    if (name && name !== currentUsername) {
+      req.session.username = name;
+    }
+
+    // Update person profile
+    person.name = name || person.name;
+    person.username = userRole.username || name || person.name;
+    person.email = email || person.email;
+    person.phone = phone || person.phone;
+    person.img_url = img_url || person.img_url;
+    await person.save();
 
     // Check if request wants JSON response (from React frontend)
     const wantsJson = req.headers["content-type"]?.includes("application/json");
@@ -1532,10 +1544,10 @@ exports.postEditProfile = async (req, res) => {
         success: true,
         message: "Profile updated successfully",
         data: {
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          img_url: user.img_url,
+          name: person.name,
+          email: person.email,
+          phone: person.phone,
+          img_url: person.img_url,
         },
       });
     }
@@ -1837,9 +1849,8 @@ exports.getFavourites = async (req, res) => {
     const person = await Person.findOne({ name: customerName });
 
     if (!person) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Customer not found" });
+      console.log(`[Favorites] Person not found for: ${customerName}`);
+      return res.json({ success: true, favourites: [] });
     }
 
     const favouriteDishIds = person.favourites || [];
