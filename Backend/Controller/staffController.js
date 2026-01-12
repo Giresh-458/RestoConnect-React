@@ -345,12 +345,11 @@ exports.postUpdateInventory = async (req, res) => {
     if (index === -1) return res.status(404).send("Item not found");
 
     // Safe quantity update
-    if (action === "increase") restaurant.inventoryData.values[index] += 1;
-    else if (
-      action === "decrease" &&
-      restaurant.inventoryData.values[index] > 0
-    )
-      restaurant.inventoryData.values[index] -= 1;
+    if (action === "increase") {
+      restaurant.inventoryData.values[index] = (restaurant.inventoryData.values[index] || 0) + 1;
+    } else if (action === "decrease" && (restaurant.inventoryData.values[index] || 0) > 0) {
+      restaurant.inventoryData.values[index] = (restaurant.inventoryData.values[index] || 0) - 1;
+    }
 
     await restaurant.save();
     res.redirect("/staff/Dashboard");
@@ -768,21 +767,27 @@ exports.getDashBoardData = async (req, res) => {
       .limit(10)
       .lean();
 
-    // ✅ Get Inventory
-    const rawInventory = await Inventory.find({ rest_id: req.session.rest_id }).lean();
-    const inventoryStatus = rawInventory.map((item) => {
-      let status = "Available";
-      if (item.quantity <= 0) status = "Out of Stock";
-      else if (item.quantity <= item.minStock) status = "Low Stock";
+    // ✅ Get Inventory from restaurant inventoryData
+    const inventoryStatus = [];
+    if (rest.inventoryData && rest.inventoryData.labels && Array.isArray(rest.inventoryData.labels) && rest.inventoryData.labels.length > 0) {
+      for (let i = 0; i < rest.inventoryData.labels.length; i++) {
+        const quantity = (rest.inventoryData.values && rest.inventoryData.values[i]) || 0;
+        const minStock = (rest.inventoryData.minStocks && rest.inventoryData.minStocks[i]) || 0;
+        const unit = (rest.inventoryData.units && rest.inventoryData.units[i]) || 'pieces';
 
-      return {
-        item: item.name,
-        quantity: `${item.quantity} ${item.unit}`,
-        quantityValue: item.quantity, // Include numeric value for comparison
-        minStock: item.minStock, // Include minStock for frontend calculations
-        status,
-      };
-    });
+        let status = "Available";
+        if (quantity <= 0) status = "Out of Stock";
+        else if (quantity <= minStock) status = "Low Stock";
+
+        inventoryStatus.push({
+          item: rest.inventoryData.labels[i],
+          quantity: `${quantity} ${unit}`,
+          quantityValue: quantity, // Include numeric value for comparison
+          minStock: minStock, // Include minStock for frontend calculations
+          status,
+        });
+      }
+    }
 
     console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
 

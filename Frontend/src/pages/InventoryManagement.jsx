@@ -10,6 +10,7 @@ import {
 import styles from "./InventoryManagement.module.css";
 
 export function InventoryManagement() {
+  console.log("InventoryManagement component mounted");
   const [inventory, setInventory] = useState(() => {
     try {
       const saved = localStorage.getItem('inventory');
@@ -38,7 +39,9 @@ export function InventoryManagement() {
 
   const loadInventory = async () => {
     try {
+      console.log("Fetching inventory data...");
       const inventoryData = await fetchInventory();
+      console.log("Inventory data fetched:", inventoryData);
       setInventory(inventoryData);
       try {
         localStorage.setItem('inventory', JSON.stringify(inventoryData));

@@ -82,6 +82,7 @@ const restaurantSchema = new mongoose.Schema({
     values: [Number],
     units: [String],
     suppliers: [String],
+    minStocks: [Number],
   },
   tasks: [
     {

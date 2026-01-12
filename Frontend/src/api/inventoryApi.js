@@ -9,13 +9,39 @@ export const fetchInventory = async () => {
         'Content-Type': 'application/json',
       },
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch inventory');
     }
-    
+
     const data = await response.json();
-    return Array.isArray(data.inventory) ? data.inventory : [];
+
+    // Handle both response formats: array of objects or inventoryData object
+    if (Array.isArray(data.inventory)) {
+      // Already in the expected format
+      return data.inventory;
+    } else if (data.inventory && typeof data.inventory === 'object') {
+      // Convert inventoryData object format to array of objects
+      const inventoryData = data.inventory;
+      const inventoryItems = [];
+
+      if (inventoryData.labels && Array.isArray(inventoryData.labels)) {
+        for (let i = 0; i < inventoryData.labels.length; i++) {
+          inventoryItems.push({
+            _id: `item_${i}`,
+            name: inventoryData.labels[i],
+            quantity: inventoryData.values?.[i] || 0,
+            unit: inventoryData.units?.[i] || 'pieces',
+            minStock: inventoryData.minStocks?.[i] || 0,
+            supplier: inventoryData.suppliers?.[i] || ''
+          });
+        }
+      }
+
+      return inventoryItems;
+    }
+
+    return [];
   } catch (error) {
     console.error('Error fetching inventory:', error);
     throw error;

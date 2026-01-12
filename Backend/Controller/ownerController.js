@@ -232,15 +232,13 @@ exports.getDashboardStats = async (req, res) => {
       role: "staff"
     });
 
-    // Calculate stock status (percentage of items above minimum stock)
-    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
-    let stockStatus = 0;
-    if (inventoryItems.length > 0) {
-      const itemsAboveMin = inventoryItems.filter(item => item.quantity >= item.minStock).length;
-      stockStatus = Math.round((itemsAboveMin / inventoryItems.length) * 100);
-    } else {
-      // If no inventory items, default to 100%
-      stockStatus = 100;
+    // Calculate stock status (percentage of items above minimum stock) from inventoryData
+    let stockStatus = 100; // Default to 100%
+    if (rest.inventoryData && rest.inventoryData.labels && rest.inventoryData.labels.length > 0) {
+      const itemsAboveMin = rest.inventoryData.values.filter((value, index) =>
+        value >= (rest.inventoryData.minStocks[index] || 0)
+      ).length;
+      stockStatus = Math.round((itemsAboveMin / rest.inventoryData.labels.length) * 100);
     }
 
     res.json({
@@ -356,14 +354,39 @@ exports.getRecentOrders = async (req, res) => {
   }
 };
 
-// API endpoint to get inventory (new system)
+// API endpoint to get inventory (using restaurant inventoryData)
 exports.getInventoryAPI = async (req, res) => {
   try {
+    console.log("getInventoryAPI called for user:", req.session.username);
     const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      console.log("User not found");
+      return res.status(404).json({ error: "User not found" });
+    }
+    console.log("User found, rest_id:", user.rest_id);
 
-    const inventoryItems = await Inventory.findByRestaurant(user.rest_id);
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant || !restaurant.inventoryData) {
+      console.log("Restaurant not found or no inventoryData");
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
 
+    // Convert inventoryData arrays to array of objects
+    const inventoryItems = [];
+    if (restaurant.inventoryData.labels && restaurant.inventoryData.labels.length > 0) {
+      for (let i = 0; i < restaurant.inventoryData.labels.length; i++) {
+        inventoryItems.push({
+          _id: `item_${i}`, // Generate a simple ID for frontend compatibility
+          name: restaurant.inventoryData.labels[i],
+          quantity: restaurant.inventoryData.values[i] || 0,
+          unit: restaurant.inventoryData.units[i] || 'pieces',
+          minStock: restaurant.inventoryData.minStocks[i] || 0,
+          rest_id: user.rest_id
+        });
+      }
+    }
+
+    console.log("Inventory items from inventoryData:", inventoryItems);
     res.json({ inventory: inventoryItems });
   } catch (error) {
     console.error("Error in getInventoryAPI:", error);
@@ -371,7 +394,7 @@ exports.getInventoryAPI = async (req, res) => {
   }
 };
 
-// API endpoint to update inventory quantity
+// API endpoint to update inventory quantity (using restaurant inventoryData)
 exports.updateInventoryQuantity = async (req, res) => {
   try {
     const { id } = req.params;
@@ -384,19 +407,33 @@ exports.updateInventoryQuantity = async (req, res) => {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Verify the inventory item belongs to this restaurant
-    const inventoryItem = await Inventory.findById(id);
-    if (!inventoryItem) {
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant || !restaurant.inventoryData) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    // Parse the item index from the ID (format: item_0, item_1, etc.)
+    const itemIndex = parseInt(id.replace('item_', ''));
+    if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= restaurant.inventoryData.labels.length) {
       return res.status(404).json({ error: "Inventory item not found" });
     }
 
-    if (inventoryItem.rest_id !== user.rest_id) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
-
     // Update quantity
-    await Inventory.updateQuantity(id, change);
-    const updatedItem = await Inventory.findById(id);
+    const currentQuantity = restaurant.inventoryData.values[itemIndex] || 0;
+    const newQuantity = Math.max(0, currentQuantity + change);
+    restaurant.inventoryData.values[itemIndex] = newQuantity;
+
+    await restaurant.save();
+
+    // Return updated item in the same format as the Inventory model
+    const updatedItem = {
+      _id: id,
+      name: restaurant.inventoryData.labels[itemIndex],
+      quantity: newQuantity,
+      unit: restaurant.inventoryData.units[itemIndex] || 'pieces',
+      minStock: restaurant.inventoryData.minStocks[itemIndex] || 0,
+      rest_id: user.rest_id
+    };
 
     res.json({
       success: true,
@@ -440,7 +477,7 @@ exports.createInventoryItem = async (req, res) => {
   }
 };
 
-// API endpoint to delete inventory item
+// API endpoint to delete inventory item (using restaurant inventoryData)
 exports.deleteInventoryItem = async (req, res) => {
   try {
     const { id } = req.params;
@@ -448,17 +485,25 @@ exports.deleteInventoryItem = async (req, res) => {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // Verify the inventory item belongs to this restaurant
-    const inventoryItem = await Inventory.findById(id);
-    if (!inventoryItem) {
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant || !restaurant.inventoryData) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    // Parse the item index from the ID (format: item_0, item_1, etc.)
+    const itemIndex = parseInt(id.replace('item_', ''));
+    if (isNaN(itemIndex) || itemIndex < 0 || itemIndex >= restaurant.inventoryData.labels.length) {
       return res.status(404).json({ error: "Inventory item not found" });
     }
 
-    if (inventoryItem.rest_id !== user.rest_id) {
-      return res.status(403).json({ error: "Unauthorized" });
-    }
+    // Remove item from all inventoryData arrays
+    restaurant.inventoryData.labels.splice(itemIndex, 1);
+    restaurant.inventoryData.values.splice(itemIndex, 1);
+    restaurant.inventoryData.units.splice(itemIndex, 1);
+    restaurant.inventoryData.suppliers.splice(itemIndex, 1);
+    restaurant.inventoryData.minStocks.splice(itemIndex, 1);
 
-    await Inventory.findByIdAndDelete(id);
+    await restaurant.save();
 
     res.json({
       success: true,
@@ -800,7 +845,47 @@ exports.getOrders = async (req, res) => {
       .sort({ date: -1 })
       .select("-rest_id -__v"); // <-- Exclude internal fields
 
-    res.json(orders);
+    // Format orders to match frontend expectations
+    const formattedOrders = await Promise.all(orders.map(async (order) => {
+      // Count dish quantities (since dishes array contains names, duplicates for quantity)
+      const dishCounts = {};
+      order.dishes.forEach(dishName => {
+        dishCounts[dishName] = (dishCounts[dishName] || 0) + 1;
+      });
+
+      // Get dish details with quantities
+      const dishDetails = await Promise.all(Object.entries(dishCounts).map(async ([dishName, quantity]) => {
+        // Try to find by name first, then by ID if not found
+        let dish = await Dish.findOne({ name: dishName });
+        if (!dish) {
+          dish = await Dish.findById(dishName);
+        }
+        return {
+          name: dish ? dish.name : (dishName.length === 9 && /^[a-zA-Z0-9]+$/.test(dishName) ? "Unknown Dish" : dishName),
+          quantity: quantity,
+          price: dish ? dish.price : 0
+        };
+      }));
+
+      // Calculate subtotal (sum of dish prices * quantities)
+      const subtotal = dishDetails.reduce((sum, dish) => sum + (dish.price * dish.quantity), 0);
+
+      // Assume tax rate of 10% if not stored
+      const taxRate = 10;
+      const taxAmount = subtotal * (taxRate / 100);
+      const totalAmount = subtotal + taxAmount;
+
+      return {
+        ...order.toObject(),
+        dishes: dishDetails,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        taxRate: taxRate,
+        taxAmount: parseFloat(taxAmount.toFixed(2)),
+        totalAmount: parseFloat(totalAmount.toFixed(2))
+      };
+    }));
+
+    res.json(formattedOrders);
   } catch (error) {
     console.error("Error in getOrders:", error);
     res.status(500).json({ message: "Internal Server Error" });
@@ -838,7 +923,7 @@ exports.getInventory = async (req, res) => {
     const restaurant = await Restaurant.findById(user.rest_id);
     if (!restaurant)
       return res.status(404).json({ error: "Restaurant not found" });
-
+   
     // Return inventory data
     res.json({
       inventory: restaurant.inventoryData || {

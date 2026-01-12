@@ -1,23 +1,22 @@
 import { useEffect, useState } from "react";
 import styles from "./Inventory.module.css";
+import { fetchInventory, updateInventoryQuantity } from "../api/inventoryApi";
 
 export function Inventory() {
+  console.log("Inventory component mounted");
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInventory();
+    console.log("useEffect triggered, calling loadInventory");
+    loadInventory();
   }, []);
 
-  const fetchInventory = async () => {
+  const loadInventory = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/inventory", {
-        credentials: "include"
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setInventory(data.inventory);
-      }
+      const data = await fetchInventory();
+      console.log("Fetched inventory data:", data);
+      setInventory(data);
     } catch (error) {
       console.error("Error fetching inventory:", error);
     } finally {
@@ -28,22 +27,9 @@ export function Inventory() {
   const updateInventory = async (itemId, action) => {
     try {
       const change = action === "increase" ? 1 : -1;
-      const response = await fetch(
-        `http://localhost:3000/api/inventory/${itemId}/quantity`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ change }),
-        }
-      );
-
-      if (response.ok) {
-        // Refresh inventory data after update
-        fetchInventory();
-      }
+      await updateInventoryQuantity(itemId, change);
+      // Refresh inventory data after update
+      loadInventory();
     } catch (error) {
       console.error("Error updating inventory:", error);
     }
