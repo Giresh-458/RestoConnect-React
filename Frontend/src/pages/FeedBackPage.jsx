@@ -6,11 +6,11 @@ import "../styles/owner_dashboard.css";
 import styles from "./FeedBackPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 
-export function FeedBackPage() {
+export function FeedBackPage({ mode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const isOwnerView = location.pathname.includes("/owner/feedback");
-  const isCustomerView = location.pathname.includes("/customer/feedback");
+  const isOwnerView = mode === "owner" || location.pathname.includes("/owner/feedback");
+  const isCustomerView = mode === "customer" || location.pathname.includes("/customer/feedback");
 
   // Customer state
   const [customerData, setCustomerData] = useState(null);
@@ -97,27 +97,6 @@ export function FeedBackPage() {
       [];
 
     console.log("Orders found:", orders); // Debug log
-
-    if (!Array.isArray(orders) || orders.length === 0) {
-      // Check if customerData has any array properties that might contain orders
-      for (const key in customerData) {
-        if (Array.isArray(customerData[key]) && customerData[key].length > 0) {
-          const firstItem = customerData[key][0];
-          // Check if this looks like an order object
-          if (
-            firstItem &&
-            (firstItem.items ||
-              firstItem.dishes ||
-              firstItem.orderItems ||
-              firstItem.products)
-          ) {
-            orders = customerData[key];
-            console.log("Using orders from property:", key, orders);
-            break;
-          }
-        }
-      }
-    }
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.log("No orders found in customerData");
@@ -664,5 +643,5 @@ export function FeedBackPage() {
     );
   }
 
-  return <div>Invalid route</div>;
+  return null;
 }

@@ -43,9 +43,6 @@ router.get("/announcements", ownerController.getAnnouncements);
 router.delete("/announcements/:id", ownerController.deleteAnnouncement);
 
 // Orders route for owner
-// router.get('/orders', ownerController.getOrders);
-router.get("/inventory", ownerController.getInventory);
-router.post("/inventory/update", ownerController.updateInventory);
 
 router.get("/reports", ownerController.getReportsData);
 
@@ -64,6 +61,5 @@ router.put("/feedback/:id/status", ownerController.updateFeedbackStatus);
 
 // API routes for owner dashboard
 router.get("/owner/reports", ownerController.getReportsData);
-router.get("/owner/inventory", ownerController.getInventory);
-router.post("/owner/inventory/update", ownerController.updateInventory);
+
 module.exports = router;

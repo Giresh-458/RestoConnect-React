@@ -56,7 +56,7 @@ const router = createBrowserRouter([
       { path: "order", element: <OrderPage></OrderPage> },
       { path: "payment", element: <PaymentPage></PaymentPage> },
       { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
-      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
+      { path: "feedback", element: <FeedBackPage mode="customer" /> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],
     loader:isLogin
@@ -73,7 +73,6 @@ const router = createBrowserRouter([
       { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
       { path: "feedback", element: <FeedBackPage></FeedBackPage> },
       { path: "staffmanagement", element: <StaffManagement></StaffManagement> },
-
     ],
     loader:isLogin
   },

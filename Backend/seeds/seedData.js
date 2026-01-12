@@ -689,8 +689,14 @@ async function seed() {
         feedback: "Excellent dinner service!",
       },
     ];
-    const allOrders = [...tastyBitesOrders, ...todayOrders];
-    const createdOrders = await Order.insertMany(allOrders);
+
+    const allOrders = [...tastyBitesOrders, ...todayOrders].map(order => ({
+  ...order,
+  createdAt: order.orderTime || order.date || new Date(), // ✅ MAGIC LINE
+}));
+
+const createdOrders = await Order.insertMany(allOrders);
+
     firstRestaurant.orders = createdOrders.map((order) => order._id);
     await firstRestaurant.save();
 
