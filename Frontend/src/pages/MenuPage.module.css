@@ -7,8 +7,12 @@
 .restaurantBanner {
   width: 100%;
   height: 300px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8)),
-    url('/images/default-restaurant.jpg');
+  background: linear-gradient(
+      135deg,
+      rgba(102, 126, 234, 0.8),
+      rgba(118, 75, 162, 0.8)
+    ),
+    url("/images/default-restaurant.jpg");
   background-size: cover;
   background-position: center;
   position: relative;
@@ -634,5 +638,128 @@
 
   .dishName {
     font-size: 1.1rem;
+  }
+}
+/* Delete Button Styles */
+.deleteButton {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  margin-left: 0.25rem;
+  transition: transform 0.2s;
+  opacity: 0.7;
+}
+
+.deleteButton:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalContent h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  color: #212529;
+  font-weight: 700;
+}
+
+.modalContent p {
+  margin: 0.75rem 0;
+  color: #6c757d;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.modalContent strong {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.modalButtons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
+}
+
+.modalCancelButton,
+.modalConfirmButton {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.modalCancelButton {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.modalCancelButton:hover {
+  background: #dee2e6;
+  color: #212529;
+}
+
+.modalConfirmButton {
+  background: #667eea;
+  color: white;
+}
+
+.modalConfirmButton:hover {
+  background: #5568d3;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 768px) {
+  .modalContent {
+    padding: 1.5rem;
+  }
+
+  .modalButtons {
+    flex-direction: column;
+  }
+
+  .modalCancelButton,
+  .modalConfirmButton {
+    width: 100%;
   }
 }
