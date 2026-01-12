@@ -52,4 +52,8 @@ router.post('/cart/order', menuController.orderCart);
 // Customer homepage - search and filter restaurants
 router.get('/restaurants/search', customerController.searchRestaurants);
 
+// Promo code routes
+router.post('/promo/validate', customerController.validatePromoCode);
+router.post('/promo/apply', customerController.applyPromoCode);
+
 module.exports = router;

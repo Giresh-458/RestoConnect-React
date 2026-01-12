@@ -549,26 +549,56 @@ export const DashBoardPage = () => {
 
   return (
     <div style={styles.container}>
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <img
-            src={userData?.img_url || "/default-avatar.png"}
-            alt="User"
-            style={styles.avatar}
-          />
-          <div>
-            <h1 style={styles.welcomeText}>
-              Welcome back, {userData?.name} 👋
-            </h1>
-            <p style={styles.subtitle}>Your meal moments await!</p>
-            <p style={styles.orderCount}>
-              {userData?.totalOrders || 0} Total Orders
-            </p>
+          <div style={styles.brandSection}>
+            <span style={styles.brandIcon}>🍽️</span>
+            <span style={styles.brandName}>RestoConnect</span>
+          </div>
+          <div style={styles.userSection}>
+            <img
+              src={userData?.img_url || "/default-avatar.png"}
+              alt="User"
+              style={styles.avatar}
+            />
+            <div>
+              <h1 style={styles.welcomeText}>
+                Welcome back, {userData?.name} 👋
+              </h1>
+              <p style={styles.subtitle}>Your meal moments await!</p>
+              <p style={styles.orderCount}>
+                {userData?.totalOrders || 0} Total Orders
+              </p>
+            </div>
           </div>
         </div>
         <div style={styles.headerRight}>
-          <button style={styles.editButton} onClick={handleEditProfileClick}>
+          <button 
+            style={styles.editButton} 
+            onClick={handleEditProfileClick}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.4)";
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.3)";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
+            }}
+          >
             Edit Profile
           </button>
           <button
@@ -580,6 +610,16 @@ export const DashBoardPage = () => {
                 console.error("Logout failed", e);
               }
               navigate("/login");
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(220, 38, 38, 0.9)";
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 6px 24px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(239, 68, 68, 0.8)";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
             }}
           >
             Logout
@@ -1192,10 +1232,13 @@ export const DashBoardPage = () => {
 
 const styles = {
   container: {
-    fontFamily: "Arial, sans-serif",
-    backgroundColor: "#f9fafb",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
+    backgroundSize: "400% 400%",
+    animation: "gradientShift 15s ease infinite",
     minHeight: "100vh",
     padding: "20px",
+    position: "relative",
   },
   loading: {
     display: "flex",
@@ -1208,13 +1251,46 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
+    background: "rgba(255, 255, 255, 0.25)",
+    backdropFilter: "blur(30px) saturate(200%)",
+    WebkitBackdropFilter: "blur(30px) saturate(200%)",
     padding: "20px 30px",
-    borderRadius: "12px",
+    borderRadius: "20px",
     marginBottom: "20px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
   },
   headerLeft: {
+    display: "flex",
+    gap: "30px",
+    alignItems: "center",
+    flex: 1,
+  },
+  brandSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    fontSize: "1.5rem",
+    fontWeight: "800",
+    color: "#fff",
+    textShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+    letterSpacing: "-0.5px",
+    paddingRight: "30px",
+    borderRight: "2px solid rgba(255, 255, 255, 0.3)",
+  },
+  brandIcon: {
+    fontSize: "2rem",
+    filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))",
+    animation: "float 3s ease-in-out infinite",
+  },
+  brandName: {
+    background: "linear-gradient(135deg, #fff 0%, #e0f7fa 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+    filter: "drop-shadow(0 2px 4px rgba(255, 255, 255, 0.5))",
+  },
+  userSection: {
     display: "flex",
     gap: "20px",
     alignItems: "center",
@@ -1229,16 +1305,20 @@ const styles = {
     fontSize: "24px",
     fontWeight: "bold",
     margin: "0 0 5px 0",
+    color: "#fff",
+    textShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
   },
   subtitle: {
     fontSize: "14px",
-    color: "#6b7280",
+    color: "rgba(255, 255, 255, 0.9)",
     margin: "0 0 5px 0",
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
   },
   orderCount: {
     fontSize: "13px",
-    color: "#9ca3af",
+    color: "rgba(255, 255, 255, 0.8)",
     margin: 0,
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
   },
   headerRight: {
     display: "flex",
@@ -1246,23 +1326,31 @@ const styles = {
   },
   editButton: {
     padding: "10px 20px",
-    backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.3)",
+    backdropFilter: "blur(15px) saturate(180%)",
+    WebkitBackdropFilter: "blur(15px) saturate(180%)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
+    borderRadius: "12px",
     cursor: "pointer",
     fontSize: "14px",
-    color: "#1f2937",
+    color: "#fff",
     fontWeight: 600,
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    transition: "all 0.3s ease",
   },
   logoutButton: {
     padding: "10px 20px",
-    backgroundColor: "#ff6b35",
+    background: "rgba(239, 68, 68, 0.8)",
+    backdropFilter: "blur(20px) saturate(200%)",
+    WebkitBackdropFilter: "blur(20px) saturate(200%)",
     color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
+    borderRadius: "12px",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: 600,
+    boxShadow: "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    transition: "all 0.3s ease",
   },
   mainContent: {
     display: "grid",
@@ -1289,10 +1377,13 @@ const styles = {
     gap: "20px",
   },
   card: {
-    backgroundColor: "#fff",
+    background: "rgba(255, 255, 255, 0.4)",
+    backdropFilter: "blur(30px) saturate(180%)",
+    WebkitBackdropFilter: "blur(30px) saturate(180%)",
     padding: "24px",
-    borderRadius: "12px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    borderRadius: "20px",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    border: "1px solid rgba(255, 255, 255, 0.5)",
   },
   cardTitle: {
     fontSize: "18px",

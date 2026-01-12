@@ -237,9 +237,9 @@ export function FeedBackPage({ mode }) {
       });
       setSelectedFavoriteDishes([]);
 
+      // Redirect to home page after successful submission
       setTimeout(() => {
-        fetchCustomerData();
-        setSubmitSuccess(false);
+        navigate("/customer/");
       }, 1200);
     } catch (err) {
       console.error("Error submitting feedback:", err);

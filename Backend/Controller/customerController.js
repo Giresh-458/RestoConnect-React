@@ -5,6 +5,7 @@ const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const Feedback = require("../Model/feedback");
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
+const { PromoCode } = require("../Model/PromoCode_model");
 const { User } = require("../Model/userRoleModel");
 const { getImageUrl } = require("../util/fileUpload");
 // Removed duplicate Restaurant import to avoid redeclaration
@@ -1021,7 +1022,7 @@ exports.postPaymentsSuccess = async (req, res) => {
 exports.apiCheckout = async (req, res) => {
   try {
     const username = req.session.username || null;
-    const { rest_id, items, totalAmount, reservation } = req.body;
+    const { rest_id, items, totalAmount, reservation, promoCode, promoDiscount } = req.body;
 
     if (!rest_id)
       return res
@@ -1031,6 +1032,11 @@ exports.apiCheckout = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "", error: "items are required" });
+
+    // Calculate final amount with promo discount
+    const baseAmount = Number(totalAmount) || 0;
+    const discount = Number(promoDiscount) || 0;
+    const finalAmount = Math.max(0, baseAmount - discount);
 
     // Create Order
     const dishes = items
@@ -1042,7 +1048,9 @@ exports.apiCheckout = async (req, res) => {
       restaurant: req.body.restaurantName || "",
       rest_id,
       status: "pending",
-      totalAmount: Number(totalAmount) || 0,
+      totalAmount: finalAmount,
+      promoCode: promoCode || null,
+      promoDiscount: discount || 0,
     });
     await order.save();
 
@@ -1222,8 +1230,11 @@ exports.apiCheckoutPay = async (req, res) => {
         });
       }
 
-      const totalAmount = Number(payload.totalAmount) || 0;
-      if (totalAmount <= 0) {
+      const baseAmount = Number(payload.totalAmount) || 0;
+      const promoDiscount = Number(payload.promoDiscount) || 0;
+      const finalAmount = Math.max(0, baseAmount - promoDiscount);
+      
+      if (finalAmount <= 0) {
         return res.status(400).json({
           success: false,
           error: "Total amount must be greater than 0",
@@ -1236,9 +1247,26 @@ exports.apiCheckoutPay = async (req, res) => {
         restaurant: payload.restaurantName || "",
         rest_id: payload.rest_id,
         status: "pending",
-        totalAmount: totalAmount,
+        totalAmount: finalAmount,
+        promoCode: payload.promoCode || null,
+        promoDiscount: promoDiscount || 0,
       });
       await order.save();
+      
+      // Apply promo code usage if promo code was used
+      if (payload.promoCode) {
+        try {
+          const promoCodeDoc = await PromoCode.findOne({ 
+            code: payload.promoCode.toUpperCase().trim() 
+          });
+          if (promoCodeDoc) {
+            promoCodeDoc.usedCount += 1;
+            await promoCodeDoc.save();
+          }
+        } catch (e) {
+          console.warn('Failed to increment promo code usage:', e);
+        }
+      }
 
       // Attach order to restaurant
       const rest = await Restaurant.find_by_id(payload.rest_id);
@@ -1904,6 +1932,103 @@ exports.getFavourites = async (req, res) => {
       error: "Internal server error",
       details:
         process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+// Validate promo code
+exports.validatePromoCode = async (req, res) => {
+  try {
+    const { code, orderAmount } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: "Promo code is required",
+      });
+    }
+
+    const promoCode = await PromoCode.findOne({ 
+      code: code.toUpperCase().trim() 
+    });
+
+    if (!promoCode) {
+      return res.status(404).json({
+        success: false,
+        error: "Invalid promo code",
+      });
+    }
+
+    const orderAmountNum = Number(orderAmount) || 0;
+    const validation = promoCode.isValid(orderAmountNum);
+
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+    }
+
+    const discount = promoCode.calculateDiscount(orderAmountNum);
+    const finalAmount = orderAmountNum - discount;
+
+    return res.json({
+      success: true,
+      data: {
+        code: promoCode.code,
+        description: promoCode.description,
+        discountType: promoCode.discountType,
+        discountValue: promoCode.discountValue,
+        discount: discount,
+        finalAmount: finalAmount,
+      },
+      message: "Promo code applied successfully",
+    });
+  } catch (error) {
+    console.error("validatePromoCode error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+// Apply promo code to order (increment usage count)
+exports.applyPromoCode = async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: "Promo code is required",
+      });
+    }
+
+    const promoCode = await PromoCode.findOne({ 
+      code: code.toUpperCase().trim() 
+    });
+
+    if (!promoCode) {
+      return res.status(404).json({
+        success: false,
+        error: "Invalid promo code",
+      });
+    }
+
+    // Increment usage count
+    promoCode.usedCount += 1;
+    await promoCode.save();
+
+    return res.json({
+      success: true,
+      message: "Promo code applied to order",
+    });
+  } catch (error) {
+    console.error("applyPromoCode error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
     });
   }
 };

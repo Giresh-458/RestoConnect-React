@@ -16,13 +16,24 @@ export function CustomerNav() {
   return (
     <>
       <nav className={styles.customerNav}>
-        <NavLink to={"/customer/dashboard"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Dashboard
-        </NavLink>
-        <NavLink to={"/customer/"} className={({ isActive }) => (isActive ? "active" : "")} end>
-          Home
-        </NavLink>
-        <button onClick={handleLogout} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+        <div className={styles.navBrand}>
+          <span className={styles.brandIcon}>🍽️</span>
+          <span className={styles.brandName}>RestoConnect</span>
+        </div>
+        <div className={styles.navLinks}>
+          <NavLink to={"/customer/"} className={({ isActive }) => (isActive ? styles.active : "")} end>
+            <span className={styles.navIcon}>🏠</span>
+            <span>Home</span>
+          </NavLink>
+          <NavLink to={"/customer/dashboard"} className={({ isActive }) => (isActive ? styles.active : "")}>
+            <span className={styles.navIcon}>📊</span>
+            <span>Dashboard</span>
+          </NavLink>
+        </div>
+        <button onClick={handleLogout} className={styles.logoutBtn}>
+          <span className={styles.logoutIcon}>🚪</span>
+          <span>Logout</span>
+        </button>
       </nav>
       <Outlet />
     </>
