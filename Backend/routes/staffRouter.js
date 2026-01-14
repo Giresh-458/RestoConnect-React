@@ -6,7 +6,9 @@ const staffController = require("../Controller/staffController");
 
 
 
-router.get("/DashboardData", staffController.getDashBoardData);
+
+
+router.get("/DashboardData",staffController.getDashBoardData);
 router.get('/dashboard', staffController.getDashBoardData);
 
 

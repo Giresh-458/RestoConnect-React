@@ -44,6 +44,7 @@ export function StaffDashBoardPage() {
       }
 
       const json = await response.json();
+      
       setData({
         rest_name: json.rest_name || '',
         orders: json.orders || [],
@@ -329,11 +330,24 @@ export function StaffDashBoardPage() {
   };
 
   // 🟡 Compute stats safely
-  const today = new Date().toDateString();
+  const today = new Date();
+  const todayString = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  console.log('🔍 Filtering active orders - Today:', todayString);
+
   const activeOrdersList = data.orders?.filter((o) => {
-    const orderDate = new Date(o.date).toDateString();
-    return (o.status === "active" || o.status === "waiting") && orderDate === today;
+    const orderDate = new Date(o.date);
+    const orderDateString = orderDate.getFullYear() + '-' + String(orderDate.getMonth() + 1).padStart(2, '0') + '-' + String(orderDate.getDate()).padStart(2, '0');
+    const isActiveStatus = o.status === "active" || o.status === "waiting" || o.status === "pending";
+    const isToday = orderDateString === todayString;
+
+    console.log(`📋 Order ${o._id?.slice(-4)}: status="${o.status}", date="${o.date}", orderDateString="${orderDateString}", isActiveStatus=${isActiveStatus}, isToday=${isToday}, include=${isActiveStatus && isToday}`);
+
+    return isActiveStatus && isToday;
   }) || [];
+
+  console.log(`✅ Filtered ${activeOrdersList.length} active orders out of ${data.orders?.length || 0} total orders`);
+  console.log('📊 Active orders:', activeOrdersList.map(o => ({ id: o._id?.slice(-4), status: o.status, date: o.date })));
+  
   
   const activeOrders = activeOrdersList.length;
   
@@ -438,7 +452,7 @@ export function StaffDashBoardPage() {
       </div>
       <div className="summary-card red">
          <h3>Pending Tasks</h3>
-         <p>{data.staffTasks?.filter((t) => t.status !== "Done").length || 0}</p>
+         <p>{data.staffTasks.filter(task => task.status === "Pending").length}</p>
       </div>
       </div>
 

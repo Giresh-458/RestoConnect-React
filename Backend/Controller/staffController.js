@@ -667,6 +667,14 @@ function calculateEfficiencyScore(orders) {
 }
 
 exports.getDashBoardData = async (req, res) => {
+   console.log("==============================================================")
+  // console.log("🚀🚀🚀 getDashBoardData function called!");
+  // console.log("Request method:", req.method);
+  // console.log("Request path:", req.path);
+  // console.log("Request URL:", req.url);
+  // console.log("Session username:", req.session?.username);
+  // console.log("Session rest_id:", req.session?.rest_id);
+
   try {
     const { Restaurant } = require("../Model/Restaurents_model");
     const { User } = require("../Model/userRoleModel");
@@ -675,15 +683,15 @@ exports.getDashBoardData = async (req, res) => {
     const { Reservation } = require("../Model/Reservation_model");
     const { Inventory } = require("../Model/Inventory_model"); // ✅ include inventory
 
-    console.log("------ STAFF DASHBOARD DEBUG START ------");
-    console.log("Session data:", req.session);
+    // console.log("------ STAFF DASHBOARD DEBUG START ------");
+    // console.log("Session data:", req.session);
 
     // Recover rest_id if missing - ensure it's always set for staff
     if (!req.session.rest_id && req.session.username) {
       const staffUser = await User.findOne({ username: req.session.username });
       if (staffUser && staffUser.rest_id) {
         req.session.rest_id = staffUser.rest_id;
-        console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
+        // console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
       }
     }
 
@@ -697,11 +705,11 @@ exports.getDashBoardData = async (req, res) => {
       .lean();
 
     if (!rest) {
-      console.log("❌ Restaurant not found for ID:", req.session.rest_id);
+      // console.log("❌ Restaurant not found for ID:", req.session.rest_id);
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
-    console.log('🏢 Restaurant tables:', rest.tables?.length || 0, rest.tables);
+    // console.log('🏢 Restaurant tables:', rest.tables?.length || 0, rest.tables);
 
     // ✅ Get Orders
     let orders = rest.orders || [];
@@ -711,27 +719,27 @@ exports.getDashBoardData = async (req, res) => {
 
     // ✅ Get Reservations - ensure rest_id is string for query
     const restIdString = String(req.session.rest_id);
-    console.log('🔍 Querying reservations for rest_id:', restIdString);
-    
+    // console.log('🔍 Querying reservations for rest_id:', restIdString);
+
     // Try multiple query formats to ensure we find reservations
     let reservations = await Reservation.find({ rest_id: restIdString }).lean();
-    
+
     // If no results, try querying without string conversion (in case rest_id is stored differently)
     if (reservations.length === 0) {
-      console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
+      // console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
       reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
     }
-    
+
     // Also try querying all reservations to debug
     const allReservations = await Reservation.find({}).lean();
-    console.log(`📊 Total reservations in DB: ${allReservations.length}`);
+    // console.log(`📊 Total reservations in DB: ${allReservations.length}`);
     if (allReservations.length > 0) {
-      console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));
+      // console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));
     }
-    
-    console.log(`✅ Found ${reservations.length} reservations for rest_id: ${restIdString}`);
+
+    // console.log(`✅ Found ${reservations.length} reservations for rest_id: ${restIdString}`);
     if (reservations.length > 0) {
-      console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
+      // console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
     }
 
     // ✅ Cleanup: Reset tables that are allocated but have no corresponding reservation
@@ -750,14 +758,14 @@ exports.getDashBoardData = async (req, res) => {
     if (rest.tables && rest.tables.length > 0) {
       rest.tables.forEach(table => {
         if (table.status === 'Allocated' && !allocatedTableNumbers.has(String(table.number))) {
-          console.log(`🔧 Resetting orphaned table ${table.number} to Available`);
+          // console.log(`🔧 Resetting orphaned table ${table.number} to Available`);
           table.status = 'Available';
           tablesUpdated = true;
         }
       });
       if (tablesUpdated) {
         await Restaurant.findByIdAndUpdate(rest._id, { tables: rest.tables });
-        console.log('✅ Cleaned up orphaned allocated tables');
+        // console.log('✅ Cleaned up orphaned allocated tables');
       }
     }
 
@@ -789,7 +797,7 @@ exports.getDashBoardData = async (req, res) => {
       }
     }
 
-    console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
+    // console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
 
     // ✅ Get available tables - ensure proper structure
     const availableTables = (rest.tables || []).filter(t => t.status === "Available").map(table => ({
@@ -805,8 +813,8 @@ exports.getDashBoardData = async (req, res) => {
       status: table.status || 'Available'
     }));
 
-    console.log('📊 Available tables:', availableTables.length, availableTables);
-    console.log('🏢 All tables:', allTables.length, allTables);
+    // console.log('📊 Available tables:', availableTables.length, availableTables);
+    // console.log('🏢 All tables:', allTables.length, allTables);
 
     // ✅ Get Staff Tasks
     const staffTasks = (rest.staffTasks || []).map((task) => ({
@@ -816,6 +824,10 @@ exports.getDashBoardData = async (req, res) => {
       priority: task.priority,
       assignedTo: task.assignedTo,
     }));
+     console.log(staffTasks+"================================================")
+
+    // ✅ Calculate pending tasks count
+    const pendingTasksCount = staffTasks.filter(task => task.status === "Pending").length;
 
     // ✅ Send data
     res.json({
@@ -827,9 +839,10 @@ exports.getDashBoardData = async (req, res) => {
       availableTables,
       allTables, // 👈 add all tables for occupied count
       staffTasks, // 👈 add staffTasks for pending tasks
+      pendingTasksCount, // 👈 add pending tasks count
     });
 
-    console.log("------ STAFF DASHBOARD DEBUG END ------");
+    // console.log("------ STAFF DASHBOARD DEBUG END ------");
   } catch (error) {
     console.error("🔥 Error in getDashBoardData:", error.message);
     res.status(500).json({
