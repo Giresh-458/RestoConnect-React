@@ -1890,53 +1890,14 @@ exports.getFavourites = async (req, res) => {
 
     if (!person) {
       console.log(`[Favorites] Person not found for: ${customerName}`);
-      return res.json({ success: true, favourites: [] });
+      return res.json([]);
     }
 
     const favouriteDishIds = person.favourites || [];
     console.log(`[Favorites] Found ${favouriteDishIds.length} favorite dishes`);
 
-    if (favouriteDishIds.length === 0) {
-      return res.json({ success: true, favourites: [] });
-    }
-
-    // Get dish details
-    const dishes = await Promise.all(
-      favouriteDishIds.map(async (dishId) => {
-        try {
-          const dish = await Dish.findById(dishId);
-          if (!dish) return null;
-
-          return {
-            id: dish._id,
-            name: dish.name,
-            price: dish.price,
-            amount: dish.price,
-            description: dish.description || "",
-            image: getImageUrl(req, dish.image) || null,
-          };
-        } catch (err) {
-          console.error(
-            `[Favorites] Error fetching dish ${dishId}:`,
-            err.message
-          );
-          return null;
-        }
-      })
-    );
-
-    // Filter out null values (dishes that no longer exist)
-    const validDishes = dishes.filter((dish) => dish !== null);
-
-    if (validDishes.length !== dishes.length) {
-      console.log(
-        `[Favorites] Filtered out ${
-          dishes.length - validDishes.length
-        } invalid dishes`
-      );
-    }
-
-    res.json({ success: true, favourites: validDishes });
+    // Return just the IDs as an array
+    res.json(favouriteDishIds);
   } catch (error) {
     console.error("[Favorites] Get error:", error.message);
     res.status(500).json({

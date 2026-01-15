@@ -64,6 +64,11 @@ const handleUploadErrors = (err, req, res, next) => {
 // Function to get the full URL for an image
 const getImageUrl = (req, filename) => {
   if (!filename) return null;
+  // Check if filename already contains a path (e.g., from public/images)
+  if (filename.includes('/')) {
+    return `${req.protocol}://${req.get('host')}${filename}`;
+  }
+  // Otherwise, assume it's in uploads directory
   return `${req.protocol}://${req.get('host')}/uploads/${filename}`;
 };
 

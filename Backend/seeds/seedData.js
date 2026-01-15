@@ -32,27 +32,32 @@ async function seed() {
         name: "Paneer Tikka",
         price: 250,
         description: "Delicious grilled paneer cubes marinated in spices",
+        image: "/images/paneer_tikka.jpg",
       },
       {
         name: "Chicken Curry",
         price: 350,
         description: "Spicy and flavorful chicken curry cooked with herbs",
+        image: "/images/chicken_curry.jpeg",
       },
       {
         name: "Veg Biryani",
         price: 300,
         description:
           "Aromatic basmati rice cooked with mixed vegetables and spices",
+        image: "/images/biryani.jpg",
       },
       {
         name: "Fish Fry",
         price: 400,
         description: "Crispy fried fish with special spices",
+        image: "/images/fish_fry.jpg",
       },
       {
         name: "Mutton Korma",
         price: 450,
         description: "Rich and creamy mutton curry with aromatic spices",
+        image: "/images/mutton-korma.jpg",
       },
       {
         name: "Masala Dosa",
