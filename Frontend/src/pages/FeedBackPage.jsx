@@ -14,6 +14,7 @@ export function FeedBackPage({ mode }) {
 
   // Customer state
   const [customerData, setCustomerData] = useState(null);
+  const [hasFeedback, setHasFeedback] = useState(false);
   const [formData, setFormData] = useState({
     rest_id: "",
     diningRating: "",
@@ -63,6 +64,11 @@ export function FeedBackPage({ mode }) {
       const data = await response.json();
       console.log("Feedback API Response:", data); // Debug log
       setCustomerData(data);
+      
+      // Check if customer has already submitted feedback
+      if (data?.feedbacks && data.feedbacks.length > 0) {
+        setHasFeedback(true);
+      }
     } catch (err) {
       console.error("Error fetching customer data:", err);
       setError("Failed to load data.");
@@ -282,6 +288,12 @@ export function FeedBackPage({ mode }) {
         <CheckoutSteps current="feedback" />
         <h2 className={styles.title}>Share Your Feedback</h2>
 
+        {hasFeedback && (
+          <div className={styles.alreadySubmittedMessage}>
+            ✅ You have already submitted feedback. Thank you for your input! You can only provide feedback once.
+          </div>
+        )}
+
         {submitSuccess && (
           <div className={styles.successMessage}>
             ✅ Feedback submitted successfully! Thank you for your input.
@@ -292,7 +304,7 @@ export function FeedBackPage({ mode }) {
           <div className={styles.errorMessage}>❌ {submitError}</div>
         )}
 
-        <form onSubmit={handleSubmit} className={styles.feedbackForm}>
+        <form onSubmit={handleSubmit} className={styles.feedbackForm} style={{ opacity: hasFeedback ? 0.5 : 1, pointerEvents: hasFeedback ? 'none' : 'auto' }}>
           <div className={styles.formGroup}>
             <label htmlFor="rest_id">Select Restaurant *</label>
             <select

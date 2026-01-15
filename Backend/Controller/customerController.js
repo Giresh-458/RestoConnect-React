@@ -773,6 +773,18 @@ exports.submitFeedback = async (req, res) => {
       return res.status(404).json({ error: "Restaurant not found." });
     }
 
+    // Check if customer has already submitted feedback
+    const existingFeedback = await Feedback.findOne({
+      customerName: username,
+    });
+
+    if (existingFeedback) {
+      return res.status(400).json({
+        error:
+          "You have already submitted feedback. You can only provide feedback once.",
+      });
+    }
+
     // Create feedback
     const feedback = await Feedback.create({
       rest_id: rest_id,
