@@ -1,6 +1,7 @@
 const { User } = require('../Model/userRoleModel');
 const Person = require('../Model/customer_model');
 const bcrypt = require('bcrypt');
+const { getProfilePicUrl } = require('../util/fileUpload');
 
 // Validation helper functions
 const validateEmail = (email) => {
@@ -183,9 +184,10 @@ const signup = async (req, res) => {
 
         // Create customer profile only if role is customer
         if (role === 'customer') {
+            const profilePicFilename = req.file ? req.file.filename : null;
             const newPerson = new Person({
                 name: username,
-                img_url: '/images/benjamin-chambon-vRu-Bs27E2M-unsplash.jpg',
+                img_url: profilePicFilename || '/images/benjamin-chambon-vRu-Bs27E2M-unsplash.jpg',
                 email: email,
                 phone: mobile || '',
                 prev_orders: [],

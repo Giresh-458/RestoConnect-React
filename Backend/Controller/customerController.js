@@ -7,7 +7,7 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { PromoCode } = require("../Model/PromoCode_model");
 const { User } = require("../Model/userRoleModel");
-const { getImageUrl } = require("../util/fileUpload");
+const { getImageUrl, getProfilePicUrl } = require("../util/fileUpload");
 // Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
@@ -440,7 +440,7 @@ exports.getCustomerDashboard = async (req, res) => {
     return res.status(200).json({
       user: {
         name: userData.name,
-        img_url: userData.img_url,
+        img_url: getProfilePicUrl(req, userData.img_url),
         email: userData.email,
         phone: userData.phone,
         totalOrders: prevOrders.length,
@@ -1449,8 +1449,8 @@ exports.getEditProfile = async (req, res) => {
 exports.postEditProfile = async (req, res) => {
   try {
     const currentUsername = req.session.username;
-    const { name, email, phone, img_url, newPassword, confirmPassword } =
-      req.body;
+    const { name, email, phone, newPassword, confirmPassword } = req.body;
+    const profilePicFilename = req.file ? req.file.filename : null;
 
     // First, find and update the User model (authentication)
     const userRole = await User.findOne({ username: currentUsername });
@@ -1574,12 +1574,15 @@ exports.postEditProfile = async (req, res) => {
     person.username = userRole.username || name || person.name;
     person.email = email || person.email;
     person.phone = phone || person.phone;
-    person.img_url = img_url || person.img_url;
+    // Update image URL if a new file was uploaded
+    if (profilePicFilename) {
+      person.img_url = profilePicFilename;
+    }
     await person.save();
 
     // Check if request wants JSON response (from React frontend)
-    const wantsJson = req.headers["content-type"]?.includes("application/json");
-    if (wantsJson) {
+    const wantsJson = req.headers["content-type"]?.includes("application/json") || req.get('content-type')?.includes('formdata');
+    if (wantsJson || req.method === 'POST') {
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
@@ -1587,7 +1590,7 @@ exports.postEditProfile = async (req, res) => {
           name: person.name,
           email: person.email,
           phone: person.phone,
-          img_url: person.img_url,
+          img_url: getProfilePicUrl(req, person.img_url),
         },
       });
     }

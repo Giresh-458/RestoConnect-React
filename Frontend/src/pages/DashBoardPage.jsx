@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { isLogin } from "../util/auth";
 import { getFavourites } from "../util/favourites";
 import { redirect, useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ export async function loader() {
 export const DashBoardPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const fileInputRef = useRef(null);
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
@@ -37,6 +38,8 @@ export const DashBoardPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeOrderTab, setActiveOrderTab] = useState("recent");
   const [pastOrders, setPastOrders] = useState([]);
+  const [profilePicPreview, setProfilePicPreview] = useState(null);
+  const [selectedProfileFile, setSelectedProfileFile] = useState(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
     email: "",
@@ -453,7 +456,9 @@ export const DashBoardPage = () => {
         phone: userData.phone || "",
         img_url: userData.img_url || "",
       }));
+      setProfilePicPreview(userData.img_url);
     }
+    setSelectedProfileFile(null);
     setShowEditModal(true);
     setUpdateError("");
   };
@@ -468,6 +473,34 @@ export const DashBoardPage = () => {
       newPassword: "",
       confirmPassword: "",
     }));
+  };
+
+  const handleProfilePicClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB');
+        return;
+      }
+
+      setSelectedProfileFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -505,14 +538,27 @@ export const DashBoardPage = () => {
     }
 
     try {
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append('name', editFormData.name);
+      formData.append('email', editFormData.email);
+      formData.append('phone', editFormData.phone);
+      
+      // Add profile picture if selected
+      if (selectedProfileFile) {
+        formData.append('profilePicture', selectedProfileFile);
+      }
+      
+      // Add passwords if provided
+      if (editFormData.newPassword) {
+        formData.append('newPassword', editFormData.newPassword);
+        formData.append('confirmPassword', editFormData.confirmPassword);
+      }
+
       const response = await fetch("http://localhost:3000/api/customer/edit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         credentials: "include",
-        body: JSON.stringify(editFormData),
+        body: formData,
       });
 
       if (response.status === 401) {
@@ -1166,15 +1212,39 @@ export const DashBoardPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Profile Image URL</label>
-                <input
-                  type="text"
-                  name="img_url"
-                  value={editFormData.img_url}
-                  onChange={handleInputChange}
-                  style={styles.formInput}
-                  placeholder="https://example.com/image.jpg"
-                />
+                <label style={styles.formLabel}>Profile Picture</label>
+                <div style={styles.profilePicContainer}>
+                  <div 
+                    style={{
+                      ...styles.profilePicPreview,
+                      backgroundImage: profilePicPreview ? `url('${profilePicPreview}')` : 'none',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: profilePicPreview ? 'transparent' : '#999',
+                    }}
+                    onClick={handleProfilePicClick}
+                  >
+                    {!profilePicPreview && '📷'}
+                  </div>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleProfilePicChange}
+                    style={{ display: 'none' }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleProfilePicClick}
+                    style={styles.changePicButton}
+                  >
+                    {selectedProfileFile ? '✓ Image Selected' : 'Change Picture'}
+                  </button>
+                </div>
               </div>
 
               <div style={styles.formDivider}>
@@ -1901,6 +1971,32 @@ const styles = {
     borderRadius: "8px",
     fontSize: "14px",
     boxSizing: "border-box",
+  },
+  profilePicContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "12px",
+  },
+  profilePicPreview: {
+    width: "120px",
+    height: "120px",
+    borderRadius: "50%",
+    border: "3px solid #2ecc71",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    fontSize: "40px",
+  },
+  changePicButton: {
+    padding: "8px 16px",
+    backgroundColor: "#2ecc71",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
   },
   formDivider: {
     margin: "24px 0",

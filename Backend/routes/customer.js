@@ -6,6 +6,7 @@ const path  =require('path');
 const customerController = require('../Controller/customerController');
 const menuController = require('../Controller/menuController');
 const homePageController = require("../Controller/homePageController")
+const { uploadProfilePicture, handleUploadErrors } = require('../util/fileUpload');
 
 
 
@@ -16,7 +17,7 @@ router.get('/feedback', customerController.getFeedBack);
 router.post("/submit-feedback", customerController.submitFeedback);
 
 router.get('/edit', customerController.getEditProfile);
-router.post('/edit', customerController.postEditProfile);
+router.post('/edit', uploadProfilePicture, handleUploadErrors, customerController.postEditProfile);
 
 router.post('/order_reservation',customerController.postOrderAndReservation );
 router.get('/order_reservation',customerController.postOrderAndReservation );
