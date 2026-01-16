@@ -15,10 +15,25 @@ const restaurantSchema = new mongoose.Schema({
   rating: Number,
   location: String,
   amount: Number,
-  cuisine: {
-    type: [String],
-    default: [],
-  },
+ cuisine: {
+  type: [String],
+  enum: [
+    "Italian",
+    "Mexican",
+    "Chinese",
+    "Indian",
+    "American",
+    "Thai",
+    "French",
+    "Mediterranean",
+    "Korean",
+    "Vietnamese",
+    "Vegan",
+    "Sushi",
+    "Other"
+  ],
+  default: [],
+},
   isOpen: {
     type: Boolean,
     default: true,
