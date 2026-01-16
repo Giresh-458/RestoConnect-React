@@ -9,14 +9,17 @@ import { CheckoutSteps } from "../components/CheckoutSteps";
 export function FeedBackPage({ mode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const isOwnerView = mode === "owner" || location.pathname.includes("/owner/feedback");
-  const isCustomerView = mode === "customer" || location.pathname.includes("/customer/feedback");
+  const isOwnerView =
+    mode === "owner" || location.pathname.includes("/owner/feedback");
+  const isCustomerView =
+    mode === "customer" || location.pathname.includes("/customer/feedback");
 
   // Customer state
   const [customerData, setCustomerData] = useState(null);
   const [hasFeedback, setHasFeedback] = useState(false);
   const [formData, setFormData] = useState({
     rest_id: "",
+    orderId: "",
     diningRating: "",
     orderRating: "",
     additionalFeedback: "",
@@ -64,11 +67,8 @@ export function FeedBackPage({ mode }) {
       const data = await response.json();
       console.log("Feedback API Response:", data); // Debug log
       setCustomerData(data);
-      
-      // Check if customer has already submitted feedback
-      if (data?.feedbacks && data.feedbacks.length > 0) {
-        setHasFeedback(true);
-      }
+
+      // Note: Don't set hasFeedback here - check per order when orderId is selected
     } catch (err) {
       console.error("Error fetching customer data:", err);
       setError("Failed to load data.");
@@ -78,11 +78,20 @@ export function FeedBackPage({ mode }) {
   useEffect(() => {
     if (isCustomerView && customerData) {
       const restIdFromState = location.state && location.state.restId;
+      const orderIdFromState = location.state && location.state.orderId;
       if (restIdFromState) {
         setFormData((prev) => ({
           ...prev,
           rest_id: restIdFromState,
+          orderId: orderIdFromState || "",
         }));
+      }
+
+      if (orderIdFromState && customerData?.feedbacks) {
+        const feedbackExists = customerData.feedbacks.some(
+          (fb) => fb.orderId === orderIdFromState
+        );
+        setHasFeedback(feedbackExists);
       }
     }
   }, [isCustomerView, customerData, location.state]);
@@ -92,6 +101,7 @@ export function FeedBackPage({ mode }) {
     if (!customerData) return [];
 
     const dishes = [];
+    const orderIdFromState = location.state?.orderId;
 
     // Try multiple possible order structures
     let orders =
@@ -102,11 +112,22 @@ export function FeedBackPage({ mode }) {
       customerData?.allOrders ||
       [];
 
-    console.log("Orders found:", orders); // Debug log
+    console.log("Orders found:", orders);
+    console.log("Filtering by orderId:", orderIdFromState);
 
     if (!Array.isArray(orders) || orders.length === 0) {
       console.log("No orders found in customerData");
       return [];
+    }
+
+    if (orderIdFromState) {
+      orders = orders.filter(
+        (order) =>
+          order.id === orderIdFromState ||
+          order._id === orderIdFromState ||
+          order.recordId === orderIdFromState
+      );
+      console.log("Filtered to specific order:", orders);
     }
 
     // Extract items from each order
@@ -236,6 +257,7 @@ export function FeedBackPage({ mode }) {
       setSubmitSuccess(true);
       setFormData({
         rest_id: "",
+        orderId: "",
         diningRating: "",
         orderRating: "",
         lovedItems: "",
@@ -283,6 +305,8 @@ export function FeedBackPage({ mode }) {
 
   // Customer View - Feedback Form
   if (isCustomerView) {
+    const restaurantName = location.state?.restaurant;
+
     return (
       <div className={styles.feedbackContainer}>
         <CheckoutSteps current="feedback" />
@@ -290,7 +314,14 @@ export function FeedBackPage({ mode }) {
 
         {hasFeedback && (
           <div className={styles.alreadySubmittedMessage}>
-            ✅ You have already submitted feedback. Thank you for your input! You can only provide feedback once.
+            ✅ You have already submitted feedback. Thank you for your input!
+            You can only provide feedback once.
+          </div>
+        )}
+
+        {restaurantName && (
+          <div className={styles.restaurantName}>
+            <strong>Restaurant:</strong> {restaurantName}
           </div>
         )}
 
@@ -304,30 +335,17 @@ export function FeedBackPage({ mode }) {
           <div className={styles.errorMessage}>❌ {submitError}</div>
         )}
 
-        <form onSubmit={handleSubmit} className={styles.feedbackForm} style={{ opacity: hasFeedback ? 0.5 : 1, pointerEvents: hasFeedback ? 'none' : 'auto' }}>
-          <div className={styles.formGroup}>
-            <label htmlFor="rest_id">Select Restaurant *</label>
-            <select
-              id="rest_id"
-              value={formData.rest_id}
-              onChange={(e) =>
-                setFormData({ ...formData, rest_id: e.target.value })
-              }
-              required
-            >
-              <option value="">-- Select a restaurant --</option>
-              {customerData?.restaurants?.map((rest) => (
-                <option key={rest.id} value={rest.id}>
-                  {rest.name}
-                </option>
-              ))}
-            </select>
-            {!customerData?.restaurants?.length && (
-              <p className={styles.helpText}>
-                No restaurants found. Please place an order first.
-              </p>
-            )}
-          </div>
+        <form
+          onSubmit={handleSubmit}
+          className={styles.feedbackForm}
+          style={{
+            opacity: hasFeedback ? 0.5 : 1,
+            pointerEvents: hasFeedback ? "none" : "auto",
+          }}
+        >
+          {/* Hidden fields for restaurant and order IDs from navigation state */}
+          <input type="hidden" name="rest_id" value={formData.rest_id} />
+          <input type="hidden" name="orderId" value={formData.orderId} />
 
           <div className={styles.ratingGroup}>
             <div className={styles.formGroup}>
