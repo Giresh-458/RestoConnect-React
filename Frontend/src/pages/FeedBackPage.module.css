@@ -14,6 +14,22 @@
   font-size: 2rem;
 }
 
+.restaurantName {
+  text-align: center;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.restaurantName strong {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
 /* Form Styles */
 .feedbackForm {
   display: flex;

@@ -172,7 +172,9 @@ exports.getCustomerDashboard = async (req, res) => {
         let restId = order.rest_id || null;
         if (!restId && order.restaurant) {
           try {
-            const restaurant = await Restaurant.findOne({ name: order.restaurant });
+            const restaurant = await Restaurant.findOne({
+              name: order.restaurant,
+            });
             if (restaurant) {
               restId = restaurant._id;
             }
@@ -726,6 +728,7 @@ exports.getFeedBack = async (req, res) => {
       feedbacks: feedbacks.map((fb) => ({
         id: fb._id,
         rest_id: fb.rest_id,
+        orderId: fb.orderId,
         diningRating: fb.diningRating,
         orderRating: fb.orderRating,
         lovedItems: fb.lovedItems,
@@ -762,6 +765,7 @@ exports.submitFeedback = async (req, res) => {
   try {
     const {
       rest_id,
+      orderId,
       diningRating,
       lovedItems,
       orderRating,
@@ -780,27 +784,35 @@ exports.submitFeedback = async (req, res) => {
       });
     }
 
+    // Validate orderId is provided
+    if (!orderId) {
+      return res.status(400).json({
+        error: "Order ID is required to submit feedback.",
+      });
+    }
+
     // Verify the restaurant exists
     const restaurant = await Restaurant.findById(rest_id);
     if (!restaurant) {
       return res.status(404).json({ error: "Restaurant not found." });
     }
 
-    // Check if customer has already submitted feedback
+    // Check if feedback has already been submitted for this specific order
     const existingFeedback = await Feedback.findOne({
-      customerName: username,
+      orderId: orderId,
     });
 
     if (existingFeedback) {
       return res.status(400).json({
         error:
-          "You have already submitted feedback. You can only provide feedback once.",
+          "You have already submitted feedback. Thank you for your input! You can only provide feedback once.",
       });
     }
 
     // Create feedback
     const feedback = await Feedback.create({
       rest_id: rest_id,
+      orderId: orderId,
       customerName: username,
       diningRating: diningRating ? parseInt(diningRating) : null,
       lovedItems: lovedItems || "",
@@ -817,6 +829,7 @@ exports.submitFeedback = async (req, res) => {
       feedback: {
         id: feedback._id,
         rest_id: feedback.rest_id,
+        orderId: feedback.orderId,
         customerName: feedback.customerName,
         diningRating: feedback.diningRating,
         orderRating: feedback.orderRating,
@@ -1047,7 +1060,14 @@ exports.postPaymentsSuccess = async (req, res) => {
 exports.apiCheckout = async (req, res) => {
   try {
     const username = req.session.username || null;
-    const { rest_id, items, totalAmount, reservation, promoCode, promoDiscount } = req.body;
+    const {
+      rest_id,
+      items,
+      totalAmount,
+      reservation,
+      promoCode,
+      promoDiscount,
+    } = req.body;
 
     if (!rest_id)
       return res
@@ -1258,7 +1278,7 @@ exports.apiCheckoutPay = async (req, res) => {
       const baseAmount = Number(payload.totalAmount) || 0;
       const promoDiscount = Number(payload.promoDiscount) || 0;
       const finalAmount = Math.max(0, baseAmount - promoDiscount);
-      
+
       if (finalAmount <= 0) {
         return res.status(400).json({
           success: false,
@@ -1277,19 +1297,19 @@ exports.apiCheckoutPay = async (req, res) => {
         promoDiscount: promoDiscount || 0,
       });
       await order.save();
-      
+
       // Apply promo code usage if promo code was used
       if (payload.promoCode) {
         try {
-          const promoCodeDoc = await PromoCode.findOne({ 
-            code: payload.promoCode.toUpperCase().trim() 
+          const promoCodeDoc = await PromoCode.findOne({
+            code: payload.promoCode.toUpperCase().trim(),
           });
           if (promoCodeDoc) {
             promoCodeDoc.usedCount += 1;
             await promoCodeDoc.save();
           }
         } catch (e) {
-          console.warn('Failed to increment promo code usage:', e);
+          console.warn("Failed to increment promo code usage:", e);
         }
       }
 
@@ -1594,8 +1614,10 @@ exports.postEditProfile = async (req, res) => {
     await person.save();
 
     // Check if request wants JSON response (from React frontend)
-    const wantsJson = req.headers["content-type"]?.includes("application/json") || req.get('content-type')?.includes('formdata');
-    if (wantsJson || req.method === 'POST') {
+    const wantsJson =
+      req.headers["content-type"]?.includes("application/json") ||
+      req.get("content-type")?.includes("formdata");
+    if (wantsJson || req.method === "POST") {
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully",
@@ -1918,12 +1940,12 @@ exports.getFavourites = async (req, res) => {
 
     // Fetch full dish details with restaurant information
     const favoriteDishes = [];
-    
+
     for (const dishId of favouriteDishIds) {
       try {
         // Find the dish
         const dish = await Dish.find_by_id(dishId);
-        
+
         if (!dish) {
           console.log(`[Favorites] Dish ${dishId} not found, skipping`);
           continue;
@@ -1931,7 +1953,7 @@ exports.getFavourites = async (req, res) => {
 
         // Find which restaurant(s) have this dish
         const restaurants = await Restaurant.find({ dishes: dishId });
-        
+
         // Get image URL
         const imageUrl = getImageUrl(req, dish.image);
 
@@ -1941,7 +1963,7 @@ exports.getFavourites = async (req, res) => {
           id: dish._id,
           name: dish.name,
           price: dish.price,
-          description: dish.description || '',
+          description: dish.description || "",
           image: imageUrl,
           imageUrl: imageUrl,
           // Include restaurant info if available
@@ -1953,13 +1975,18 @@ exports.getFavourites = async (req, res) => {
 
         favoriteDishes.push(dishData);
       } catch (error) {
-        console.error(`[Favorites] Error fetching dish ${dishId}:`, error.message);
+        console.error(
+          `[Favorites] Error fetching dish ${dishId}:`,
+          error.message
+        );
         // Continue with other dishes even if one fails
         continue;
       }
     }
 
-    console.log(`[Favorites] Returning ${favoriteDishes.length} favorite dishes with details`);
+    console.log(
+      `[Favorites] Returning ${favoriteDishes.length} favorite dishes with details`
+    );
     res.json(favoriteDishes);
   } catch (error) {
     console.error("[Favorites] Get error:", error.message);
@@ -1984,8 +2011,8 @@ exports.validatePromoCode = async (req, res) => {
       });
     }
 
-    const promoCode = await PromoCode.findOne({ 
-      code: code.toUpperCase().trim() 
+    const promoCode = await PromoCode.findOne({
+      code: code.toUpperCase().trim(),
     });
 
     if (!promoCode) {
@@ -2041,8 +2068,8 @@ exports.applyPromoCode = async (req, res) => {
       });
     }
 
-    const promoCode = await PromoCode.findOne({ 
-      code: code.toUpperCase().trim() 
+    const promoCode = await PromoCode.findOne({
+      code: code.toUpperCase().trim(),
     });
 
     if (!promoCode) {
