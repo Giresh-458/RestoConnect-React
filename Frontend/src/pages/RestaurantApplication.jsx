@@ -1,8 +1,25 @@
 import { Form, useActionData } from "react-router-dom";
 import "./RestaurantApplication.css";
+import { useEffect, useState } from "react";
 
 export function RestaurantApplication() {
   const actionData = useActionData();
+  const [cuisines, setCuisines] = useState([]);
+
+    useEffect(() => {
+        const fetchCuisines = async () => {
+            try {
+            const res = await fetch(
+                "http://localhost:3000/api/customer/restaurants/public-cuisines"
+            );
+            const data = await res.json();
+            setCuisines(data.cuisines || []);
+            } catch (err) {
+            console.error("Error fetching cuisines", err);
+            }
+        };
+        fetchCuisines();
+        }, []);
 
   return (
     <div className="app-container">
@@ -163,69 +180,17 @@ export function RestaurantApplication() {
               </div>
             </div>
 
-            <div className="form-field">
-              <label>Cuisine Types (Select all that apply)</label>
-              <div className="cuisine-checkboxes">
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="italian" />
-                  <span>Italian</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="mexican" />
-                  <span>Mexican</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="japanese" />
-                  <span>Japanese</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="chinese" />
-                  <span>Chinese</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="indian" />
-                  <span>Indian</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="american" />
-                  <span>American</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="thai" />
-                  <span>Thai</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="french" />
-                  <span>French</span>
-                </label>
-                <label className="checkbox-item">
+            <div className="cuisine-checkboxes">
+                {cuisines.map((cuisine) => (
+                <label key={cuisine} className="checkbox-item">
                   <input
-                    type="checkbox"
-                    name="cuisineType"
-                    value="mediterranean"
+                  type="checkbox"
+                  name="cuisineType"
+                  value={cuisine}
                   />
-                  <span>Mediterranean</span>
+                  <span>{cuisine}</span>
                 </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="korean" />
-                  <span>Korean</span>
-                </label>
-                <label className="checkbox-item">
-                  <input
-                    type="checkbox"
-                    name="cuisineType"
-                    value="vietnamese"
-                  />
-                  <span>Vietnamese</span>
-                </label>
-                <label className="checkbox-item">
-                  <input type="checkbox" name="cuisineType" value="other" />
-                  <span>Other</span>
-                </label>
-              </div>
-              <small className="field-hint">
-                Select all cuisine types your restaurant serves
-              </small>
+              ))}
             </div>
 
             <div className="form-field">
