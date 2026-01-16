@@ -10,6 +10,7 @@ const cors = require("cors");
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
 const { Restaurant } = require("./Model/Restaurents_model.js");
 const { User } = require("./Model/userRoleModel.js");
+const customerPublicRoutes = require("./routes/customerPublic");
 const app = express();
 
 // Middleware
@@ -73,6 +74,9 @@ app.get("/logout", (req, res) => {
 });
 
 app.use("/loginPage", loginPage);
+
+//  public
+app.use("/api/customer", customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 app.use("/customer", authentication("customer"), customerRouter);
