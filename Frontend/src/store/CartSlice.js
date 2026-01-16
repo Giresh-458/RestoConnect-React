@@ -8,6 +8,8 @@ const cartSlice = createSlice({
     amount: 0,
     restId: null,
     restName: "",
+    promoCode: null,
+    promoDiscount: 0,
   },
   reducers: {
     addItem: (state, action) => {
@@ -76,6 +78,16 @@ const cartSlice = createSlice({
       state.amount = 0;
       state.restId = null;
       state.restName = "";
+      state.promoCode = null;
+      state.promoDiscount = 0;
+    },
+    setPromoCode: (state, action) => {
+      state.promoCode = action.payload.code || null;
+      state.promoDiscount = action.payload.discount || 0;
+    },
+    clearPromoCode: (state) => {
+      state.promoCode = null;
+      state.promoDiscount = 0;
     },
     replaceCart: (state, action) => {
       const items = Array.isArray(action.payload) ? action.payload : [];
@@ -108,5 +120,7 @@ export const {
   clearcart,
   replaceCart,
   setRestaurant,
+  setPromoCode,
+  clearPromoCode,
 } = cartSlice.actions;
 export default cartSlice.reducer;

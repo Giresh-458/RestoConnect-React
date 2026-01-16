@@ -1,24 +1,51 @@
+/* ============================================
+   MENU PAGE - GLASSMORPHISM DESIGN
+   Bluish Green Theme with RestoConnect Branding
+   ============================================ */
+
 .menuPage {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  position: relative;
 }
 
-/* Restaurant Banner */
+.menuPage::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(79, 172, 254, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 242, 254, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(0, 212, 170, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Restaurant Banner - Glassmorphism */
 .restaurantBanner {
   width: 100%;
-  height: 300px;
-  background: linear-gradient(
-      135deg,
-      rgba(102, 126, 234, 0.8),
-      rgba(118, 75, 162, 0.8)
-    ),
-    url("/images/default-restaurant.jpg");
+  height: 320px;
   background-size: cover;
   background-position: center;
   position: relative;
   display: flex;
   align-items: flex-end;
-  padding: 2rem;
+  padding: 2.5rem;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 .bannerOverlay {
@@ -26,13 +53,22 @@
   width: 100%;
   margin: 0 auto;
   color: white;
+  position: relative;
+  z-index: 1;
 }
 
 .bannerTitle {
   font-size: 3rem;
   font-weight: 800;
   margin: 0 0 0.5rem 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.4),
+               0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #fff 0%, #e0f7fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.5));
 }
 
 .bannerMeta {
@@ -40,31 +76,58 @@
   gap: 1.5rem;
   font-size: 1.1rem;
   opacity: 0.95;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  font-weight: 500;
 }
 
-/* Search and Filter Section */
+/* Search and Filter Section - Glassmorphism */
 .searchFilterSection {
   max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
-  background: white;
-  border-bottom: 1px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  margin: 2rem auto;
+  border-radius: 20px;
 }
 
 .searchBar {
   display: flex;
   align-items: center;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
   border-radius: 50px;
   padding: 0.75rem 1.5rem;
   margin-bottom: 1.5rem;
   gap: 1rem;
   max-width: 600px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.3s ease;
+}
+
+.searchBar:focus-within {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95),
+              0 0 30px rgba(79, 172, 254, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
 }
 
 .searchIcon {
-  color: #667eea;
+  color: #4facfe;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .searchInput {
@@ -74,6 +137,7 @@
   font-size: 1rem;
   color: #333;
   background: transparent;
+  font-weight: 500;
 }
 
 .searchInput::placeholder {
@@ -88,25 +152,39 @@
 
 .categoryButton {
   padding: 0.625rem 1.5rem;
-  border: 2px solid #e9ecef;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 25px;
-  background: white;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
   color: #495057;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .categoryButton:hover {
-  border-color: #667eea;
-  color: #667eea;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border-color: rgba(79, 172, 254, 0.4);
+  color: #4facfe;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .categoryButtonActive {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: rgba(79, 172, 254, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  border-color: transparent;
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 /* Main Content Area */
@@ -118,6 +196,8 @@
   grid-template-columns: 1fr 400px;
   gap: 2rem;
   align-items: start;
+  position: relative;
+  z-index: 1;
 }
 
 .menuContent {
@@ -131,38 +211,89 @@
 .sectionTitle {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #212529;
+  color: #fff;
   margin-bottom: 1.5rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sectionTitle::before {
+  content: '🍽️';
+  font-size: 1.75rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 /* Dishes Grid */
 .dishesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1.5rem;
+  animation: fadeInUp 0.6s ease-out;
 }
 
-/* Dish Card */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dish Card - Glassmorphism */
 .dishCard {
-  background: white;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  border: 1px solid #f0f0f0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   cursor: pointer;
+  position: relative;
+}
+
+.dishCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4facfe, #00f2fe, #00d4aa);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .dishCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-8px) scale(1.02);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95),
+              0 0 40px rgba(79, 172, 254, 0.2);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.dishCard:hover::before {
+  opacity: 1;
 }
 
 .dishImageContainer {
   width: 100%;
-  height: 180px;
+  height: 150px;
   overflow: hidden;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, rgba(245, 247, 250, 0.8) 0%, rgba(195, 207, 226, 0.8) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   position: relative;
 }
 
@@ -170,71 +301,104 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dishCard:hover .dishImage {
-  transform: scale(1.05);
+  transform: scale(1.12);
 }
 
 .favouriteButton {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  z-index: 2;
+  padding: 0;
 }
 
 .favouriteButton:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: scale(1.15) rotate(5deg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.favouriteButton svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .favouriteButtonActive {
-  background: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .favouriteButtonActive svg {
   color: #ff4757;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .dishInfo {
-  padding: 1.25rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .dishName {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #212529;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #111827;
   margin: 0 0 0.5rem 0;
+  letter-spacing: -0.3px;
+  transition: color 0.3s ease;
+}
+
+.dishCard:hover .dishName {
+  color: #4facfe;
 }
 
 .dishDescription {
-  color: #6c757d;
+  color: #6b7280;
   font-size: 0.9rem;
-  line-height: 1.5;
+  line-height: 1.6;
   margin: 0 0 1rem 0;
+  font-weight: 500;
 }
 
 .dishFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .dishPrice {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #28a745;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #00d4aa;
+  text-shadow: 0 1px 2px rgba(0, 212, 170, 0.2);
+  letter-spacing: 0.3px;
 }
 
 .quantityControls {
@@ -243,73 +407,104 @@
 }
 
 .addButton {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: rgba(79, 172, 254, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  border: none;
-  padding: 0.5rem 1.25rem;
-  border-radius: 20px;
-  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.6rem 1.5rem;
+  border-radius: 25px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.3px;
 }
 
 .addButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: rgba(79, 172, 254, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 20px rgba(79, 172, 254, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.addButton:active {
+  transform: translateY(-1px);
 }
 
 .quantityButtons {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 20px;
-  padding: 0.25rem;
+  background: rgba(248, 249, 250, 0.6);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border-radius: 25px;
+  padding: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .quantityButton {
-  background: white;
-  border: none;
-  width: 28px;
-  height: 28px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #667eea;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #4facfe;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .quantityButton:hover {
-  background: #667eea;
+  background: rgba(79, 172, 254, 0.9);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .quantity {
-  font-weight: 700;
-  color: #212529;
-  min-width: 20px;
+  font-weight: 800;
+  color: #111827;
+  min-width: 24px;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
-/* Order Summary Sidebar */
+/* Order Summary Sidebar - Glassmorphism */
 .orderSummary {
   position: sticky;
   top: 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 24px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 2rem;
   max-height: calc(100vh - 4rem);
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .orderSummaryHeader {
@@ -318,50 +513,59 @@
   align-items: center;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .orderSummaryHeader h3 {
   font-size: 1.5rem;
-  font-weight: 700;
-  color: #212529;
+  font-weight: 800;
+  color: #111827;
   margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .closeButton {
-  background: none;
-  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   font-size: 1.5rem;
-  color: #6c757d;
+  color: #ef4444;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
 }
 
 .closeButton:hover {
-  background: #f8f9fa;
-  color: #212529;
+  background: rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  color: #dc2626;
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
 .emptyCart {
   text-align: center;
   padding: 3rem 1rem;
-  color: #6c757d;
+  color: #6b7280;
 }
 
 .emptyCart p {
   margin: 0.5rem 0;
   font-size: 1rem;
+  font-weight: 500;
 }
 
 .emptyCartSubtext {
   font-size: 0.9rem;
-  color: #999;
+  color: #9ca3af;
 }
 
 .orderItems {
@@ -371,23 +575,58 @@
   max-height: 400px;
 }
 
+.orderItems::-webkit-scrollbar {
+  width: 8px;
+}
+
+.orderItems::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.orderItems::-webkit-scrollbar-thumb {
+  background: rgba(79, 172, 254, 0.3);
+  border-radius: 4px;
+}
+
+.orderItems::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 172, 254, 0.5);
+}
+
 .orderItem {
   display: flex;
   gap: 1rem;
   padding: 1rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.orderItem:hover {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  transform: translateX(4px);
 }
 
 .orderItem:last-child {
   border-bottom: none;
+  margin-bottom: 0;
 }
 
 .orderItemImage {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .orderItemInfo {
@@ -399,8 +638,8 @@
 
 .orderItemName {
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #212529;
+  font-weight: 700;
+  color: #111827;
   margin: 0;
 }
 
@@ -411,61 +650,81 @@
 }
 
 .orderItemPrice {
-  font-weight: 700;
-  color: #28a745;
-  font-size: 0.95rem;
+  font-weight: 800;
+  color: #00d4aa;
+  font-size: 1rem;
 }
 
 .orderQuantityControls {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #f8f9fa;
+  background: rgba(248, 249, 250, 0.6);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
   border-radius: 20px;
-  padding: 0.25rem;
+  padding: 0.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .orderQuantityButton {
-  background: white;
-  border: none;
-  width: 24px;
-  height: 24px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 1rem;
-  font-weight: 600;
-  color: #667eea;
+  font-weight: 700;
+  color: #4facfe;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .orderQuantityButton:hover {
-  background: #667eea;
+  background: rgba(79, 172, 254, 0.9);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .orderQuantity {
-  font-weight: 600;
-  color: #212529;
-  min-width: 18px;
+  font-weight: 800;
+  color: #111827;
+  min-width: 20px;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .orderSummaryFooter {
-  border-top: 2px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
   padding-top: 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin: -2rem -2rem -2rem -2rem;
+  padding: 1.5rem 2rem;
+  border-radius: 0 0 24px 24px;
 }
 
 .orderSummaryRow {
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.75rem;
-  color: #6c757d;
+  color: #6b7280;
   font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .orderSummaryTotal {
@@ -473,10 +732,10 @@
   justify-content: space-between;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #212529;
+  border-top: 2px solid rgba(255, 255, 255, 0.5);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #111827;
 }
 
 .paymentButtons {
@@ -493,86 +752,296 @@
   justify-content: center;
   gap: 0.75rem;
   padding: 1rem;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
 }
 
 .payCardButton {
-  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  background: rgba(255, 107, 53, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .payCardButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4);
+  background: rgba(255, 107, 53, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 20px rgba(255, 107, 53, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .payUPIButton {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border: 2px solid #4caf50;
+  background: rgba(46, 125, 50, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .payUPIButton:hover {
-  background: #c8e6c9;
-  transform: translateY(-2px);
+  background: rgba(46, 125, 50, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(46, 125, 50, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 20px rgba(46, 125, 50, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .showOrderButton {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: rgba(79, 172, 254, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 1rem 2rem;
   border-radius: 50px;
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transition: all 0.2s;
+  box-shadow: 0 6px 24px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
+  letter-spacing: 0.3px;
 }
 
 .showOrderButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  background: rgba(79, 172, 254, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 10px 32px rgba(79, 172, 254, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 30px rgba(79, 172, 254, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* No Dishes */
 .noDishes {
   text-align: center;
-  padding: 4rem 2rem;
-  color: #6c757d;
+  padding: 5rem 2rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.noDishes p {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Error Container */
 .errorContainer {
   text-align: center;
   padding: 4rem 2rem;
-  color: #6c757d;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border-radius: 20px;
+  margin: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .errorContainer h2 {
-  color: #212529;
+  color: #fff;
   margin-bottom: 1rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .errorContainer button {
-  background: #667eea;
+  background: rgba(79, 172, 254, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 0.75rem 2rem;
   border-radius: 25px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   margin-top: 1rem;
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.errorContainer button:hover {
+  background: rgba(79, 172, 254, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Delete Button Styles */
+.deleteButton {
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  margin-left: 0.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.7;
+  border-radius: 6px;
+  color: #ef4444;
+}
+
+.deleteButton:hover {
+  background: rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  transform: scale(1.2);
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Modal Styles - Glassmorphism */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modalContent {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border-radius: 24px;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modalContent h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.75rem;
+  color: #111827;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.modalContent p {
+  margin: 0.75rem 0;
+  color: #6b7280;
+  line-height: 1.6;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.modalContent strong {
+  color: #4facfe;
+  font-weight: 700;
+}
+
+.modalButtons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: flex-end;
+}
+
+.modalCancelButton,
+.modalConfirmButton {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.3px;
+}
+
+.modalCancelButton {
+  background: rgba(233, 236, 239, 0.6);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  color: #495057;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.modalCancelButton:hover {
+  background: rgba(222, 226, 230, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  color: #212529;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.modalConfirmButton {
+  background: rgba(79, 172, 254, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3),
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.modalConfirmButton:hover {
+  background: rgba(79, 172, 254, 0.95);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 0 20px rgba(79, 172, 254, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* Responsive Design */
@@ -590,7 +1059,7 @@
 
 @media (max-width: 768px) {
   .restaurantBanner {
-    height: 200px;
+    height: 220px;
     padding: 1.5rem;
   }
 
@@ -605,6 +1074,7 @@
 
   .searchFilterSection {
     padding: 1.5rem 1rem;
+    margin: 1rem;
   }
 
   .mainContent {
@@ -613,6 +1083,7 @@
 
   .dishesGrid {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
   .orderSummary {
@@ -622,7 +1093,7 @@
     right: 0;
     top: auto;
     max-height: 70vh;
-    border-radius: 16px 16px 0 0;
+    border-radius: 24px 24px 0 0;
     z-index: 1000;
   }
 }
@@ -639,117 +1110,7 @@
   .dishName {
     font-size: 1.1rem;
   }
-}
-/* Delete Button Styles */
-.deleteButton {
-  background: transparent;
-  border: none;
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 0.25rem;
-  margin-left: 0.25rem;
-  transition: transform 0.2s;
-  opacity: 0.7;
-}
 
-.deleteButton:hover {
-  transform: scale(1.2);
-  opacity: 1;
-}
-
-/* Modal Styles */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modalContent {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modalContent h3 {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.5rem;
-  color: #212529;
-  font-weight: 700;
-}
-
-.modalContent p {
-  margin: 0.75rem 0;
-  color: #6c757d;
-  line-height: 1.6;
-  font-size: 1rem;
-}
-
-.modalContent strong {
-  color: #667eea;
-  font-weight: 600;
-}
-
-.modalButtons {
-  display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
-  justify-content: flex-end;
-}
-
-.modalCancelButton,
-.modalConfirmButton {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.modalCancelButton {
-  background: #e9ecef;
-  color: #495057;
-}
-
-.modalCancelButton:hover {
-  background: #dee2e6;
-  color: #212529;
-}
-
-.modalConfirmButton {
-  background: #667eea;
-  color: white;
-}
-
-.modalConfirmButton:hover {
-  background: #5568d3;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-@media (max-width: 768px) {
   .modalContent {
     padding: 1.5rem;
   }

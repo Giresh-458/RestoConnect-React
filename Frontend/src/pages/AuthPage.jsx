@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Form, useActionData, useNavigate, useSearchParams } from 'react-router-dom';
 import './AuthPage.css';
 
@@ -6,6 +6,9 @@ export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [profilePreview, setProfilePreview] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = useRef(null);
     const actionData = useActionData();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -13,6 +16,36 @@ export function AuthPage() {
 
     const toggleMode = () => {
         setIsLogin(!isLogin);
+        setProfilePreview(null);
+        setSelectedFile(null);
+    };
+
+    const handleProfilePicClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            // Validate file size (2MB max)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB');
+                return;
+            }
+
+            setSelectedFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfilePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     return (
@@ -52,16 +85,32 @@ export function AuthPage() {
                     </div>
                 )}
 
-                <Form method="post" className="auth-form">
+                <Form method="post" className="auth-form" encType="multipart/form-data">
                     <input type="hidden" name="authType" value={isLogin ? 'login' : 'signup'} />
                     
                     {!isLogin && (
-                        <div className="profile-upload">
-                            <div className="profile-avatar">
-                                <span>👤</span>
+                        <>
+                            <div className="profile-upload">
+                                <div className="profile-avatar" onClick={handleProfilePicClick} style={{ cursor: 'pointer' }}>
+                                    {profilePreview ? (
+                                        <img src={profilePreview} alt="Profile preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                    ) : (
+                                        <span>👤</span>
+                                    )}
+                                </div>
+                                <button type="button" className="upload-btn" onClick={handleProfilePicClick}>
+                                    {selectedFile ? '✓ Image selected' : '📷 Upload Profile Picture'}
+                                </button>
                             </div>
-                            <button type="button" className="upload-btn">📷 Upload Profile Picture</button>
-                        </div>
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                name="profilePicture" 
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                            />
+                        </>
                     )}
 
                     {!isLogin && (
@@ -322,20 +371,25 @@ export async function action({ request }) {
         }
 
         try {
+            // Create FormData to handle file upload
+            const signupFormData = new FormData();
+            signupFormData.append('username', username);
+            signupFormData.append('email', email);
+            signupFormData.append('password', password);
+            signupFormData.append('fullName', fullName);
+            signupFormData.append('mobile', mobile);
+            signupFormData.append('role', role);
+
+            // Add profile picture if selected
+            const profileFile = formData.get('profilePicture');
+            if (profileFile && profileFile.size > 0) {
+                signupFormData.append('profilePicture', profileFile);
+            }
+
             const response = await fetch('http://localhost:3000/api/auth/signup', {
                 method: 'POST',
                 credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    username, 
-                    email, 
-                    password, 
-                    fullName, 
-                    mobile,
-                    role
-                })
+                body: signupFormData
             });
 
             const result = await response.json();

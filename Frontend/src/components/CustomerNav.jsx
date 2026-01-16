@@ -1,9 +1,11 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import styles from "./CustomerNav.module.css";
 import { logout } from "../util/auth";
 
 export function CustomerNav() {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   const handleLogout = async () => {
     try {
       await logout();
@@ -13,16 +15,42 @@ export function CustomerNav() {
     navigate('/login');
   };
 
+  const isDashboard = location.pathname.includes('/customer/dashboard');
+  const isHome = location.pathname === '/customer/' || location.pathname === '/customer';
+
+  const handleBrandClick = () => {
+    navigate('/customer/');
+  };
+
+  const handleDashboardHome = () => {
+    if (isDashboard) {
+      navigate('/customer/');
+    } else {
+      navigate('/customer/dashboard');
+    }
+  };
+
   return (
     <>
       <nav className={styles.customerNav}>
-        <NavLink to={"/customer/dashboard"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Dashboard
-        </NavLink>
-        <NavLink to={"/customer/"} className={({ isActive }) => (isActive ? "active" : "")} end>
-          Home
-        </NavLink>
-        <button onClick={handleLogout} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+        <div className={styles.navBrand} onClick={handleBrandClick} style={{ cursor: 'pointer' }}>
+          <span className={styles.brandIcon}>🍽️</span>
+          <span className={styles.brandName}>RestoConnect</span>
+        </div>
+        <div className={styles.navLinks}>
+        </div>
+        <div className={styles.rightActions}>
+          <button 
+            onClick={handleDashboardHome} 
+            className={styles.dashboardBtn}
+            title={isDashboard ? "Go to Home" : "Go to Dashboard"}
+          >
+            <span>{isDashboard ? 'Home' : 'Dashboard'}</span>
+          </button>
+          <button onClick={handleLogout} className={styles.logoutBtn}>
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
       <Outlet />
     </>

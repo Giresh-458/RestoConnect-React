@@ -26,6 +26,46 @@ export function OrderPage() {
   const maxDate = `${maxDateObj.getFullYear()}-${pad(maxDateObj.getMonth() + 1)}-${pad(maxDateObj.getDate())}`;
   const openTime = "08:00";
   const closeTime = "23:00";
+  
+  // Get current time in HH:MM format for validation
+  const getCurrentTime = () => {
+    const now = new Date();
+    return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  };
+  
+  // Get minimum time based on current time and selected date
+  const getMinTime = (selectedDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    
+    // If selected date is today, use current time + 1 hour (rounded to next 15 min)
+    if (selected.getTime() === today.getTime()) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      // Round up to next 15-minute interval, then add 1 hour
+      const roundedMinute = Math.ceil(currentMinute / 15) * 15;
+      let nextHour = currentHour;
+      let nextMinute = roundedMinute + 60; // Add 1 hour
+      
+      if (nextMinute >= 60) {
+        nextHour += Math.floor(nextMinute / 60);
+        nextMinute = nextMinute % 60;
+      }
+      
+      // Ensure it's within restaurant hours
+      if (nextHour >= 23) {
+        return closeTime;
+      }
+      
+      return `${pad(nextHour)}:${pad(nextMinute)}`;
+    }
+    
+    // For future dates, use opening time
+    return openTime;
+  };
 
   const subtotal = cartItems.reduce(
     (s, it) => s + (it.amount || it.price || 0) * (it.quantity || 1),
@@ -68,9 +108,28 @@ export function OrderPage() {
       setReservationError('Time must be between 08:00 and 23:00.');
       return;
     }
+    
+    // Check if selected time is in the future (at least 1 hour from now)
+    const now = new Date();
     const todayStr = minDate;
-    if (date === todayStr && selectedDateTime <= new Date()) {
-      setReservationError('Please choose a time later than now for today.');
+    const selectedDateOnly = new Date(date);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const todayOnly = new Date();
+    todayOnly.setHours(0, 0, 0, 0);
+    
+    if (selectedDateOnly.getTime() === todayOnly.getTime()) {
+      // Same day - check if time is at least 1 hour from now
+      const [selectedHour, selectedMinute] = time.split(':').map(Number);
+      const selectedTimeMinutes = selectedHour * 60 + selectedMinute;
+      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+      const oneHourFromNow = currentTimeMinutes + 60;
+      
+      if (selectedTimeMinutes < oneHourFromNow) {
+        setReservationError('Please select a time at least 1 hour from now.');
+        return;
+      }
+    } else if (selectedDateOnly < todayOnly) {
+      setReservationError('Cannot select a date in the past.');
       return;
     }
 
@@ -203,13 +262,17 @@ export function OrderPage() {
               <input
                 type="time"
                 step="900"
-                min={openTime}
+                min={reservation.date ? getMinTime(reservation.date) : openTime}
                 max={closeTime}
                 value={reservation.time}
                 onChange={(e) => setReservation({ ...reservation, time: e.target.value })}
                 required
               />
-              <small className={styles.helpText}>Select between 08:00 and 23:00 (15-minute slots).</small>
+              <small className={styles.helpText}>
+                {reservation.date === minDate 
+                  ? `Select between ${getMinTime(reservation.date)} and ${closeTime} (at least 1 hour from now).`
+                  : `Select between ${openTime} and ${closeTime} (15-minute slots).`}
+              </small>
             </label>
 
             <label className={styles.formField}>

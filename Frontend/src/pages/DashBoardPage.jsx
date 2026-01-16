@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { isLogin } from "../util/auth";
 import { getFavourites } from "../util/favourites";
-import { redirect, useNavigate } from "react-router-dom";
+import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
 import { replaceCart } from "../store/CartSlice";
@@ -16,7 +16,9 @@ export async function loader() {
 
 export const DashBoardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+  const fileInputRef = useRef(null);
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
@@ -38,6 +40,8 @@ export const DashBoardPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeOrderTab, setActiveOrderTab] = useState("recent");
   const [pastOrders, setPastOrders] = useState([]);
+  const [profilePicPreview, setProfilePicPreview] = useState(null);
+  const [selectedProfileFile, setSelectedProfileFile] = useState(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
     email: "",
@@ -99,6 +103,43 @@ export const DashBoardPage = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchFavoriteDishes();
+  }, []);
+
+  // Refetch favorites when navigating to dashboard (e.g., returning from MenuPage)
+  useEffect(() => {
+    // Check if we're on the dashboard route
+    if (location.pathname === "/customer/dashboard") {
+      console.log("Navigated to dashboard, refetching favorites...");
+      // Small delay to ensure navigation is complete
+      const timer = setTimeout(() => {
+        fetchFavoriteDishes();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
+
+  // Refetch favorites when page becomes visible (e.g., switching tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Page became visible, refetching favorites...");
+        fetchFavoriteDishes();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  // Refetch favorites when window regains focus (e.g., returning from another tab/window)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("Window focused, refetching favorites...");
+      fetchFavoriteDishes();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -207,9 +248,19 @@ export const DashBoardPage = () => {
     try {
       console.log("Starting to fetch favorite dishes...");
       setLoadingFavorites(true);
-      const data = await getFavourites();
-      console.log("Received favorite dishes data:", data);
-      const dishes = Array.isArray(data) ? data : [];
+      
+      // Backend now returns full dish details with restaurant info
+      const favoriteDishes = await getFavourites();
+      console.log("Received favorite dishes:", favoriteDishes);
+      
+      if (!Array.isArray(favoriteDishes)) {
+        console.warn("Invalid favorites response format:", favoriteDishes);
+        setFavoriteDishes([]);
+        return;
+      }
+
+      // Backend already returns full dish details, so use them directly
+      const dishes = favoriteDishes.filter(dish => dish !== null && dish !== undefined);
       console.log("Processed favorite dishes:", dishes);
       setFavoriteDishes(dishes);
     } catch (error) {
@@ -217,7 +268,6 @@ export const DashBoardPage = () => {
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
-        response: error.response,
       });
       setFavoriteDishes([]);
     } finally {
@@ -342,11 +392,17 @@ export const DashBoardPage = () => {
   };
 
   const handleRateOrder = (order) => {
+    console.log("Rating order:", order);
+    if (!order.recordId && !order.orderId) {
+      console.error("Order ID missing");
+      return;
+    }
     navigate("/customer/feedback", {
       state: {
-        restId: order?.restId || null,
-        orderId: order?.recordId || order?.orderId || null,
-        restaurant: order?.restaurant || null,
+        restId: order?.restId,
+        orderId: order?.recordId || order?.orderId,
+        restaurant: order?.restaurant,
+        dishName: order?.dishName,
       },
     });
   };
@@ -454,7 +510,9 @@ export const DashBoardPage = () => {
         phone: userData.phone || "",
         img_url: userData.img_url || "",
       }));
+      setProfilePicPreview(userData.img_url);
     }
+    setSelectedProfileFile(null);
     setShowEditModal(true);
     setUpdateError("");
   };
@@ -469,6 +527,34 @@ export const DashBoardPage = () => {
       newPassword: "",
       confirmPassword: "",
     }));
+  };
+
+  const handleProfilePicClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB');
+        return;
+      }
+
+      setSelectedProfileFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -506,14 +592,27 @@ export const DashBoardPage = () => {
     }
 
     try {
+      // Create FormData to handle file upload
+      const formData = new FormData();
+      formData.append('name', editFormData.name);
+      formData.append('email', editFormData.email);
+      formData.append('phone', editFormData.phone);
+      
+      // Add profile picture if selected
+      if (selectedProfileFile) {
+        formData.append('profilePicture', selectedProfileFile);
+      }
+      
+      // Add passwords if provided
+      if (editFormData.newPassword) {
+        formData.append('newPassword', editFormData.newPassword);
+        formData.append('confirmPassword', editFormData.confirmPassword);
+      }
+
       const response = await fetch("http://localhost:3000/api/customer/edit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         credentials: "include",
-        body: JSON.stringify(editFormData),
+        body: formData,
       });
 
       if (response.status === 401) {
@@ -550,26 +649,52 @@ export const DashBoardPage = () => {
 
   return (
     <div style={styles.container}>
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+      `}</style>
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <img
-            src={userData?.img_url || "/default-avatar.png"}
-            alt="User"
-            style={styles.avatar}
-          />
-          <div>
-            <h1 style={styles.welcomeText}>
-              Welcome back, {userData?.name} 👋
-            </h1>
-            <p style={styles.subtitle}>Your meal moments await!</p>
-            <p style={styles.orderCount}>
-              {userData?.totalOrders || 0} Total Orders
-            </p>
+          <div style={styles.userSection}>
+            <img
+              src={userData?.img_url || "/default-avatar.png"}
+              alt="User"
+              style={styles.avatar}
+            />
+            <div>
+              <h1 style={styles.welcomeText}>
+                Welcome back, {userData?.name} 👋
+              </h1>
+              <p style={styles.subtitle}>Your meal moments await!</p>
+              <p style={styles.orderCount}>
+                {userData?.totalOrders || 0} Total Orders
+              </p>
+            </div>
           </div>
         </div>
         <div style={styles.headerRight}>
-          <button style={styles.editButton} onClick={handleEditProfileClick}>
+          <button 
+            style={styles.editButton} 
+            onClick={handleEditProfileClick}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.4)";
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(255, 255, 255, 0.3)";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
+            }}
+          >
             Edit Profile
           </button>
           <button
@@ -581,6 +706,16 @@ export const DashBoardPage = () => {
                 console.error("Logout failed", e);
               }
               navigate("/login");
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "rgba(220, 38, 38, 0.9)";
+              e.target.style.transform = "translateY(-2px)";
+              e.target.style.boxShadow = "0 6px 24px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "rgba(239, 68, 68, 0.8)";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
             }}
           >
             Logout
@@ -720,7 +855,7 @@ export const DashBoardPage = () => {
                   }
                   onClick={() => setActiveOrderTab("recent")}
                 >
-                  Recent Orders
+                  Ongoing Orders
                 </button>
                 <button
                   style={
@@ -737,7 +872,6 @@ export const DashBoardPage = () => {
               {(activeOrderTab === "recent" ? recentOrders : pastOrders).map(
                 (order, index) => {
                   const formattedStatus = formatOrderStatus(order.status);
-                  const isPastOrder = formattedStatus === "completed";
                   return (
                     <div key={order.recordId || index} style={styles.orderItem}>
                       <img
@@ -747,17 +881,13 @@ export const DashBoardPage = () => {
                       />
                       <div style={styles.orderInfo}>
                         <h4 style={styles.orderName}>
-                          {isPastOrder
-                            ? order.dishName || "Unknown Dish"
-                            : order.restaurant || "Restaurant"}
+                          {order.restaurant || "Restaurant"}
                         </h4>
                         <p style={styles.orderPrice}>
                           {formatCurrency(order.price)}
                         </p>
                         <p style={styles.orderMeta}>
-                          {isPastOrder
-                            ? order.restaurant || "Restaurant"
-                            : order.dishName || "Unknown Dish"}
+                          {order.dishName || "Unknown Dish"}
                         </p>
                         <p
                           style={{
@@ -830,35 +960,40 @@ export const DashBoardPage = () => {
               </div>
             ) : favoriteDishes.length > 0 ? (
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                {favoriteDishes.map((dish, index) => (
+                <div style={styles.favoriteDishesGrid}>
+                {favoriteDishes.map((dish, index) => {
+                  console.log("Rendering favorite dish:", dish);
+                  return (
                   <div
                     key={dish._id || index}
                     style={styles.dishCard}
                     onClick={() =>
-                      dish.restaurantId &&
-                      navigate(`/customer/restaurant/${dish.restaurantId}`)
+                      (dish.restaurantId || dish.rest_id) &&
+                      navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)
                     }
                   >
                     <div style={styles.dishImageContainer}>
                       <img
-                        src={dish.image || "https://via.placeholder.com/80"}
+                        src={dish.image || dish.imageUrl || "https://via.placeholder.com/80"}
                         alt={dish.name}
                         style={styles.dishImage}
                       />
                     </div>
                     <div style={styles.dishInfo}>
                       <h4 style={styles.dishName}>{dish.name}</h4>
-                      {dish.restaurantName && (
+                      {(dish.restaurantName || dish.restaurant) && (
                         <p style={styles.restaurantName}>
-                          <i className="bi bi-shop"></i> {dish.restaurantName}
+                          <i className="bi bi-shop"></i> {dish.restaurantName || dish.restaurant}
                         </p>
                       )}
                       {dish.price && (
-                        <p style={styles.dishPrice}>${dish.price.toFixed(2)}</p>
+                        <p style={styles.dishPrice}>${Number(dish.price).toFixed(2)}</p>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+                </div>
               </div>
             ) : (
               <div style={styles.emptyState}>
@@ -1162,15 +1297,39 @@ export const DashBoardPage = () => {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Profile Image URL</label>
-                <input
-                  type="text"
-                  name="img_url"
-                  value={editFormData.img_url}
-                  onChange={handleInputChange}
-                  style={styles.formInput}
-                  placeholder="https://example.com/image.jpg"
-                />
+                <label style={styles.formLabel}>Profile Picture</label>
+                <div style={styles.profilePicContainer}>
+                  <div 
+                    style={{
+                      ...styles.profilePicPreview,
+                      backgroundImage: profilePicPreview ? `url('${profilePicPreview}')` : 'none',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: profilePicPreview ? 'transparent' : '#999',
+                    }}
+                    onClick={handleProfilePicClick}
+                  >
+                    {!profilePicPreview && '📷'}
+                  </div>
+                  <input 
+                    ref={fileInputRef}
+                    type="file" 
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleProfilePicChange}
+                    style={{ display: 'none' }}
+                  />
+                  <button 
+                    type="button"
+                    onClick={handleProfilePicClick}
+                    style={styles.changePicButton}
+                  >
+                    {selectedProfileFile ? '✓ Image Selected' : 'Change Picture'}
+                  </button>
+                </div>
               </div>
 
               <div style={styles.formDivider}>
@@ -1228,10 +1387,14 @@ export const DashBoardPage = () => {
 
 const styles = {
   container: {
-    fontFamily: "Arial, sans-serif",
-    backgroundColor: "#f9fafb",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
+    backgroundSize: "400% 400%",
+    animation: "gradientShift 15s ease infinite",
+    animationDelay: "0s",
     minHeight: "100vh",
     padding: "20px",
+    position: "relative",
   },
   loading: {
     display: "flex",
@@ -1244,13 +1407,46 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
+    background: "rgba(255, 255, 255, 0.25)",
+    backdropFilter: "blur(30px) saturate(200%)",
+    WebkitBackdropFilter: "blur(30px) saturate(200%)",
     padding: "20px 30px",
-    borderRadius: "12px",
+    borderRadius: "20px",
     marginBottom: "20px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
   },
   headerLeft: {
+    display: "flex",
+    gap: "30px",
+    alignItems: "center",
+    flex: 1,
+  },
+  brandSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    fontSize: "1.5rem",
+    fontWeight: "800",
+    color: "#fff",
+    textShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+    letterSpacing: "-0.5px",
+    paddingRight: "30px",
+    borderRight: "2px solid rgba(255, 255, 255, 0.3)",
+  },
+  brandIcon: {
+    fontSize: "2rem",
+    filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))",
+    animation: "float 3s ease-in-out infinite",
+  },
+  brandName: {
+    background: "linear-gradient(135deg, #fff 0%, #e0f7fa 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+    filter: "drop-shadow(0 2px 4px rgba(255, 255, 255, 0.5))",
+  },
+  userSection: {
     display: "flex",
     gap: "20px",
     alignItems: "center",
@@ -1265,16 +1461,20 @@ const styles = {
     fontSize: "24px",
     fontWeight: "bold",
     margin: "0 0 5px 0",
+    color: "#fff",
+    textShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
   },
   subtitle: {
     fontSize: "14px",
-    color: "#6b7280",
+    color: "rgba(255, 255, 255, 0.9)",
     margin: "0 0 5px 0",
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
   },
   orderCount: {
     fontSize: "13px",
-    color: "#9ca3af",
+    color: "rgba(255, 255, 255, 0.8)",
     margin: 0,
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
   },
   headerRight: {
     display: "flex",
@@ -1282,23 +1482,31 @@ const styles = {
   },
   editButton: {
     padding: "10px 20px",
-    backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.3)",
+    backdropFilter: "blur(15px) saturate(180%)",
+    WebkitBackdropFilter: "blur(15px) saturate(180%)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
+    borderRadius: "12px",
     cursor: "pointer",
     fontSize: "14px",
-    color: "#1f2937",
+    color: "#fff",
     fontWeight: 600,
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    transition: "all 0.3s ease",
   },
   logoutButton: {
     padding: "10px 20px",
-    backgroundColor: "#ff6b35",
+    background: "rgba(239, 68, 68, 0.8)",
+    backdropFilter: "blur(20px) saturate(200%)",
+    WebkitBackdropFilter: "blur(20px) saturate(200%)",
     color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
+    borderRadius: "12px",
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: 600,
+    boxShadow: "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    transition: "all 0.3s ease",
   },
   mainContent: {
     display: "grid",
@@ -1325,10 +1533,13 @@ const styles = {
     gap: "20px",
   },
   card: {
-    backgroundColor: "#fff",
+    background: "rgba(255, 255, 255, 0.4)",
+    backdropFilter: "blur(30px) saturate(180%)",
+    WebkitBackdropFilter: "blur(30px) saturate(180%)",
     padding: "24px",
-    borderRadius: "12px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+    borderRadius: "20px",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    border: "1px solid rgba(255, 255, 255, 0.5)",
   },
   cardTitle: {
     fontSize: "18px",
@@ -1543,23 +1754,46 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "20px",
   },
+  favoriteDishesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+    gap: "12px",
+  },
   dishCard: {
     border: "1px solid #e5e7eb",
-    borderRadius: "12px",
+    borderRadius: "10px",
+    overflow: "hidden",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+  dishImageContainer: {
+    width: "100%",
     overflow: "hidden",
   },
   dishImage: {
     width: "100%",
-    height: "150px",
+    height: "100px",
     objectFit: "cover",
   },
   dishInfo: {
-    padding: "15px",
+    padding: "10px 12px",
   },
   dishName: {
-    fontSize: "15px",
+    fontSize: "13px",
     fontWeight: "600",
-    margin: "0 0 5px 0",
+    margin: "0 0 4px 0",
+    color: "#1f2937",
+  },
+  restaurantName: {
+    fontSize: "11px",
+    color: "#6b7280",
+    margin: "0 0 4px 0",
+  },
+  dishPrice: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#00d4aa",
+    margin: 0,
   },
   dishRestaurant: {
     fontSize: "13px",
@@ -1866,6 +2100,32 @@ const styles = {
     borderRadius: "8px",
     fontSize: "14px",
     boxSizing: "border-box",
+  },
+  profilePicContainer: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "12px",
+  },
+  profilePicPreview: {
+    width: "120px",
+    height: "120px",
+    borderRadius: "50%",
+    border: "3px solid #2ecc71",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    fontSize: "40px",
+  },
+  changePicButton: {
+    padding: "8px 16px",
+    backgroundColor: "#2ecc71",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
   },
   formDivider: {
     margin: "24px 0",

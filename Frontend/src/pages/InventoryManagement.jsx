@@ -10,6 +10,7 @@ import {
 import styles from "./InventoryManagement.module.css";
 
 export function InventoryManagement() {
+  console.log("InventoryManagement component mounted");
   const [inventory, setInventory] = useState(() => {
     try {
       const saved = localStorage.getItem('inventory');
@@ -19,15 +20,15 @@ export function InventoryManagement() {
       return [];
     }
   });
-  
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
     unit: 'kg',
-    quantity: 0,
-    minStock: 0
+    quantity: '',
+    minStock: ''
   });
+
   
   const navigate = useNavigate();
   const lowStockCount = Array.isArray(inventory) ? inventory.filter(i => (i?.quantity ?? 0) <= (i?.minStock ?? 0)).length : 0;
@@ -38,13 +39,11 @@ export function InventoryManagement() {
 
   const loadInventory = async () => {
     try {
+      console.log("Fetching inventory data...");
       const inventoryData = await fetchInventory();
+      console.log("Inventory data fetched:", inventoryData);
       setInventory(inventoryData);
-      try {
-        localStorage.setItem('inventory', JSON.stringify(inventoryData));
-      } catch (e) {
-        console.error('Failed to save inventory to localStorage', e);
-      }
+
     } catch (error) {
       console.error("Error loading inventory:", error);
       alert('Failed to load inventory. Please try again.');
@@ -76,8 +75,9 @@ export function InventoryManagement() {
       const payload = {
         name: (newItem.name || '').trim(),
         unit: newItem.unit,
-        quantity: Number.isFinite(newItem.quantity) && newItem.quantity >= 0 ? newItem.quantity : 0,
-        minStock: Number.isFinite(newItem.minStock) && newItem.minStock >= 0 ? newItem.minStock : 0
+        quantity: newItem.quantity === '' ? 0 : Number(newItem.quantity),
+        minStock: newItem.minStock === '' ? 0 : Number(newItem.minStock)
+
       };
       
       if (!payload.name) {
@@ -86,20 +86,13 @@ export function InventoryManagement() {
       }
       
       const result = await createInventoryItem(payload);
-      
-      setInventory(prevInventory => {
-        const newInventory = Array.isArray(prevInventory) 
-          ? [...prevInventory, result.inventory]
-          : [result.inventory];
-        
-        try {
-          localStorage.setItem('inventory', JSON.stringify(newInventory));
-        } catch (e) {
-          console.error('Failed to update inventory in localStorage', e);
-        }
-        
-        return newInventory;
-      });
+
+      setInventory(prevInventory =>
+          Array.isArray(prevInventory)
+            ? [...prevInventory, result.inventory]
+            : [result.inventory]
+      );
+
       
       setNewItem({ name: '', unit: 'kg', quantity: 0, minStock: 0 });
       setShowAddForm(false);
@@ -116,20 +109,14 @@ export function InventoryManagement() {
 
     try {
       await deleteInventoryItem(itemId);
-      
-      setInventory(prevInventory => {
-        const newInventory = Array.isArray(prevInventory) 
+
+      setInventory(prevInventory =>
+        Array.isArray(prevInventory)
           ? prevInventory.filter(item => item?._id !== itemId)
-          : [];
-        
-        try {
-          localStorage.setItem('inventory', JSON.stringify(newInventory));
-        } catch (e) {
-          console.error('Failed to update inventory in localStorage', e);
-        }
-        
-        return newInventory;
-      });
+          : []
+      );
+
+
     } catch (error) {
       console.error("Error deleting inventory item:", error);
       alert(error.message || "Failed to delete inventory item. Please try again.");
@@ -207,7 +194,15 @@ export function InventoryManagement() {
                   type="number"
                   placeholder="0"
                   value={newItem.quantity}
-                  onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => {
+                      const value = e.target.value;
+                      setNewItem({
+                        ...newItem,
+                        quantity: value === '' ? '' : Number(value)
+                      });
+                    }}
+
+                  
                   min="0"
                   className={styles.formInput}
                 />
@@ -220,7 +215,14 @@ export function InventoryManagement() {
                   type="number"
                   placeholder="0"
                   value={newItem.minStock}
-                  onChange={(e) => setNewItem({ ...newItem, minStock: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewItem({
+                      ...newItem,
+                      minStock: value === '' ? '' : Number(value)
+                    });
+                  }}
+
                   min="0"
                   className={styles.formInput}
                 />

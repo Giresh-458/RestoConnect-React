@@ -5,6 +5,8 @@ import "./OwnerReservations.css";
 
 export function OwnerReservations() {
   const [reservations, setReservations] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+
 
   useEffect(() => {
     const fetchReservations = async () => {
@@ -26,9 +28,29 @@ export function OwnerReservations() {
     fetchReservations();
   }, []);
 
+  const filteredReservations = reservations.filter((r) => {
+    if (statusFilter === "all") return true;
+    return r.status?.toLowerCase() === statusFilter;
+  });
+
+
   return (
     <div className="reservations-container">
       <h2 className="reservations-heading">Reservations</h2>
+
+      <div className="reservations-filter">
+        <label htmlFor="reservationStatus">Filter by status: </label>
+        <select
+          id="reservationStatus"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="confirmed">Confirmed</option>
+        </select>
+      </div>
 
       <table className="reservations-table">
         <thead>
@@ -42,8 +64,11 @@ export function OwnerReservations() {
         </thead>
 
         <tbody>
-          {reservations.length > 0 ? (
-            reservations.map((r) => (
+          {/* {reservations.length > 0 ? (
+            reservations.map((r) => ( */}
+            {filteredReservations.length > 0 ? (
+              filteredReservations.map((r) => (
+
               <tr key={r._id}>
                 <td>{r.customerName}</td>
                 <td>{r.time}</td>

@@ -6,6 +6,7 @@ const path  =require('path');
 const customerController = require('../Controller/customerController');
 const menuController = require('../Controller/menuController');
 const homePageController = require("../Controller/homePageController")
+const { uploadProfilePicture, handleUploadErrors } = require('../util/fileUpload');
 
 
 
@@ -16,7 +17,7 @@ router.get('/feedback', customerController.getFeedBack);
 router.post("/submit-feedback", customerController.submitFeedback);
 
 router.get('/edit', customerController.getEditProfile);
-router.post('/edit', customerController.postEditProfile);
+router.post('/edit', uploadProfilePicture, handleUploadErrors, customerController.postEditProfile);
 
 router.post('/order_reservation',customerController.postOrderAndReservation );
 router.get('/order_reservation',customerController.postOrderAndReservation );
@@ -51,5 +52,9 @@ router.post('/cart/order', menuController.orderCart);
 
 // Customer homepage - search and filter restaurants
 router.get('/restaurants/search', customerController.searchRestaurants);
+
+// Promo code routes
+router.post('/promo/validate', customerController.validatePromoCode);
+router.post('/promo/apply', customerController.applyPromoCode);
 
 module.exports = router;

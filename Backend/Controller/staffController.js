@@ -1,7 +1,7 @@
 const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
-const bcrypt = require('bcrypt');
+const bcrypt = require("bcrypt");
 
 // Dashboard Methods
 exports.getDashBoard = async (req, res) => {
@@ -173,9 +173,13 @@ exports.postAllocateTable = async (req, res) => {
   }
 };
 
-// HomePage Methods
+// HomePage Methods - Legacy route that renders HTML (for backward compatibility)
 exports.getHomePage = async (req, res) => {
-  let rest = await Restaurant.findById(req.session.rest_id);
+ 
+  // Only render HTML if this is NOT an API route
+
+
+  let rest = await Restaurant.findById(req.user.rest_id);
   if (!rest) {
     return res.status(404).send("Restaurant not found");
   }
@@ -208,11 +212,11 @@ exports.getHomePage = async (req, res) => {
     }
   }
   let rest_name = rest.name;
-  res.render("staffHomepage", {
+  res.json({
     tasks: rest.tasks || [],
     allocatedTables,
     reservationsNeedingAllocation,
-    availableTables,
+    availableTables
   });
 };
 
@@ -341,12 +345,11 @@ exports.postUpdateInventory = async (req, res) => {
     if (index === -1) return res.status(404).send("Item not found");
 
     // Safe quantity update
-    if (action === "increase") restaurant.inventoryData.values[index] += 1;
-    else if (
-      action === "decrease" &&
-      restaurant.inventoryData.values[index] > 0
-    )
-      restaurant.inventoryData.values[index] -= 1;
+    if (action === "increase") {
+      restaurant.inventoryData.values[index] = (restaurant.inventoryData.values[index] || 0) + 1;
+    } else if (action === "decrease" && (restaurant.inventoryData.values[index] || 0) > 0) {
+      restaurant.inventoryData.values[index] = (restaurant.inventoryData.values[index] || 0) - 1;
+    }
 
     await restaurant.save();
     res.redirect("/staff/Dashboard");
@@ -362,13 +365,34 @@ exports.postAutoAllocateTable = async (req, res) => {
 };
 
 exports.getStaffHomepageData = async (req, res) => {
+  // Explicitly set Content-Type to JSON for all responses
+  res.setHeader('Content-Type', 'application/json');
+  
+  console.log("...........................................")
   console.log("getStaffHomepageData endpoint called");
+  console.log("Request path:", req.path);
+  console.log("Request URL:", req.url);
+  console.log("Request originalUrl:", req.originalUrl);
+  console.log("Request baseUrl:", req.baseUrl);
+  console.log("Session username:", req.session.username);
+  console.log("Session rest_id:", req.session.rest_id);
+  
   try {
-    console.log("Session username:", req.session.username);
+    if (!req.session.username) {
+      console.error("❌ No username in session");
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
     const staffMember = await User.findOne({ username: req.session.username });
     if (!staffMember) {
+      console.error("❌ Staff member not found in database");
       return res.status(404).json({ error: "Staff member not found" });
+    }
+
+    // Ensure rest_id is set in session if available (important for first visit)
+    if (!req.session.rest_id && staffMember.rest_id) {
+      req.session.rest_id = String(staffMember.rest_id);
+      console.log("✅ Set rest_id in session for homepage:", req.session.rest_id);
     }
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
@@ -400,8 +424,10 @@ exports.getStaffHomepageData = async (req, res) => {
     }
 
     const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
 
     console.log(`Looking for orders for restaurant: ${restaurant._id}`);
     console.log(`Date range: ${startOfDay} to ${endOfDay}`);
@@ -429,6 +455,7 @@ exports.getStaffHomepageData = async (req, res) => {
         staff: shift.assignedStaff,
       }));
 
+    
     const staffTasks = (restaurant.staffTasks || [])
       .filter((task) => task.assignedTo.includes(staffMember.username))
       .map((task) => ({
@@ -532,6 +559,43 @@ exports.postSupportMessage = async (req, res) => {
   }
 };
 
+exports.changePassword = async (req, res) => {
+  const currentStaffUsername = req.session.username;
+  if (!currentStaffUsername) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Missing password fields" });
+    }
+
+    const user = await User.findOne({ username: currentStaffUsername });
+    if (!user) {
+      return res.status(404).json({ error: "Staff member not found" });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect current password" });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.updateOne(
+      { username: currentStaffUsername },
+      { $set: { password: hashedPassword } }
+    );
+
+    res.status(200).json({ message: "Password changed successfully!" });
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.updateTaskStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -602,41 +666,15 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
-// Change password for staff
-exports.changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body || {};
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Both currentPassword and newPassword are required' });
-    }
-
-    if (typeof newPassword !== 'string' || newPassword.trim().length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
-    }
-
-    const username = req.session.username;
-    if (!username) return res.status(401).json({ error: 'Unauthorized' });
-
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (user.role !== 'staff') return res.status(403).json({ error: 'Forbidden' });
-
-    // Compare current password
-    const matches = await bcrypt.compare(currentPassword, user.password || '');
-    if (!matches) return res.status(401).json({ error: 'Incorrect current password' });
-
-    // Hash new password and update
-    const hashed = await bcrypt.hash(newPassword.trim(), 10);
-    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
-
-    return res.status(200).json({ message: 'Password changed successfully!' });
-  } catch (err) {
-    console.error('Error in staff changePassword:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
-
 exports.getDashBoardData = async (req, res) => {
+   console.log("==============================================================")
+  // console.log("🚀🚀🚀 getDashBoardData function called!");
+  // console.log("Request method:", req.method);
+  // console.log("Request path:", req.path);
+  // console.log("Request URL:", req.url);
+  // console.log("Session username:", req.session?.username);
+  // console.log("Session rest_id:", req.session?.rest_id);
+
   try {
     const { Restaurant } = require("../Model/Restaurents_model");
     const { User } = require("../Model/userRoleModel");
@@ -645,15 +683,15 @@ exports.getDashBoardData = async (req, res) => {
     const { Reservation } = require("../Model/Reservation_model");
     const { Inventory } = require("../Model/Inventory_model"); // ✅ include inventory
 
-    console.log("------ STAFF DASHBOARD DEBUG START ------");
-    console.log("Session data:", req.session);
+    // console.log("------ STAFF DASHBOARD DEBUG START ------");
+    // console.log("Session data:", req.session);
 
-    // Recover rest_id if missing
+    // Recover rest_id if missing - ensure it's always set for staff
     if (!req.session.rest_id && req.session.username) {
       const staffUser = await User.findOne({ username: req.session.username });
       if (staffUser && staffUser.rest_id) {
         req.session.rest_id = staffUser.rest_id;
-        console.log("Recovered rest_id:", req.session.rest_id);
+        // console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
       }
     }
 
@@ -667,11 +705,11 @@ exports.getDashBoardData = async (req, res) => {
       .lean();
 
     if (!rest) {
-      console.log("❌ Restaurant not found for ID:", req.session.rest_id);
+      // console.log("❌ Restaurant not found for ID:", req.session.rest_id);
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
-    console.log('🏢 Restaurant tables:', rest.tables?.length || 0, rest.tables);
+    // console.log('🏢 Restaurant tables:', rest.tables?.length || 0, rest.tables);
 
     // ✅ Get Orders
     let orders = rest.orders || [];
@@ -681,27 +719,54 @@ exports.getDashBoardData = async (req, res) => {
 
     // ✅ Get Reservations - ensure rest_id is string for query
     const restIdString = String(req.session.rest_id);
-    console.log('🔍 Querying reservations for rest_id:', restIdString);
-    
+    // console.log('🔍 Querying reservations for rest_id:', restIdString);
+
     // Try multiple query formats to ensure we find reservations
     let reservations = await Reservation.find({ rest_id: restIdString }).lean();
-    
+
     // If no results, try querying without string conversion (in case rest_id is stored differently)
     if (reservations.length === 0) {
-      console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
+      // console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
       reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
     }
-    
+
     // Also try querying all reservations to debug
     const allReservations = await Reservation.find({}).lean();
-    console.log(`📊 Total reservations in DB: ${allReservations.length}`);
+    // console.log(`📊 Total reservations in DB: ${allReservations.length}`);
     if (allReservations.length > 0) {
-      console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));
+      // console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));
     }
-    
-    console.log(`✅ Found ${reservations.length} reservations for rest_id: ${restIdString}`);
+
+    // console.log(`✅ Found ${reservations.length} reservations for rest_id: ${restIdString}`);
     if (reservations.length > 0) {
-      console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
+      // console.log('📋 Reservations found:', reservations.map(r => ({ id: r._id, customer: r.customerName, status: r.status, rest_id: r.rest_id })));
+    }
+
+    // ✅ Cleanup: Reset tables that are allocated but have no corresponding reservation
+    const allocatedReservations = reservations.filter(r => r.allocated && r.status === 'confirmed');
+    const allocatedTableNumbers = new Set();
+    allocatedReservations.forEach(reservation => {
+      if (Array.isArray(reservation.tables)) {
+        reservation.tables.forEach(tableNum => allocatedTableNumbers.add(String(tableNum)));
+      }
+      if (reservation.table_id) {
+        allocatedTableNumbers.add(String(reservation.table_id));
+      }
+    });
+
+    let tablesUpdated = false;
+    if (rest.tables && rest.tables.length > 0) {
+      rest.tables.forEach(table => {
+        if (table.status === 'Allocated' && !allocatedTableNumbers.has(String(table.number))) {
+          // console.log(`🔧 Resetting orphaned table ${table.number} to Available`);
+          table.status = 'Available';
+          tablesUpdated = true;
+        }
+      });
+      if (tablesUpdated) {
+        await Restaurant.findByIdAndUpdate(rest._id, { tables: rest.tables });
+        // console.log('✅ Cleaned up orphaned allocated tables');
+      }
     }
 
     // ✅ Get Feedback
@@ -710,23 +775,29 @@ exports.getDashBoardData = async (req, res) => {
       .limit(10)
       .lean();
 
-    // ✅ Get Inventory
-    const rawInventory = await Inventory.find({ rest_id: req.session.rest_id }).lean();
-    const inventoryStatus = rawInventory.map((item) => {
-      let status = "Available";
-      if (item.quantity <= 0) status = "Out of Stock";
-      else if (item.quantity <= item.minStock) status = "Low Stock";
+    // ✅ Get Inventory from restaurant inventoryData
+    const inventoryStatus = [];
+    if (rest.inventoryData && rest.inventoryData.labels && Array.isArray(rest.inventoryData.labels) && rest.inventoryData.labels.length > 0) {
+      for (let i = 0; i < rest.inventoryData.labels.length; i++) {
+        const quantity = (rest.inventoryData.values && rest.inventoryData.values[i]) || 0;
+        const minStock = (rest.inventoryData.minStocks && rest.inventoryData.minStocks[i]) || 0;
+        const unit = (rest.inventoryData.units && rest.inventoryData.units[i]) || 'pieces';
 
-      return {
-        item: item.name,
-        quantity: `${item.quantity} ${item.unit}`,
-        quantityValue: item.quantity, // Include numeric value for comparison
-        minStock: item.minStock, // Include minStock for frontend calculations
-        status,
-      };
-    });
+        let status = "Available";
+        if (quantity <= 0) status = "Out of Stock";
+        else if (quantity <= minStock) status = "Low Stock";
 
-    console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
+        inventoryStatus.push({
+          item: rest.inventoryData.labels[i],
+          quantity: `${quantity} ${unit}`,
+          quantityValue: quantity, // Include numeric value for comparison
+          minStock: minStock, // Include minStock for frontend calculations
+          status,
+        });
+      }
+    }
+
+    // console.log(`✔ Found ${orders.length} orders, ${reservations.length} reservations, ${feedback.length} feedbacks, ${inventoryStatus.length} inventory items`);
 
     // ✅ Get available tables - ensure proper structure
     const availableTables = (rest.tables || []).filter(t => t.status === "Available").map(table => ({
@@ -734,8 +805,29 @@ exports.getDashBoardData = async (req, res) => {
       seats: Number(table.seats || 4),
       status: table.status || 'Available'
     }));
-    
-    console.log('📊 Available tables:', availableTables.length, availableTables);
+
+    // ✅ Get all tables for occupied count
+    const allTables = (rest.tables || []).map(table => ({
+      number: String(table.number || ''),
+      seats: Number(table.seats || 4),
+      status: table.status || 'Available'
+    }));
+
+    // console.log('📊 Available tables:', availableTables.length, availableTables);
+    // console.log('🏢 All tables:', allTables.length, allTables);
+
+    // ✅ Get Staff Tasks
+    const staffTasks = (rest.staffTasks || []).map((task) => ({
+      id: task._id,
+      name: task.description,
+      status: task.status,
+      priority: task.priority,
+      assignedTo: task.assignedTo,
+    }));
+     console.log(staffTasks+"================================================")
+
+    // ✅ Calculate pending tasks count
+    const pendingTasksCount = staffTasks.filter(task => task.status === "Pending").length;
 
     // ✅ Send data
     res.json({
@@ -745,9 +837,12 @@ exports.getDashBoardData = async (req, res) => {
       feedback,
       inventoryStatus, // 👈 add this field for frontend
       availableTables,
+      allTables, // 👈 add all tables for occupied count
+      staffTasks, // 👈 add staffTasks for pending tasks
+      pendingTasksCount, // 👈 add pending tasks count
     });
 
-    console.log("------ STAFF DASHBOARD DEBUG END ------");
+    // console.log("------ STAFF DASHBOARD DEBUG END ------");
   } catch (error) {
     console.error("🔥 Error in getDashBoardData:", error.message);
     res.status(500).json({

@@ -81,13 +81,17 @@ app.use("/api/admin", authentication("admin"), adminRouter);
 app.use("/owner", authentication("owner"), ownerRouter);
 app.use("/api/owner", authentication("owner"), ownerRouter);
 
-app.use(
-  "/staff",
-  authentication("staff"),
-  staffController.getStaffHomepageData
-);
-app.use("/api/staff", authentication("staff"), staffRouter);
+
+
 app.use("/reservations", authentication("owner"), reservationRouter);
+
+
+
+// Staff routes - use router for all /staff and /api/staff paths
+app.use('/api/staff', authentication('staff'), staffRouter);
+// Also mount staffRouter at /staff for API routes (like /staff/homepage)
+app.use('/staff', authentication('staff'),
+staffRouter);
 
 app.get("/", homepageController.getHomePage);
 app.post("/", validation, homepageController.putHomePage);

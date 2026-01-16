@@ -4,7 +4,7 @@ import { CheckoutSteps } from "../components/CheckoutSteps";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearcart } from '../store/CartSlice';
+import { clearcart, setPromoCode, clearPromoCode } from '../store/CartSlice';
 
 export function PaymentPage() {
   const location = useLocation();
@@ -14,6 +14,11 @@ export function PaymentPage() {
   const [error, setError] = useState(null);
   const dispatch = useDispatch();
   const [method, setMethod] = useState('');
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [promoCodeError, setPromoCodeError] = useState(null);
+  const [promoCodeLoading, setPromoCodeLoading] = useState(false);
+  const promoCode = useSelector((state) => state.cart?.promoCode || null);
+  const promoDiscount = useSelector((state) => state.cart?.promoDiscount || 0);
 
   // Derive totals and effective rest id
   const srcPayload = payload || {};
@@ -25,8 +30,60 @@ export function PaymentPage() {
     : items.reduce((s, it) => s + ((it.amount ?? it.price ?? 0) * (it.quantity ?? 1)), 0);
   const deliveryFee = 3.0;
   const taxes = +(subtotal * 0.08).toFixed(2);
-  const grandTotal = +(subtotal + deliveryFee + taxes).toFixed(2);
+  const subtotalWithTaxes = +(subtotal + deliveryFee + taxes).toFixed(2);
+  const finalDiscount = promoDiscount > subtotalWithTaxes ? subtotalWithTaxes : promoDiscount;
+  const grandTotal = +(subtotalWithTaxes - finalDiscount).toFixed(2);
   const restIdEffective = restId || srcPayload.rest_id || storeRestId || null;
+
+  const handlePromoCodeApply = async () => {
+    if (!promoCodeInput.trim()) {
+      setPromoCodeError('Please enter a promo code');
+      return;
+    }
+
+    setPromoCodeError(null);
+    setPromoCodeLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/api/customer/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code: promoCodeInput.trim().toUpperCase(),
+          orderAmount: subtotalWithTaxes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid promo code');
+      }
+
+      if (data.success && data.data) {
+        dispatch(setPromoCode({
+          code: data.data.code,
+          discount: data.data.discount,
+        }));
+        setPromoCodeInput('');
+        setPromoCodeError(null);
+      } else {
+        throw new Error('Failed to apply promo code');
+      }
+    } catch (err) {
+      setPromoCodeError(err.message || 'Failed to apply promo code');
+      dispatch(clearPromoCode());
+    } finally {
+      setPromoCodeLoading(false);
+    }
+  };
+
+  const handlePromoCodeRemove = () => {
+    dispatch(clearPromoCode());
+    setPromoCodeInput('');
+    setPromoCodeError(null);
+  };
 
   const handlePay = async () => {
     setProcessing(true);
@@ -83,7 +140,9 @@ export function PaymentPage() {
           items: formattedItems,
           rest_id: srcPayload.rest_id || restIdEffective,
           totalAmount: grandTotal,
-          restaurantName: srcPayload.restaurantName || ''
+          restaurantName: srcPayload.restaurantName || '',
+          promoCode: promoCode || null,
+          promoDiscount: finalDiscount || 0,
         };
 
         // Only include reservation if it has required fields (date and time - table_id is optional)
@@ -140,6 +199,20 @@ export function PaymentPage() {
       const newOrderId = (data && data.data && data.data.orderId) || data.orderId || (data && data.data && data.data.order?._id) || (data && data.data && data.data.order?.id);
       if (!newOrderId) {
         throw new Error('Missing orderId in response');
+      }
+
+      // Apply promo code usage if promo code was used
+      if (promoCode) {
+        try {
+          await fetch('http://localhost:3000/api/customer/promo/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ code: promoCode }),
+          });
+        } catch (e) {
+          console.warn('Failed to apply promo code usage:', e);
+        }
       }
 
       try { 
@@ -208,10 +281,90 @@ export function PaymentPage() {
           </div>
         </section>
 
+        <section className="promo-section" style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
+          <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Promo Code</h3>
+          {promoCode ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#e8f5e9', borderRadius: '6px', marginBottom: '8px' }}>
+              <div>
+                <strong style={{ color: '#2e7d32' }}>{promoCode}</strong>
+                <span style={{ marginLeft: '8px', color: '#666', fontSize: '14px' }}>Applied</span>
+              </div>
+              <button
+                type="button"
+                onClick={handlePromoCodeRemove}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #c62828',
+                  color: '#c62828',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="Enter promo code"
+                value={promoCodeInput}
+                onChange={(e) => {
+                  setPromoCodeInput(e.target.value.toUpperCase());
+                  setPromoCodeError(null);
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handlePromoCodeApply();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  border: promoCodeError ? '2px solid #d32f2f' : '2px solid #ddd',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handlePromoCodeApply}
+                disabled={promoCodeLoading || !promoCodeInput.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: promoCodeLoading || !promoCodeInput.trim() ? '#ccc' : '#ff6b6b',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: promoCodeLoading || !promoCodeInput.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                }}
+              >
+                {promoCodeLoading ? 'Applying...' : 'Apply'}
+              </button>
+            </div>
+          )}
+          {promoCodeError && (
+            <div style={{ marginTop: '8px', color: '#d32f2f', fontSize: '13px' }}>
+              {promoCodeError}
+            </div>
+          )}
+        </section>
+
         <section className="charge-summary">
           <div className="row"><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
           <div className="row"><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
           <div className="row"><span>Taxes (8%)</span><span>₹ {taxes.toFixed(2)}</span></div>
+          {promoCode && finalDiscount > 0 && (
+            <div className="row" style={{ color: '#2e7d32', fontWeight: '600' }}>
+              <span>Promo Code Discount ({promoCode})</span>
+              <span>-₹ {finalDiscount.toFixed(2)}</span>
+            </div>
+          )}
         </section>
 
         <footer className="payment-footer">

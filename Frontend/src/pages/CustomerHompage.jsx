@@ -41,7 +41,34 @@ export function CustomerHomepage() {
   const [activeTab, setActiveTab] = useState("all");
   const [favorites, setFavorites] = useState([]);
   const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [itemsPerSlide, setItemsPerSlide] = useState(3);
+  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
   const navigate = useNavigate();
+
+  // Handle responsive carousel on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth <= 768) {
+          setItemsPerSlide(1);
+        } else if (window.innerWidth <= 1024) {
+          setItemsPerSlide(2);
+        } else {
+          setItemsPerSlide(3);
+        }
+      }
+      // Reset to first slide when resizing
+      setCurrentSlide(0);
+    };
+
+    // Set initial value
+    handleResize();
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchLocations = useCallback(async () => {
     try {
@@ -160,6 +187,29 @@ export function CustomerHomepage() {
     .sort(sortFunctions[sortBy] || sortFunctions.rating)
     .slice(0, 6);
 
+  // Calculate total slides based on current items per slide
+  const totalSlides = Math.ceil(popularRestaurants.length / itemsPerSlide);
+
+  // Carousel navigation functions
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % totalSlides);
+  }, [totalSlides]);
+
+  const prevSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  }, [totalSlides]);
+
+  // Auto-slide carousel every 4 seconds (slow sliding)
+  useEffect(() => {
+    if (totalSlides <= 1 || isCarouselHovered) return; 
+    
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % totalSlides);
+    }, 2000); // 4 seconds interval
+
+    return () => clearInterval(interval);
+  }, [totalSlides, isCarouselHovered]);
+
   // Get nearby restaurants (sorted by distance)
   const nearbyRestaurants = [...restaurants]
     .filter((r) => r.distance !== undefined)
@@ -238,11 +288,11 @@ export function CustomerHomepage() {
             </p>
           </div>
           {favorites.length > 0 ? (
-            <div className={styles.restaurantsGrid}>
+            <div className={styles.favoritesGrid}>
               {favorites.map((dish) => (
                 <div
                   key={dish._id || dish.id}
-                  className={styles.restaurantCard}
+                  className={`${styles.restaurantCard} ${styles.favoriteDishCard}`}
                 >
                   <div className={styles.restaurantImageContainer}>
                     <img
@@ -308,15 +358,46 @@ export function CustomerHomepage() {
                 Top rated restaurants loved by customers
               </p>
             </div>
-            <div className={styles.restaurantsGrid}>
-              {popularRestaurants.map((restaurant) => (
-                <RestaurantCard
-                  key={restaurant._id}
-                  restaurant={restaurant}
-                  onClick={() => handleRestaurantClick(restaurant._id)}
-                  onViewMenu={() => handleRestaurantClick(restaurant._id)}
-                />
-              ))}
+            <div className={styles.carouselContainer} onMouseEnter={() => setIsCarouselHovered(true)} onMouseLeave={() => setIsCarouselHovered(false)}>
+              <button
+                className={`${styles.carouselBtn} ${styles.prevBtn}`}
+                onClick={prevSlide}
+                aria-label="Previous restaurants"
+                title="View previous restaurants"
+              >
+                ‹
+              </button>
+              <div className={styles.carouselTrack}>
+                <div
+                  className={styles.carouselSlides}
+                  style={{ 
+                    transform: `translateX(-${currentSlide * 100}%)`,
+                  }}
+                  role="region"
+                  aria-label="Popular restaurants carousel"
+                >
+                  {Array.from({ length: totalSlides }, (_, slideIndex) => (
+                    <div key={slideIndex} className={styles.carouselSlide}>
+                      {popularRestaurants.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((restaurant) => (
+                        <RestaurantCard
+                          key={restaurant._id}
+                          restaurant={restaurant}
+                          onClick={() => handleRestaurantClick(restaurant._id)}
+                          onViewMenu={() => handleRestaurantClick(restaurant._id)}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button
+                className={`${styles.carouselBtn} ${styles.nextBtn}`}
+                onClick={nextSlide}
+                aria-label="Next restaurants"
+                title="View next restaurants"
+              >
+                ›
+              </button>
             </div>
           </section>
         )}
