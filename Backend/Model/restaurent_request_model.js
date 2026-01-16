@@ -46,6 +46,11 @@ const restaurantSchema = new mongoose.Schema({
     required: false,
     default: "",
   },
+  image: {
+    type: String,
+    required: false,
+    default: null,
+  },
   created_at: {
     type: Date,
     default: Date.now,

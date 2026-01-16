@@ -14,6 +14,12 @@ if (!fs.existsSync(profilePicDir)) {
   fs.mkdirSync(profilePicDir, { recursive: true });
 }
 
+// Ensure restaurant-images directory exists
+const restaurantImgDir = path.join(__dirname, '../public/restaurant-images');
+if (!fs.existsSync(restaurantImgDir)) {
+  fs.mkdirSync(restaurantImgDir, { recursive: true });
+}
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -34,6 +40,19 @@ const profilePicStorage = multer.diskStorage({
     const username = req.body.username || req.session.username || 'user';
     const uniqueSuffix = Date.now();
     cb(null, username + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Configure multer for restaurant images
+const restaurantImgStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, restaurantImgDir);
+  },
+  filename: function (req, file, cb) {
+    const restaurantName = req.body.restaurantName || 'restaurant';
+    const sanitizedName = restaurantName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'rest-' + sanitizedName + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -64,9 +83,17 @@ const uploadProfilePic = multer({
   fileFilter: fileFilter
 });
 
+// Initialize upload for restaurant images
+const uploadRestaurantImg = multer({
+  storage: restaurantImgStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: fileFilter
+});
+
 // Middleware to handle single file upload
 const uploadDishImage = upload.single('image');
 const uploadProfilePicture = uploadProfilePic.single('profilePicture');
+const uploadRestaurantImage = uploadRestaurantImg.single('restaurantImage');
 
 // Middleware to handle errors from multer
 const handleUploadErrors = (err, req, res, next) => {
@@ -109,10 +136,23 @@ const getProfilePicUrl = (req, filename) => {
   return `${req.protocol}://${req.get('host')}/profile-pictures/${filename}`;
 };
 
+// Function to get the full URL for a restaurant image
+const getRestaurantImageUrl = (req, filename) => {
+  if (!filename) return null;
+  // Check if filename already contains a path
+  if (filename.includes('/')) {
+    return `${req.protocol}://${req.get('host')}${filename}`;
+  }
+  // Otherwise, assume it's in restaurant-images directory
+  return `${req.protocol}://${req.get('host')}/restaurant-images/${filename}`;
+};
+
 module.exports = {
   uploadDishImage,
   uploadProfilePicture,
+  uploadRestaurantImage,
   handleUploadErrors,
   getImageUrl,
-  getProfilePicUrl
+  getProfilePicUrl,
+  getRestaurantImageUrl
 };

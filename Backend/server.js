@@ -13,6 +13,8 @@ const { User } = require("./Model/userRoleModel.js");
 const app = express();
 
 // Middleware
+// Note: bodyparser.urlencoded automatically skips multipart/form-data, 
+// and multer will handle it, so this should work fine
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
@@ -56,6 +58,7 @@ const menuController = require("./Controller/menuController.js");
 const staffController = require("./Controller/staffController.js");
 const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
+const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
 
 connectDB();
 
@@ -103,7 +106,7 @@ app.get("/create", (req, res) => {
 });
 
 app.get("/req_res", homepageController.getRestReq);
-app.post("/req_res", homepageController.postRestReq);
+app.post("/req_res", uploadRestaurantImage, handleUploadErrors, homepageController.postRestReq);
 
 app.get("/check-session", async (req, res) => {
   try {

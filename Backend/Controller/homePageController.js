@@ -45,6 +45,17 @@ exports.getRestReq = async (req, res) => {
 
 exports.postRestReq = async (req, res) => {
   try {
+    // Debug: Log what we're receiving
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+
+    // Handle FormData parsing - cuisineTypes might be an array or single value
+    let cuisineTypes = req.body.cuisineTypes;
+    if (!Array.isArray(cuisineTypes)) {
+      // If it's a single value, convert to array, otherwise make empty array
+      cuisineTypes = cuisineTypes ? [cuisineTypes] : [];
+    }
+
     const {
       ownerName,
       ownerEmail,
@@ -53,10 +64,24 @@ exports.postRestReq = async (req, res) => {
       location,
       city,
       contactNumber,
-      amount,
-      cuisineTypes,
+      amount: amountRaw,
       additionalNotes,
     } = req.body;
+
+    console.log("Parsed values:", {
+      ownerName,
+      ownerEmail,
+      password: password ? "***" : undefined,
+      restaurantName,
+      location,
+      city,
+      contactNumber,
+      amountRaw,
+      cuisineTypes,
+    });
+
+    // Convert amount to number
+    const amount = parseFloat(amountRaw);
 
     // Validation
     if (
@@ -67,7 +92,8 @@ exports.postRestReq = async (req, res) => {
       !location ||
       !city ||
       !contactNumber ||
-      amount === undefined
+      amount === undefined ||
+      isNaN(amount)
     ) {
       return res.status(400).json({
         error: "All required fields must be filled",
@@ -120,24 +146,65 @@ exports.postRestReq = async (req, res) => {
       });
     }
 
+    // Handle image upload (if provided)
+    let imageFilename = null;
+    if (req.file) {
+      imageFilename = req.file.filename;
+      console.log("Image uploaded:", imageFilename);
+    } else {
+      console.log("No image file received");
+    }
+
+    // Generate username from email if not provided
+    const username = existingUser ? existingUser.username : (ownerEmail ? ownerEmail.split("@")[0] : null);
+
+    // Final validation - ensure all required fields are present
+    if (!username || !ownerEmail || !password || !restaurantName) {
+      console.error("Missing required fields:", {
+        username: !!username,
+        ownerEmail: !!ownerEmail,
+        password: !!password,
+        restaurantName: !!restaurantName,
+      });
+      return res.status(400).json({
+        error: "Missing required fields: username, email, password, or restaurant name",
+      });
+    }
+
     // Create restaurant request
     const restreq = new restaurantReq({
       name: restaurantName,
       location: location,
       city: city,
       amount: amount, // Registration fee to be paid to admin
-      owner_username: existingUser
-        ? existingUser.username
-        : ownerEmail.split("@")[0],
-      owner_password: password,
-      date_joined: new Date(),
+      owner_username: username,
+      owner_password: password, // Store plain password (will be hashed when user account is created)
       email: ownerEmail,
-      contactNumber: contactNumber,
-      cuisineTypes: cuisineTypes, // Store array of cuisine types
+      contactNumber: contactNumber || "",
+      cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : [], // Ensure array
       additionalNotes: additionalNotes || "",
+      image: imageFilename || null, // Store restaurant image filename
     });
 
-    await restreq.save();
+    console.log("Restaurant request to save:", {
+      name: restreq.name,
+      email: restreq.email,
+      owner_username: restreq.owner_username,
+      has_password: !!restreq.owner_password,
+      has_image: !!restreq.image,
+      cuisineTypes: restreq.cuisineTypes,
+    });
+
+    const savedRequest = await restreq.save();
+    console.log("Restaurant request saved successfully with ID:", savedRequest._id);
+    console.log("Saved request data:", {
+      _id: savedRequest._id,
+      name: savedRequest.name,
+      email: savedRequest.email,
+      owner_username: savedRequest.owner_username,
+      has_password: !!savedRequest.owner_password,
+      has_image: !!savedRequest.image,
+    });
 
     // If user doesn't exist, create owner account
     if (!existingUser) {
@@ -145,7 +212,7 @@ exports.postRestReq = async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const newUser = new User({
-        username: ownerEmail.split("@")[0],
+        username: username,
         email: ownerEmail,
         role: "owner",
         restaurantName: null, // Will be set when admin approves
@@ -153,7 +220,17 @@ exports.postRestReq = async (req, res) => {
         rest_id: null,
       });
 
+      console.log("Creating new user:", {
+        username: newUser.username,
+        email: newUser.email,
+        role: newUser.role,
+        has_password: !!newUser.password,
+      });
+
       await newUser.save();
+      console.log("User account created successfully");
+    } else {
+      console.log("User already exists, skipping user creation");
     }
 
     return res.status(200).json({
@@ -163,8 +240,10 @@ exports.postRestReq = async (req, res) => {
     });
   } catch (error) {
     console.error("Error submitting restaurant request:", error);
+    console.error("Error stack:", error.stack);
     return res.status(500).json({
       error: "Server error. Please try again later.",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };

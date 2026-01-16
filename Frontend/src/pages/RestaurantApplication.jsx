@@ -24,7 +24,7 @@ export function RestaurantApplication() {
           </div>
         )}
 
-        <Form method="post" className="app-form">
+        <Form method="post" encType="multipart/form-data" className="app-form">
           <section className="form-section">
             <h2 className="section-title">Owner Information</h2>
 
@@ -88,6 +88,19 @@ export function RestaurantApplication() {
                 pattern="^[A-Za-z0-9][A-Za-z0-9\s]{1,79}$"
                 title="Restaurant name must start with a letter or number and can only contain letters, numbers, and spaces"
               />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="restaurantImage">Restaurant Image</label>
+              <input
+                type="file"
+                id="restaurantImage"
+                name="restaurantImage"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+              />
+              <small className="field-hint">
+                Upload an image of your restaurant (JPEG, PNG, or WebP - Max 5MB)
+              </small>
             </div>
 
             <div className="form-field">
@@ -258,34 +271,23 @@ export async function action({ request }) {
   const address = formData.get("address")?.trim();
   const fullAddress = city ? `${address}, ${city}` : address;
 
-  const data = {
-    ownerName: formData.get("ownerName")?.trim(),
-    email: formData.get("email")?.trim(),
-    password: formData.get("password")?.trim(),
-    restaurantName: formData.get("restaurantName")?.trim(),
-    address: fullAddress,
-    city: city,
-    contactNumber: formData.get("contactNumber")?.trim(),
-    amount: formData.get("amount"),
-    cuisineTypes: cuisineTypes, // Array of selected cuisines
-    additionalNotes: formData.get("additionalNotes")?.trim(),
-  };
+  const restaurantImage = formData.get("restaurantImage");
 
   // Validation
   if (
-    !data.ownerName ||
-    !data.email ||
-    !data.password ||
-    !data.restaurantName ||
-    !data.address ||
-    !data.city ||
-    !data.contactNumber ||
-    !data.amount
+    !formData.get("ownerName")?.trim() ||
+    !formData.get("email")?.trim() ||
+    !formData.get("password")?.trim() ||
+    !formData.get("restaurantName")?.trim() ||
+    !address ||
+    !city ||
+    !formData.get("contactNumber")?.trim() ||
+    !formData.get("amount")
   ) {
     return { error: "Please fill in all required fields" };
   }
 
-  if (parseFloat(data.amount) < 0) {
+  if (parseFloat(formData.get("amount")) < 0) {
     return { error: "Registration fee must be a positive number" };
   }
 
@@ -293,29 +295,51 @@ export async function action({ request }) {
     return { error: "Please select at least one cuisine type" };
   }
 
-  if (data.password.length < 6) {
+  if (formData.get("password")?.trim().length < 6) {
     return { error: "Password must be at least 6 characters long" };
   }
 
+  // Validate image file if provided
+  if (restaurantImage && restaurantImage.size > 0) {
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (restaurantImage.size > maxSize) {
+      return { error: "Restaurant image must be less than 5MB" };
+    }
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(restaurantImage.type)) {
+      return { error: "Restaurant image must be JPEG, PNG, or WebP format" };
+    }
+  }
+
   try {
+    // Create FormData to send multipart/form-data
+    const submitFormData = new FormData();
+    submitFormData.append("ownerName", formData.get("ownerName")?.trim());
+    submitFormData.append("ownerEmail", formData.get("email")?.trim());
+    submitFormData.append("password", formData.get("password")?.trim());
+    submitFormData.append("restaurantName", formData.get("restaurantName")?.trim());
+    submitFormData.append("location", fullAddress);
+    submitFormData.append("city", city);
+    submitFormData.append("contactNumber", formData.get("contactNumber")?.trim());
+    submitFormData.append("amount", parseFloat(formData.get("amount")));
+    
+    // Append cuisine types individually
+    cuisineTypes.forEach((cuisine) => {
+      submitFormData.append("cuisineTypes", cuisine);
+    });
+    
+    submitFormData.append("additionalNotes", formData.get("additionalNotes")?.trim() || "");
+    
+    // Append image if provided
+    if (restaurantImage && restaurantImage.size > 0) {
+      submitFormData.append("restaurantImage", restaurantImage);
+    }
+
     const response = await fetch("http://localhost:3000/req_res", {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ownerName: data.ownerName,
-        ownerEmail: data.email,
-        password: data.password,
-        restaurantName: data.restaurantName,
-        location: data.address,
-        city: data.city,
-        contactNumber: data.contactNumber,
-        amount: parseFloat(data.amount),
-        cuisineTypes: data.cuisineTypes, // Send array of cuisines
-        additionalNotes: data.additionalNotes || "",
-      }),
+      // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
+      body: submitFormData,
     });
 
     const result = await response.json();
