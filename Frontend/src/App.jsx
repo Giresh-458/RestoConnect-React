@@ -22,6 +22,7 @@ import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePa
 import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
 import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
 import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
+import StaffManagement from "./pages/StaffManagement";
 
 
 
@@ -66,7 +67,12 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <OwnerHomePage></OwnerHomePage>,loader:OwnerHomePageLoader },
       { path: "dashboard", element: <OwnerDashBoard></OwnerDashBoard>,loader:OwnerDashBoardLoader },
-
+      { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
+      { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
+      { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
+      { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
+      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
+      { path: "staffmanagement", element: <StaffManagement></StaffManagement> },
     ],
     loader:isLogin
   },

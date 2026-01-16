@@ -6,13 +6,13 @@ const admincontroller = require('../Controller/adminController');
 const auth_middleware = require('../authenticationMiddleWare');
 
 // Apply admin-only middleware to all admin routes
-router.use(auth_middleware('admin'));
+
 
 router.get('/dashboard', admincontroller.getAdminDashboard);
 router.get('/restaurants', admincontroller.getAllRestaurants); // admin use
 router.post('/add_restaurant', admincontroller.postAddRestaurent);
 router.post('/edit_restaurant/:id', admincontroller.postEditRestaurent);
-router.post('/delete_restaurant/:id', admincontroller.postDeleteRestaurent);
+router.get('/delete_restaurant/:id',admincontroller.postDeleteRestaurent);
 router.post('/suspend_restaurant/:id', admincontroller.suspendRestaurant);
 router.post('/unsuspend_restaurant/:id', admincontroller.unsuspendRestaurant);
 router.get('/chartstats',admincontroller.getStatisticsGraphs);

@@ -10,7 +10,16 @@ import {
 import styles from "./InventoryManagement.module.css";
 
 export function InventoryManagement() {
-  const [inventory, setInventory] = useState([]);
+  console.log("InventoryManagement component mounted");
+  const [inventory, setInventory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('inventory');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse saved inventory, using empty array', e);
+      return [];
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({
@@ -30,7 +39,9 @@ export function InventoryManagement() {
 
   const loadInventory = async () => {
     try {
+      console.log("Fetching inventory data...");
       const inventoryData = await fetchInventory();
+      console.log("Inventory data fetched:", inventoryData);
       setInventory(inventoryData);
 
     } catch (error) {

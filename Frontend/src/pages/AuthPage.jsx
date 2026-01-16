@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Form, useActionData, useNavigate, useSearchParams } from 'react-router-dom';
 import './AuthPage.css';
 
@@ -6,13 +6,243 @@ export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [profilePreview, setProfilePreview] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = useRef(null);
     const actionData = useActionData();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const message = searchParams.get('message');
+    
+    // Forgot password states
+    const [forgotPasswordStep, setForgotPasswordStep] = useState(null); // null, 'email', 'code', 'newPassword'
+    const [resetEmail, setResetEmail] = useState('');
+    const [resetCode, setResetCode] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState(false);
+    const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+    const [forgotPasswordError, setForgotPasswordError] = useState('');
+    const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState('');
 
     const toggleMode = () => {
         setIsLogin(!isLogin);
+        setProfilePreview(null);
+        setSelectedFile(null);
+        setForgotPasswordStep(null);
+        setResetEmail('');
+        setResetCode('');
+        setNewPassword('');
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+    };
+
+    // Forgot password handlers
+    const handleForgotPasswordClick = () => {
+        setForgotPasswordStep('email');
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+    };
+
+    const handleSendResetCode = async (e) => {
+        e.preventDefault();
+        setForgotPasswordLoading(true);
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+
+        if (!resetEmail || !validateEmail(resetEmail)) {
+            setForgotPasswordError('Please enter a valid email address');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/api/auth/forgot-password/send-code', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: resetEmail })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setForgotPasswordSuccess(result.message || 'Reset code sent to your email');
+                setForgotPasswordStep('code');
+            } else {
+                setForgotPasswordError(result.error || 'Failed to send reset code');
+            }
+        } catch (error) {
+            console.error('Send reset code error:', error);
+            setForgotPasswordError('Network error. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleVerifyCode = async (e) => {
+        e.preventDefault();
+        setForgotPasswordLoading(true);
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+
+        if (!resetCode || resetCode.length !== 6) {
+            setForgotPasswordError('Please enter a valid 6-digit code');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/api/auth/forgot-password/verify-code', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: resetEmail, code: resetCode })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setForgotPasswordSuccess('Code verified successfully');
+                setForgotPasswordStep('newPassword');
+            } else {
+                setForgotPasswordError(result.error || 'Invalid or expired code');
+            }
+        } catch (error) {
+            console.error('Verify code error:', error);
+            setForgotPasswordError('Network error. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setForgotPasswordLoading(true);
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+
+        // Validate password
+        const trimmedPassword = newPassword ? newPassword.trim() : '';
+        if (!trimmedPassword || trimmedPassword.length < 6) {
+            setForgotPasswordError('Password must be at least 6 characters long');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        // Validate that we have email and code
+        if (!resetEmail || !resetCode) {
+            setForgotPasswordError('Missing email or verification code. Please start over.');
+            setForgotPasswordLoading(false);
+            return;
+        }
+
+        try {
+            console.log('Resetting password for:', resetEmail, 'with code:', resetCode);
+            const response = await fetch('http://localhost:3000/api/auth/forgot-password/reset', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    email: resetEmail.trim(), 
+                    code: resetCode.trim(), 
+                    newPassword: trimmedPassword
+                })
+            });
+
+            const result = await response.json();
+            console.log('Reset password response:', result);
+
+            if (result.success) {
+                setForgotPasswordSuccess(result.message || 'Password reset successfully! Redirecting to login...');
+                setTimeout(() => {
+                    setForgotPasswordStep(null);
+                    setResetEmail('');
+                    setResetCode('');
+                    setNewPassword('');
+                    setIsLogin(true);
+                }, 2000);
+            } else {
+                setForgotPasswordError(result.error || 'Failed to reset password');
+            }
+        } catch (error) {
+            console.error('Reset password error:', error);
+            setForgotPasswordError('Network error. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleResendCode = async () => {
+        setForgotPasswordLoading(true);
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+
+        try {
+            const response = await fetch('http://localhost:3000/api/auth/forgot-password/resend-code', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: resetEmail })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setForgotPasswordSuccess(result.message || 'New code sent to your email');
+            } else {
+                setForgotPasswordError(result.error || 'Failed to resend code');
+            }
+        } catch (error) {
+            console.error('Resend code error:', error);
+            setForgotPasswordError('Network error. Please try again.');
+        } finally {
+            setForgotPasswordLoading(false);
+        }
+    };
+
+    const handleBackToLogin = () => {
+        setForgotPasswordStep(null);
+        setResetEmail('');
+        setResetCode('');
+        setNewPassword('');
+        setForgotPasswordError('');
+        setForgotPasswordSuccess('');
+    };
+
+    const handleProfilePicClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            // Validate file size (2MB max)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB');
+                return;
+            }
+
+            setSelectedFile(file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfilePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     return (
@@ -52,16 +282,172 @@ export function AuthPage() {
                     </div>
                 )}
 
-                <Form method="post" className="auth-form">
+                {forgotPasswordError && (
+                    <div className="auth-message error-message">
+                        {forgotPasswordError}
+                    </div>
+                )}
+
+                {forgotPasswordSuccess && (
+                    <div className="auth-message success-message">
+                        {forgotPasswordSuccess}
+                    </div>
+                )}
+
+                {forgotPasswordStep ? (
+                    // Forgot Password Flow
+                    <div className="auth-form">
+                        {forgotPasswordStep === 'email' && (
+                            <form onSubmit={handleSendResetCode}>
+                                <div className="form-group">
+                                    <label htmlFor="resetEmail">Enter your email address</label>
+                                    <div className="input-wrapper">
+                                        <span className="input-icon">📧</span>
+                                        <input 
+                                            type="email" 
+                                            id="resetEmail" 
+                                            value={resetEmail}
+                                            onChange={(e) => setResetEmail(e.target.value)}
+                                            placeholder="email@example.com"
+                                            required
+                                            disabled={forgotPasswordLoading}
+                                        />
+                                    </div>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    className="auth-button"
+                                    disabled={forgotPasswordLoading}
+                                >
+                                    {forgotPasswordLoading ? 'Sending...' : 'Send Code'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleBackToLogin}
+                                    className="toggle-button"
+                                    style={{ marginTop: '10px', background: 'transparent', border: 'none' }}
+                                >
+                                    ← Back to Login
+                                </button>
+                            </form>
+                        )}
+
+                        {forgotPasswordStep === 'code' && (
+                            <form onSubmit={handleVerifyCode}>
+                                <div className="form-group">
+                                    <label htmlFor="resetCode">Enter the 6-digit code sent to your email</label>
+                                    <div className="input-wrapper">
+                                        <span className="input-icon">🔢</span>
+                                        <input 
+                                            type="text" 
+                                            id="resetCode" 
+                                            value={resetCode}
+                                            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            placeholder="000000"
+                                            maxLength="6"
+                                            required
+                                            disabled={forgotPasswordLoading}
+                                            style={{ textAlign: 'center', letterSpacing: '8px', fontSize: '20px', fontWeight: 'bold' }}
+                                        />
+                                    </div>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    className="auth-button"
+                                    disabled={forgotPasswordLoading || resetCode.length !== 6}
+                                >
+                                    {forgotPasswordLoading ? 'Verifying...' : 'Verify Code'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleResendCode}
+                                    className="toggle-button"
+                                    disabled={forgotPasswordLoading}
+                                    style={{ marginTop: '10px', background: 'transparent', border: 'none', fontSize: '14px' }}
+                                >
+                                    {forgotPasswordLoading ? 'Sending...' : 'Resend Code'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleBackToLogin}
+                                    className="toggle-button"
+                                    style={{ marginTop: '5px', background: 'transparent', border: 'none', fontSize: '14px' }}
+                                >
+                                    ← Back to Login
+                                </button>
+                            </form>
+                        )}
+
+                        {forgotPasswordStep === 'newPassword' && (
+                            <form onSubmit={handleResetPassword}>
+                                <div className="form-group">
+                                    <label htmlFor="newPassword">Enter your new password</label>
+                                    <div className="input-wrapper">
+                                        <span className="input-icon">🔒</span>
+                                        <input 
+                                            type={confirmNewPassword ? "text" : "password"}
+                                            id="newPassword" 
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="Enter new password (min 6 characters)"
+                                            minLength="6"
+                                            required
+                                            disabled={forgotPasswordLoading}
+                                        />
+                                        <button 
+                                            type="button" 
+                                            className="toggle-password"
+                                            onClick={() => setConfirmNewPassword(!confirmNewPassword)}
+                                        >
+                                            {confirmNewPassword ? '👁️' : '👁️‍🗨️'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    className="auth-button"
+                                    disabled={forgotPasswordLoading || newPassword.length < 6}
+                                >
+                                    {forgotPasswordLoading ? 'Resetting...' : 'Reset Password'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleBackToLogin}
+                                    className="toggle-button"
+                                    style={{ marginTop: '10px', background: 'transparent', border: 'none' }}
+                                >
+                                    ← Back to Login
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                ) : (
+                    <Form method="post" className="auth-form" encType="multipart/form-data">
                     <input type="hidden" name="authType" value={isLogin ? 'login' : 'signup'} />
                     
                     {!isLogin && (
-                        <div className="profile-upload">
-                            <div className="profile-avatar">
-                                <span>👤</span>
+                        <>
+                            <div className="profile-upload">
+                                <div className="profile-avatar" onClick={handleProfilePicClick} style={{ cursor: 'pointer' }}>
+                                    {profilePreview ? (
+                                        <img src={profilePreview} alt="Profile preview" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                    ) : (
+                                        <span>👤</span>
+                                    )}
+                                </div>
+                                <button type="button" className="upload-btn" onClick={handleProfilePicClick}>
+                                    {selectedFile ? '✓ Image selected' : '📷 Upload Profile Picture'}
+                                </button>
                             </div>
-                            <button type="button" className="upload-btn">📷 Upload Profile Picture</button>
-                        </div>
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                name="profilePicture" 
+                                accept="image/jpeg,image/jpg,image/png,image/webp"
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                            />
+                        </>
                     )}
 
                     {!isLogin && (
@@ -191,15 +577,30 @@ export function AuthPage() {
                         {isLogin ? 'Login to RestoConnect' : 'Register'}
                     </button>
                 </Form>
+                )}
 
-                <div className="auth-toggle">
-                    <p>
-                        {isLogin ? "New user? " : "Already have an account? "}
-                        <button type="button" onClick={toggleMode} className="toggle-button">
-                            {isLogin ? 'Register here' : 'Login here'}
-                        </button>
-                    </p>
-                </div>
+                {!forgotPasswordStep && (
+                    <div className="auth-toggle">
+                        <p>
+                            {isLogin ? "New user? " : "Already have an account? "}
+                            <button type="button" onClick={toggleMode} className="toggle-button">
+                                {isLogin ? 'Register here' : 'Login here'}
+                            </button>
+                        </p>
+                        {isLogin && (
+                            <p style={{ marginTop: '10px' }}>
+                                <button 
+                                    type="button" 
+                                    onClick={handleForgotPasswordClick} 
+                                    className="toggle-button"
+                                    style={{ fontSize: '14px', color: '#4facfe' }}
+                                >
+                                    Forgot Password?
+                                </button>
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {isLogin && (
                     <button type="button" className="add-restaurant-btn" onClick={() => navigate('/restaurant-application')}>
@@ -322,20 +723,25 @@ export async function action({ request }) {
         }
 
         try {
+            // Create FormData to handle file upload
+            const signupFormData = new FormData();
+            signupFormData.append('username', username);
+            signupFormData.append('email', email);
+            signupFormData.append('password', password);
+            signupFormData.append('fullName', fullName);
+            signupFormData.append('mobile', mobile);
+            signupFormData.append('role', role);
+
+            // Add profile picture if selected
+            const profileFile = formData.get('profilePicture');
+            if (profileFile && profileFile.size > 0) {
+                signupFormData.append('profilePicture', profileFile);
+            }
+
             const response = await fetch('http://localhost:3000/api/auth/signup', {
                 method: 'POST',
                 credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    username, 
-                    email, 
-                    password, 
-                    fullName, 
-                    mobile,
-                    role
-                })
+                body: signupFormData
             });
 
             const result = await response.json();

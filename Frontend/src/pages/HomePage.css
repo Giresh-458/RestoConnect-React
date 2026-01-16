@@ -17,7 +17,8 @@
 .brand {
   font-weight: 800;
   letter-spacing: 0.12em;
-  font-size: 0.95rem;
+  font-size: 1.5rem;
+  color: #2ecc71;
 }
 
 .landing-nav {

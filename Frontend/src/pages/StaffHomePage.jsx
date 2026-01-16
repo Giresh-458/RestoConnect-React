@@ -9,19 +9,6 @@ import TaskTracker from "../components/TaskTracker";
 import PerformanceSummary from "../components/PerformanceSummary";
 import "../components/StaffHomePage.css";
 
-// Try API route first, then fallback to legacy route if 404
-async function fetchWithFallback(primaryUrl, fallbackUrl, options = {}) {
-  let res = await fetch(primaryUrl, options);
-  if (res && res.status === 404 && fallbackUrl) {
-    try {
-      res = await fetch(fallbackUrl, options);
-    } catch (e) {
-      // ignore
-    }
-  }
-  return res;
-}
-
 export function StaffHomePage() {
   const [staffData, setStaffData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,17 +23,15 @@ export function StaffHomePage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetchWithFallback(
-        "http://localhost:3000/api/staff/homepage",
-        "http://localhost:3000/staff/homepage",
-        {
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
-
+      // Always use /api/staff/homepage for JSON response
+      const response = await fetch("http://localhost:3000/staff/homepage", {
+        credentials: "include",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      console.log(JSON.stringify(response))
       if (!response.ok) {
         // Try to read error body as text so we don't crash on non‑JSON (e.g. HTML)
         const text = await response.text().catch(() => "");

@@ -1,6 +1,9 @@
 const { User } = require('../Model/userRoleModel');
 const Person = require('../Model/customer_model');
+const { PasswordResetCode } = require('../Model/PasswordResetCode_model');
 const bcrypt = require('bcrypt');
+const { getProfilePicUrl } = require('../util/fileUpload');
+const { sendPasswordResetCode } = require('../util/emailService');
 
 // Validation helper functions
 const validateEmail = (email) => {
@@ -183,9 +186,10 @@ const signup = async (req, res) => {
 
         // Create customer profile only if role is customer
         if (role === 'customer') {
+            const profilePicFilename = req.file ? req.file.filename : null;
             const newPerson = new Person({
                 name: username,
-                img_url: '/images/benjamin-chambon-vRu-Bs27E2M-unsplash.jpg',
+                img_url: profilePicFilename || '/images/benjamin-chambon-vRu-Bs27E2M-unsplash.jpg',
                 email: email,
                 phone: mobile || '',
                 prev_orders: [],
@@ -261,4 +265,298 @@ const checkSession = async (req, res) => {
     }
 };
 
-module.exports = { login, signup, logout, checkSession };
+// Generate random 6-digit code
+const generateResetCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// Send Password Reset Code
+const sendResetCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a valid email address'
+      });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+      // Don't reveal if email exists for security
+      return res.status(200).json({
+        success: true,
+        message: 'If the email exists, a reset code has been sent.'
+      });
+    }
+
+    // Generate reset code
+    const code = generateResetCode();
+
+    // Invalidate any existing codes for this email
+    await PasswordResetCode.updateMany(
+      { email: email.toLowerCase().trim(), used: false },
+      { $set: { used: true } }
+    );
+
+    // Create new reset code
+    const resetCode = new PasswordResetCode({
+      email: email.toLowerCase().trim(),
+      code: code,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+    });
+
+    await resetCode.save();
+
+    // Send email
+    try {
+      await sendPasswordResetCode(email, code);
+      console.log(`✅ Reset code sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error('❌ Email sending failed:', emailError.message);
+      console.error('Full error:', emailError);
+      // Log the error but still save the code in database
+      // Return error to user so they know what went wrong
+      return res.status(500).json({
+        success: false,
+        error: emailError.message || 'Failed to send email. Please check your email configuration or try again later.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'If the email exists, a reset code has been sent to your email.'
+    });
+
+  } catch (error) {
+    console.error('Send reset code error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error. Please try again later.'
+    });
+  }
+};
+
+// Verify Reset Code
+const verifyResetCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and code are required'
+      });
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+    const trimmedCode = code.trim();
+
+    console.log(`[Verify Code] Checking code for email: ${trimmedEmail}, code: ${trimmedCode}`);
+
+    // Find valid reset code
+    const resetCode = await PasswordResetCode.findOne({
+      email: trimmedEmail,
+      code: trimmedCode,
+      used: false
+    });
+
+    if (!resetCode) {
+      console.log(`[Verify Code] Code not found for email: ${trimmedEmail}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid reset code. Please check the code and try again.'
+      });
+    }
+
+    // Check if code is expired
+    if (!resetCode.isValid()) {
+      console.log(`[Verify Code] Code expired for email: ${trimmedEmail}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Reset code has expired. Please request a new one.'
+      });
+    }
+
+    console.log(`[Verify Code] Code verified successfully for email: ${trimmedEmail}`);
+    return res.status(200).json({
+      success: true,
+      message: 'Code verified successfully'
+    });
+
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error. Please try again later.'
+    });
+  }
+};
+
+// Reset Password with Code
+const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, code, and new password are required'
+      });
+    }
+
+    // Trim and validate inputs
+    const trimmedEmail = email ? email.toLowerCase().trim() : '';
+    const trimmedCode = code ? code.trim() : '';
+    const trimmedPassword = newPassword ? newPassword.trim() : '';
+
+    // Validate password
+    if (!trimmedPassword || trimmedPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Find and verify reset code
+    const resetCode = await PasswordResetCode.findOne({
+      email: trimmedEmail,
+      code: trimmedCode,
+      used: false
+    });
+
+    if (!resetCode) {
+      console.log(`[Reset Password] Code not found for email: ${trimmedEmail}, code: ${trimmedCode}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired reset code. Please request a new code.'
+      });
+    }
+
+    if (!resetCode.isValid()) {
+      console.log(`[Reset Password] Code expired for email: ${trimmedEmail}`);
+      return res.status(400).json({
+        success: false,
+        error: 'Reset code has expired. Please request a new code.'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: trimmedEmail });
+
+    if (!user) {
+      console.log(`[Reset Password] User not found for email: ${trimmedEmail}`);
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Set the plain password - the pre-save hook in User model will hash it automatically
+    // DO NOT hash it manually here, as the pre-save hook will hash it again (double hashing)
+    user.password = trimmedPassword;
+    await user.save();
+
+    console.log(`[Reset Password] Password updated successfully for email: ${trimmedEmail}`);
+
+    // Mark reset code as used
+    resetCode.used = true;
+    await resetCode.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully. You can now login with your new password.'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error. Please try again later.'
+    });
+  }
+};
+
+// Resend Reset Code
+const resendResetCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide a valid email address'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+      // Don't reveal if email exists
+      return res.status(200).json({
+        success: true,
+        message: 'If the email exists, a reset code has been sent.'
+      });
+    }
+
+    // Generate new code
+    const code = generateResetCode();
+
+    // Invalidate existing codes
+    await PasswordResetCode.updateMany(
+      { email: email.toLowerCase().trim(), used: false },
+      { $set: { used: true } }
+    );
+
+    // Create new reset code
+    const resetCode = new PasswordResetCode({
+      email: email.toLowerCase().trim(),
+      code: code,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+    });
+
+    await resetCode.save();
+
+    // Send email
+    try {
+      await sendPasswordResetCode(email, code);
+      console.log(`✅ Reset code sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error('❌ Email sending failed:', emailError.message);
+      console.error('Full error:', emailError);
+      // Log the error but still save the code in database
+      // Return error to user so they know what went wrong
+      return res.status(500).json({
+        success: false,
+        error: emailError.message || 'Failed to send email. Please check your email configuration or try again later.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'A new reset code has been sent to your email.'
+    });
+
+  } catch (error) {
+    console.error('Resend reset code error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Server error. Please try again later.'
+    });
+  }
+};
+
+module.exports = { 
+  login, 
+  signup, 
+  logout, 
+  checkSession,
+  sendResetCode,
+  verifyResetCode,
+  resetPassword,
+  resendResetCode
+};
