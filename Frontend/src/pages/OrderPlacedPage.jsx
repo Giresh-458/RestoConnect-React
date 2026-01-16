@@ -44,12 +44,12 @@ export function OrderPlacedPage() {
   }, [orderId]);
 
   const goToFeedback = () => {
-    navigate("/customer/feedback", { 
-      state: { 
-        restId, 
-        orderId, 
-        restaurant: order?.restaurant 
-      } 
+    navigate("/customer/feedback", {
+      state: {
+        restId,
+        orderId,
+        restaurant: order?.restaurant,
+      },
     });
   };
 
