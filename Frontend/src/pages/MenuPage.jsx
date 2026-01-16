@@ -139,7 +139,11 @@ export function MenuPage() {
     const loadFavourites = async () => {
       try {
         const favs = await getFavourites();
-        setFavourites(favs);
+        // Backend now returns array of dish objects, extract IDs
+        const favoriteIds = Array.isArray(favs) 
+          ? favs.map(dish => dish._id || dish.id || dish)
+          : [];
+        setFavourites(favoriteIds);
       } catch (error) {
         console.error("Error loading favourites:", error);
       } finally {

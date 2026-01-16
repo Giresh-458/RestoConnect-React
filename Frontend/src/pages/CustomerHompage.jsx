@@ -288,11 +288,11 @@ export function CustomerHomepage() {
             </p>
           </div>
           {favorites.length > 0 ? (
-            <div className={styles.restaurantsGrid}>
+            <div className={styles.favoritesGrid}>
               {favorites.map((dish) => (
                 <div
                   key={dish._id || dish.id}
-                  className={styles.restaurantCard}
+                  className={`${styles.restaurantCard} ${styles.favoriteDishCard}`}
                 >
                   <div className={styles.restaurantImageContainer}>
                     <img

@@ -357,6 +357,50 @@
   animation: fadeInUp 0.6s ease-out;
 }
 
+/* Favorites Grid - Smaller cards */
+.favoritesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Favorite Dish Card - Smaller version */
+.favoriteDishCard {
+  height: auto;
+  max-height: 300px;
+}
+
+.favoriteDishCard .restaurantImageContainer {
+  height: 150px;
+}
+
+.favoriteDishCard .restaurantInfo {
+  padding: 1rem;
+}
+
+.favoriteDishCard .restaurantName {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.favoriteDishCard .restaurantLocation {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.favoriteDishCard .dishDescription {
+  font-size: 0.85rem;
+  color: #6B7280;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 @keyframes fadeInUp {
   from {
     opacity: 0;

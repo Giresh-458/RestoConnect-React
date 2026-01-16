@@ -168,6 +168,19 @@ exports.getCustomerDashboard = async (req, res) => {
           }, 0);
         }
 
+        // Fetch restaurant ID if not present in order
+        let restId = order.rest_id || null;
+        if (!restId && order.restaurant) {
+          try {
+            const restaurant = await Restaurant.findOne({ name: order.restaurant });
+            if (restaurant) {
+              restId = restaurant._id;
+            }
+          } catch (err) {
+            console.error("Error finding restaurant:", err);
+          }
+        }
+
         return {
           orderId: consistentOrderId,
           recordId: order._id || null,
@@ -177,7 +190,7 @@ exports.getCustomerDashboard = async (req, res) => {
           date: order.date,
           image: dishImage,
           restaurant: order.restaurant || "Unknown Restaurant",
-          restId: order.rest_id || null,
+          restId: restId,
         };
       })
     );
@@ -1899,8 +1912,55 @@ exports.getFavourites = async (req, res) => {
     const favouriteDishIds = person.favourites || [];
     console.log(`[Favorites] Found ${favouriteDishIds.length} favorite dishes`);
 
-    // Return just the IDs as an array
-    res.json(favouriteDishIds);
+    if (favouriteDishIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch full dish details with restaurant information
+    const favoriteDishes = [];
+    
+    for (const dishId of favouriteDishIds) {
+      try {
+        // Find the dish
+        const dish = await Dish.find_by_id(dishId);
+        
+        if (!dish) {
+          console.log(`[Favorites] Dish ${dishId} not found, skipping`);
+          continue;
+        }
+
+        // Find which restaurant(s) have this dish
+        const restaurants = await Restaurant.find({ dishes: dishId });
+        
+        // Get image URL
+        const imageUrl = getImageUrl(req, dish.image);
+
+        // Format dish data
+        const dishData = {
+          _id: dish._id,
+          id: dish._id,
+          name: dish.name,
+          price: dish.price,
+          description: dish.description || '',
+          image: imageUrl,
+          imageUrl: imageUrl,
+          // Include restaurant info if available
+          restaurantId: restaurants.length > 0 ? restaurants[0]._id : null,
+          rest_id: restaurants.length > 0 ? restaurants[0]._id : null,
+          restaurantName: restaurants.length > 0 ? restaurants[0].name : null,
+          restaurant: restaurants.length > 0 ? restaurants[0].name : null,
+        };
+
+        favoriteDishes.push(dishData);
+      } catch (error) {
+        console.error(`[Favorites] Error fetching dish ${dishId}:`, error.message);
+        // Continue with other dishes even if one fails
+        continue;
+      }
+    }
+
+    console.log(`[Favorites] Returning ${favoriteDishes.length} favorite dishes with details`);
+    res.json(favoriteDishes);
   } catch (error) {
     console.error("[Favorites] Get error:", error.message);
     res.status(500).json({

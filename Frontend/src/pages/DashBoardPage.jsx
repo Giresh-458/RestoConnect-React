@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { isLogin } from "../util/auth";
 import { getFavourites } from "../util/favourites";
-import { redirect, useNavigate } from "react-router-dom";
+import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
 import { replaceCart } from "../store/CartSlice";
@@ -16,6 +16,7 @@ export async function loader() {
 
 export const DashBoardPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
   const [userData, setUserData] = useState(null);
@@ -101,6 +102,43 @@ export const DashBoardPage = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchFavoriteDishes();
+  }, []);
+
+  // Refetch favorites when navigating to dashboard (e.g., returning from MenuPage)
+  useEffect(() => {
+    // Check if we're on the dashboard route
+    if (location.pathname === "/customer/dashboard") {
+      console.log("Navigated to dashboard, refetching favorites...");
+      // Small delay to ensure navigation is complete
+      const timer = setTimeout(() => {
+        fetchFavoriteDishes();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
+
+  // Refetch favorites when page becomes visible (e.g., switching tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Page became visible, refetching favorites...");
+        fetchFavoriteDishes();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  // Refetch favorites when window regains focus (e.g., returning from another tab/window)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log("Window focused, refetching favorites...");
+      fetchFavoriteDishes();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const fetchDashboardData = async () => {
@@ -209,9 +247,19 @@ export const DashBoardPage = () => {
     try {
       console.log("Starting to fetch favorite dishes...");
       setLoadingFavorites(true);
-      const data = await getFavourites();
-      console.log("Received favorite dishes data:", data);
-      const dishes = Array.isArray(data) ? data : [];
+      
+      // Backend now returns full dish details with restaurant info
+      const favoriteDishes = await getFavourites();
+      console.log("Received favorite dishes:", favoriteDishes);
+      
+      if (!Array.isArray(favoriteDishes)) {
+        console.warn("Invalid favorites response format:", favoriteDishes);
+        setFavoriteDishes([]);
+        return;
+      }
+
+      // Backend already returns full dish details, so use them directly
+      const dishes = favoriteDishes.filter(dish => dish !== null && dish !== undefined);
       console.log("Processed favorite dishes:", dishes);
       setFavoriteDishes(dishes);
     } catch (error) {
@@ -219,7 +267,6 @@ export const DashBoardPage = () => {
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
-        response: error.response,
       });
       setFavoriteDishes([]);
     } finally {
@@ -344,11 +391,17 @@ export const DashBoardPage = () => {
   };
 
   const handleRateOrder = (order) => {
+    console.log("Rating order:", order);
+    if (!order.recordId && !order.orderId) {
+      console.error("Order ID missing");
+      return;
+    }
     navigate("/customer/feedback", {
       state: {
-        restId: order?.restId || null,
-        orderId: order?.recordId || order?.orderId || null,
-        restaurant: order?.restaurant || null,
+        restId: order?.restId,
+        orderId: order?.recordId || order?.orderId,
+        restaurant: order?.restaurant,
+        dishName: order?.dishName,
       },
     });
   };
@@ -609,10 +662,6 @@ export const DashBoardPage = () => {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.brandSection}>
-            <span style={styles.brandIcon}>🍽️</span>
-            <span style={styles.brandName}>RestoConnect</span>
-          </div>
           <div style={styles.userSection}>
             <img
               src={userData?.img_url || "/default-avatar.png"}
@@ -805,7 +854,7 @@ export const DashBoardPage = () => {
                   }
                   onClick={() => setActiveOrderTab("recent")}
                 >
-                  Recent Orders
+                  Ongoing Orders
                 </button>
                 <button
                   style={
@@ -822,7 +871,6 @@ export const DashBoardPage = () => {
               {(activeOrderTab === "recent" ? recentOrders : pastOrders).map(
                 (order, index) => {
                   const formattedStatus = formatOrderStatus(order.status);
-                  const isPastOrder = formattedStatus === "completed";
                   return (
                     <div key={order.recordId || index} style={styles.orderItem}>
                       <img
@@ -832,17 +880,13 @@ export const DashBoardPage = () => {
                       />
                       <div style={styles.orderInfo}>
                         <h4 style={styles.orderName}>
-                          {isPastOrder
-                            ? order.dishName || "Unknown Dish"
-                            : order.restaurant || "Restaurant"}
+                          {order.restaurant || "Restaurant"}
                         </h4>
                         <p style={styles.orderPrice}>
                           {formatCurrency(order.price)}
                         </p>
                         <p style={styles.orderMeta}>
-                          {isPastOrder
-                            ? order.restaurant || "Restaurant"
-                            : order.dishName || "Unknown Dish"}
+                          {order.dishName || "Unknown Dish"}
                         </p>
                         <p
                           style={{
@@ -915,35 +959,40 @@ export const DashBoardPage = () => {
               </div>
             ) : favoriteDishes.length > 0 ? (
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                {favoriteDishes.map((dish, index) => (
+                <div style={styles.favoriteDishesGrid}>
+                {favoriteDishes.map((dish, index) => {
+                  console.log("Rendering favorite dish:", dish);
+                  return (
                   <div
                     key={dish._id || index}
                     style={styles.dishCard}
                     onClick={() =>
-                      dish.restaurantId &&
-                      navigate(`/customer/restaurant/${dish.restaurantId}`)
+                      (dish.restaurantId || dish.rest_id) &&
+                      navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)
                     }
                   >
                     <div style={styles.dishImageContainer}>
                       <img
-                        src={dish.image || "https://via.placeholder.com/80"}
+                        src={dish.image || dish.imageUrl || "https://via.placeholder.com/80"}
                         alt={dish.name}
                         style={styles.dishImage}
                       />
                     </div>
                     <div style={styles.dishInfo}>
                       <h4 style={styles.dishName}>{dish.name}</h4>
-                      {dish.restaurantName && (
+                      {(dish.restaurantName || dish.restaurant) && (
                         <p style={styles.restaurantName}>
-                          <i className="bi bi-shop"></i> {dish.restaurantName}
+                          <i className="bi bi-shop"></i> {dish.restaurantName || dish.restaurant}
                         </p>
                       )}
                       {dish.price && (
-                        <p style={styles.dishPrice}>${dish.price.toFixed(2)}</p>
+                        <p style={styles.dishPrice}>${Number(dish.price).toFixed(2)}</p>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
+                </div>
               </div>
             ) : (
               <div style={styles.emptyState}>
@@ -1306,6 +1355,7 @@ const styles = {
     background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
     backgroundSize: "400% 400%",
     animation: "gradientShift 15s ease infinite",
+    animationDelay: "0s",
     minHeight: "100vh",
     padding: "20px",
     position: "relative",
@@ -1668,23 +1718,46 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "20px",
   },
+  favoriteDishesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+    gap: "12px",
+  },
   dishCard: {
     border: "1px solid #e5e7eb",
-    borderRadius: "12px",
+    borderRadius: "10px",
+    overflow: "hidden",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+  dishImageContainer: {
+    width: "100%",
     overflow: "hidden",
   },
   dishImage: {
     width: "100%",
-    height: "150px",
+    height: "100px",
     objectFit: "cover",
   },
   dishInfo: {
-    padding: "15px",
+    padding: "10px 12px",
   },
   dishName: {
-    fontSize: "15px",
+    fontSize: "13px",
     fontWeight: "600",
-    margin: "0 0 5px 0",
+    margin: "0 0 4px 0",
+    color: "#1f2937",
+  },
+  restaurantName: {
+    fontSize: "11px",
+    color: "#6b7280",
+    margin: "0 0 4px 0",
+  },
+  dishPrice: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#00d4aa",
+    margin: 0,
   },
   dishRestaurant: {
     fontSize: "13px",
