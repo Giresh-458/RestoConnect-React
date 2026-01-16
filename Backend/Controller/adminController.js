@@ -436,6 +436,7 @@ exports.unsuspendRestaurant = async (req, res) => {
 
 // Delete restaurant
 exports.postDeleteRestaurent = async (req, res) => {
+  console.log("in the the admin controller delete restarant")
   try {
     const id = req.params.id;
     const restaurant = await Restaurant.findById(id);
@@ -496,6 +497,7 @@ exports.getaceptreq = async (req, res) => {
     });
     await newRestaurant.save();
 
+    try{
     const newOwner = new User({
       username: request.owner_username,
       password: request.owner_password,
@@ -505,6 +507,10 @@ exports.getaceptreq = async (req, res) => {
       email: request.email,
     });
     await newOwner.save();
+  }
+  catch(err){
+    console.log(err+"===================================================")
+  }
 
     await RestaurantRequest.deleteOne({ _id: request._id });
 

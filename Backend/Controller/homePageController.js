@@ -104,7 +104,12 @@ exports.postRestReq = async (req, res) => {
 
     // Check if user with this email exists
     const existingUser = await User.findOne({ email: ownerEmail });
-    
+    if (existingUser) {
+      return res.status(409).json({
+        error: 'A user with this email already exists. Please use a different email.'
+      });
+    }
+
     // Create restaurant request
     const restreq = new restaurantReq({
       name: restaurantName,
@@ -122,7 +127,7 @@ exports.postRestReq = async (req, res) => {
     await restreq.save();
 
     // If user doesn't exist, create owner account
-    if (!existingUser) {
+   /* if (!existingUser) {
       const bcrypt = require('bcrypt');
       const hashedPassword = await bcrypt.hash(password, 10);
       
@@ -136,7 +141,7 @@ exports.postRestReq = async (req, res) => {
       });
       
       await newUser.save();
-    }
+    }*/
 
     return res.status(200).json({ 
       success: true, 
