@@ -33,12 +33,14 @@ async function seed() {
         price: 250,
         description: "Delicious grilled paneer cubes marinated in spices",
         image: "/images/paneer_tikka.jpg",
+        serves: 2,
       },
       {
         name: "Chicken Curry",
         price: 350,
         description: "Spicy and flavorful chicken curry cooked with herbs",
         image: "/images/chicken_curry.jpeg",
+        serves: 3,
       },
       {
         name: "Veg Biryani",
@@ -46,23 +48,28 @@ async function seed() {
         description:
           "Aromatic basmati rice cooked with mixed vegetables and spices",
         image: "/images/biryani.jpg",
+        serves: 2,
       },
       {
         name: "Fish Fry",
         price: 400,
         description: "Crispy fried fish with special spices",
         image: "/images/fish_fry.jpg",
+        serves: 2,
       },
       {
         name: "Mutton Korma",
         price: 450,
         description: "Rich and creamy mutton curry with aromatic spices",
         image: "/images/mutton-korma.jpg",
+        serves: 3,
       },
       {
         name: "Masala Dosa",
         price: 150,
         description: "Crispy dosa filled with spicy potato masala",
+        image: "/images/default-dish.jpg",
+        serves: 1,
       },
     ];
     const dishes = await Dish.insertMany(dishesData);
@@ -73,7 +80,8 @@ async function seed() {
         name: "Tasty Bites",
         image: "/images/Tasty_Bites.png",
         rating: 4.5,
-        location: "Chennai",
+        location: "123 Main Street, T. Nagar, Chennai",
+        city: "Chennai",
         amount: 100,
         dishes: [dishes[0]._id, dishes[1]._id, dishes[2]._id],
         cuisine: ["Indian", "Vegetarian"],
@@ -85,7 +93,8 @@ async function seed() {
         name: "Spice Hub",
         image: "/images/SpiceHub.png",
         rating: 4.7,
-        location: "Tirupati",
+        location: "456 Gandhi Road, Near Temple, Tirupati",
+        city: "Tirupati",
         amount: 120,
         dishes: [dishes[3]._id, dishes[4]._id],
         cuisine: ["Indian", "Non-Veg"],
@@ -97,7 +106,8 @@ async function seed() {
         name: "South Delight",
         image: "/images/SouthDelight.jpeg",
         rating: 4.3,
-        location: "Hyderabad",
+        location: "785 Jubilee Hills, Hyderabad",
+        city: "Hyderabad",
         amount: 90,
         dishes: [dishes[5]._id],
         cuisine: ["South Indian", "Vegetarian"],
@@ -812,11 +822,12 @@ const createdOrders = await Order.insertMany(allOrders);
 
 
     console.log('Seeding feedback...');
-    // 7. Feedback - Must include rest_id (String) matching Restaurant._id
+    // 7. Feedback - Must include rest_id (String) matching Restaurant._id and orderId (String) matching Order._id
     const feedbacks = [
       {
         customerName: "customer1",
         rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
+        orderId: createdOrders[0]._id, // Use first order ID
         diningRating: 5,
         lovedItems: "Paneer Tikka, Veg Biryani",
         orderRating: 4,
@@ -827,6 +838,7 @@ const createdOrders = await Order.insertMany(allOrders);
       {
         customerName: "customer2",
         rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
+        orderId: createdOrders[1]._id, // Use second order ID
         diningRating: 4,
         lovedItems: "Paneer Tikka",
         orderRating: 5,
@@ -837,6 +849,7 @@ const createdOrders = await Order.insertMany(allOrders);
       {
         customerName: "customer3",
         rest_id: createdRestaurants[1]._id, // Spice Hub (String ID from shortid)
+        orderId: createdOrders[2]._id, // Use third order ID
         diningRating: 5,
         lovedItems: "Masala Dosa",
         orderRating: 5,

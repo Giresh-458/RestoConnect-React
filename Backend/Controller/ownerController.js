@@ -673,7 +673,17 @@ exports.getMenuManagement = async (req, res) => {
 
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
-    res.json({ products: rest.dishes });
+    // Format dishes with proper image URLs
+    const { getImageUrl } = require('../util/fileUpload');
+    const formattedDishes = rest.dishes.map(dish => {
+      const dishObj = dish.toObject ? dish.toObject() : dish;
+      return {
+        ...dishObj,
+        imageUrl: getImageUrl(req, dish.image) || null
+      };
+    });
+
+    res.json({ products: formattedDishes });
   } catch (error) {
     console.error("Error in getMenuManagement:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -685,9 +695,22 @@ exports.addProduct = async (req, res) => {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const { name, price, description } = req.body;
+    const { name, price, description, serves } = req.body;
     console.log(`Owner ${user.username} adding dish: ${name} for restaurant ${user.rest_id}`);
-    let dish = new Dish({ name, price, description: description });
+    
+    // Handle image upload - if file was uploaded, use the filename
+    let imagePath = 'default-dish.jpg'; // default image
+    if (req.file) {
+      imagePath = req.file.filename; // multer saves to /public/uploads/
+    }
+    
+    let dish = new Dish({ 
+      name, 
+      price, 
+      description: description,
+      serves: serves ? parseInt(serves) : 1,
+      image: imagePath
+    });
     await dish.addDish(user.rest_id);
     console.log(`Dish ${name} added successfully to restaurant ${user.rest_id}`);
     res.json({ success: true, message: "Dish added successfully" });
@@ -700,7 +723,7 @@ exports.addProduct = async (req, res) => {
 exports.editProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, imageUrl } = req.body;
+    const { name, description, price, imageUrl, serves } = req.body;
 
     let dish = await Dish.find_by_id(id);
     if (!dish) {
@@ -709,6 +732,16 @@ exports.editProduct = async (req, res) => {
     dish.name = name;
     dish.price = price;
     dish.description = description;
+    if (serves !== undefined) {
+      dish.serves = parseInt(serves) || 1;
+    }
+    // Update image if a new file was uploaded
+    if (req.file) {
+      dish.image = req.file.filename;
+    } else if (imageUrl) {
+      // If imageUrl is provided in body (for EJS form), use it
+      dish.image = imageUrl;
+    }
     await dish.updateDish();
     res.redirect("/owner");
   } catch (error) {

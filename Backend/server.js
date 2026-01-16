@@ -136,16 +136,17 @@ app.get("/check-session", async (req, res) => {
 
 app.get("/api/restaurants", async (req, res) => {
   try {
-    const { city } = req.query; // match your AJAX query param
-    let query = {};
+    const restaurants = await Restaurant.find({});
+    
+    // Get unique cities for the dropdown
+    const uniqueCities = [
+      ...new Set(restaurants.map((r) => r.city).filter(Boolean)),
+    ].sort();
 
-    if (city && city !== "All") {
-      query.location = { $regex: new RegExp(city.trim(), "i") };
-    }
-
-    const restaurants = await Restaurant.find(query);
-
-    res.json(restaurants);
+    res.json({
+      restaurants: restaurants,
+      cities: ["All", ...uniqueCities], // Include "All" option
+    });
   } catch (err) {
     console.error("Error fetching restaurants:", err);
     res.status(500).json({ error: "Failed to fetch restaurants" });

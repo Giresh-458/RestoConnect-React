@@ -586,8 +586,11 @@ exports.getaceptreq = async (req, res) => {
 
     const newRestaurant = new Restaurant({
       name: request.name,
-      location: request.city,
+      location: request.location, // Full address including city
+      city: request.city, // City for filtering
       amount: request.amount,
+      cuisine: request.cuisineTypes || [], // Transfer cuisine types
+      image: request.image, // Transfer image
       created_at: new Date(),
     });
     await newRestaurant.save();

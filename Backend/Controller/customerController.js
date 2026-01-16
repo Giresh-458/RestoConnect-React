@@ -7,7 +7,7 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { PromoCode } = require("../Model/PromoCode_model");
 const { User } = require("../Model/userRoleModel");
-const { getImageUrl, getProfilePicUrl } = require("../util/fileUpload");
+const { getImageUrl, getProfilePicUrl, getRestaurantImageUrl } = require("../util/fileUpload");
 // Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
@@ -1661,9 +1661,9 @@ exports.searchRestaurants = async (req, res) => {
       ];
     }
 
-    // Filter by location
+    // Filter by location (use city field for filtering)
     if (location && location !== "All") {
-      query.location = { $regex: new RegExp(location.trim(), "i") };
+      query.city = { $regex: new RegExp(location.trim(), "i") };
     }
 
     // Filter by cuisine
@@ -1770,9 +1770,10 @@ exports.searchRestaurants = async (req, res) => {
       return {
         _id: restaurant._id,
         name: restaurant.name,
-        image: restaurant.image,
+        image: restaurant.image ? getRestaurantImageUrl(req, restaurant.image) : null,
         rating: restaurant.rating,
-        location: restaurant.location,
+        location: restaurant.location, // Full address for menu page
+        city: restaurant.city, // City for filtering
         cuisine: restaurant.cuisine || [],
         isOpen: isCurrentlyOpen,
         distance: restaurant.distance || 0,

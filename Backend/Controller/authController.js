@@ -286,10 +286,10 @@ const sendResetCode = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) {
-      // Don't reveal if email exists for security
-      return res.status(200).json({
-        success: true,
-        message: 'If the email exists, a reset code has been sent.'
+      // Email not registered
+      return res.status(404).json({
+        success: false,
+        error: 'No member registered using this email'
       });
     }
 
@@ -328,7 +328,7 @@ const sendResetCode = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'If the email exists, a reset code has been sent to your email.'
+      message: 'Reset code has been sent to your email.'
     });
 
   } catch (error) {
@@ -496,10 +496,10 @@ const resendResetCode = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) {
-      // Don't reveal if email exists
-      return res.status(200).json({
-        success: true,
-        message: 'If the email exists, a reset code has been sent.'
+      // Email not registered
+      return res.status(404).json({
+        success: false,
+        error: 'No member registered using this email'
       });
     }
 

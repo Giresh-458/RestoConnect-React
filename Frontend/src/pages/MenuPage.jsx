@@ -519,6 +519,9 @@ function DishCard({
         {dish.description && (
           <p className={styles.dishDescription}>{dish.description}</p>
         )}
+        {dish.serves && (
+          <p className={styles.dishServes}>Serves {dish.serves} {dish.serves === 1 ? 'person' : 'people'}</p>
+        )}
         <div className={styles.dishFooter}>
           <span className={styles.dishPrice}>₹{dish.price}</span>
           <div className={styles.quantityControls}>
