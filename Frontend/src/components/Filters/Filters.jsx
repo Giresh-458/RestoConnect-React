@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
 import './Filters.css';
+import { useEffect, useState } from "react";
 
-const cuisines = [
-  { id: 'italian', name: 'Italian' },
-  { id: 'mexican', name: 'Mexican' },
-  { id: 'vegan', name: 'Vegan' },
-  { id: 'sushi', name: 'Sushi' },
-];
+
+const [cuisines, setCuisines] = useState(["All"]);
+
+
+useEffect(() => {
+  const fetchCuisines = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:3000/api/customer/restaurants/public-cuisines"
+      );
+      const data = await res.json();
+       console.log("Fetched cuisines:", data.availableCuisines);
+      setCuisines(["All", ...(data.cuisines || [])]);
+
+    } catch (err) {
+      console.error("Failed to load cuisines", err);
+    }
+  };
+  fetchCuisines();
+}, []);
 
 
 const Filters = ({ onFilterChange }) => {
