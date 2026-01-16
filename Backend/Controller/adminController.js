@@ -34,42 +34,51 @@ exports.getAdminDashboard = async (req, res) => {
       return sum;
     }, 0);
 
-        // NOTE: req.user is often set by an authentication system. 
-        // If not using it, ensure you rely on req.session.username for identity.
-        const currentAdminUsername = req.user ? req.user.username : req.session.username; 
-        let currentAdminProfile = null;
-        if (currentAdminUsername) {
-            currentAdminProfile = await User.findOne({ username: currentAdminUsername });
-        }
-
-        let users = [];
-        const userFilter = { role: { $ne: 'admin' } };
-        if (currentAdminUsername) {
-          users = await User.find({ ...userFilter, username: { $ne: currentAdminUsername } });
-        } else {
-          users = await User.find(userFilter);
-        }
-
-        users = users.map(user => {
-            if (user.role === 'customer') user.restaurantName = '';
-            return user;
-        });
-
-        // Count only non-admin users
-        const totalUserCount = await User.countDocuments({ role: { $ne: 'admin' } });
-
-       res.json({ 
-            active_user_count: 0,
-            total_user_count: totalUserCount,
-            current_admin: currentAdminProfile,
-            totalRevenue,
-            restaurants_list: formattedRestaurants,
-            users_list: users
-        })
-    } catch (error) {
-        console.error("Error in getAdminDashboard:", error);
-        res.status(500).send("Internal Server Error");
+    // NOTE: req.user is often set by an authentication system.
+    // If not using it, ensure you rely on req.session.username for identity.
+    const currentAdminUsername = req.user
+      ? req.user.username
+      : req.session.username;
+    let currentAdminProfile = null;
+    if (currentAdminUsername) {
+      currentAdminProfile = await User.findOne({
+        username: currentAdminUsername,
+      });
     }
+
+    let users = [];
+    const userFilter = { role: { $ne: "admin" } };
+    if (currentAdminUsername) {
+      users = await User.find({
+        ...userFilter,
+        username: { $ne: currentAdminUsername },
+      });
+    } else {
+      users = await User.find(userFilter);
+    }
+
+    users = users.map((user) => {
+      if (user.role === "customer") user.restaurantName = "";
+      return user;
+    });
+
+    // Count only non-admin users
+    const totalUserCount = await User.countDocuments({
+      role: { $ne: "admin" },
+    });
+
+    res.json({
+      active_user_count: 0,
+      total_user_count: totalUserCount,
+      current_admin: currentAdminProfile,
+      totalRevenue,
+      restaurants_list: formattedRestaurants,
+      users_list: users,
+    });
+  } catch (error) {
+    console.error("Error in getAdminDashboard:", error);
+    res.status(500).send("Internal Server Error");
+  }
 };
 
 exports.getStatisticsGraphs = async (req, res) => {
@@ -104,9 +113,12 @@ exports.getAllUsers = async (req, res) => {
   try {
     const currentAdminUsername = req.user ? req.user.username : null;
     let users = [];
-    const filter = { role: { $ne: 'admin' } };
+    const filter = { role: { $ne: "admin" } };
     if (currentAdminUsername) {
-      users = await User.find({ ...filter, username: { $ne: currentAdminUsername } });
+      users = await User.find({
+        ...filter,
+        username: { $ne: currentAdminUsername },
+      });
     } else {
       users = await User.find(filter);
     }
@@ -149,11 +161,13 @@ exports.deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
     await User.deleteOne({ _id: userId });
-    if (expectsJson(req)) return res.status(200).json({ message: "User deleted successfully" });
+    if (expectsJson(req))
+      return res.status(200).json({ message: "User deleted successfully" });
     return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in deleteUser:", error);
-    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };
@@ -166,19 +180,25 @@ exports.suspendUser = async (req, res) => {
 
     // Require a valid suspension end date
     if (!suspensionEndDate) {
-      return res.status(400).json({ error: 'Suspension end date is required' });
+      return res.status(400).json({ error: "Suspension end date is required" });
     }
 
     const parsed = new Date(suspensionEndDate);
     if (isNaN(parsed.getTime())) {
-      return res.status(400).json({ error: 'Invalid suspension end date' });
+      return res.status(400).json({ error: "Invalid suspension end date" });
     }
 
     const now = new Date();
     // Allow same-day suspensions; require end date >= today
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     if (parsed < startOfToday) {
-      return res.status(400).json({ error: 'Suspension end date must be today or later' });
+      return res
+        .status(400)
+        .json({ error: "Suspension end date must be today or later" });
     }
 
     const updateData = {
@@ -188,11 +208,13 @@ exports.suspendUser = async (req, res) => {
     };
 
     await User.updateOne({ _id: userId }, { $set: updateData });
-    if (expectsJson(req)) return res.status(200).json({ message: "User suspended successfully" });
+    if (expectsJson(req))
+      return res.status(200).json({ message: "User suspended successfully" });
     return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in suspendUser:", error);
-    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };
@@ -201,128 +223,170 @@ exports.suspendUser = async (req, res) => {
 exports.unsuspendUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    await User.updateOne({ _id: userId }, { $set: { isSuspended: false, suspensionEndDate: null, suspensionReason: null } });
-    if (expectsJson(req)) return res.status(200).json({ message: "User unsuspended successfully" });
-    return res.redirect('/admin/dashboard');
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isSuspended: false,
+          suspensionEndDate: null,
+          suspensionReason: null,
+        },
+      }
+    );
+    if (expectsJson(req))
+      return res.status(200).json({ message: "User unsuspended successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
-    console.error('Error in unsuspendUser:', error);
-    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
-    res.status(500).send('Internal Server Error');
+    console.error("Error in unsuspendUser:", error);
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).send("Internal Server Error");
   }
 };
 
 // 🌟 FIX: Edit admin profile
 exports.editProfile = async (req, res) => {
   try {
-    const currentAdminUsername = req.user ? req.user.username : req.session.username;
+    const currentAdminUsername = req.user
+      ? req.user.username
+      : req.session.username;
     if (!currentAdminUsername) {
-      if (expectsJson(req)) return res.status(401).json({ error: 'Unauthorized' });
-      return res.redirect('/loginPage');
+      if (expectsJson(req))
+        return res.status(401).json({ error: "Unauthorized" });
+      return res.redirect("/loginPage");
     }
 
     const { username, email, currentPassword, newpassword } = req.body || {};
     if (!username || !email) {
-      if (expectsJson(req)) return res.status(400).json({ error: 'Missing required fields' });
-      return res.status(400).send('Missing required fields');
+      if (expectsJson(req))
+        return res.status(400).json({ error: "Missing required fields" });
+      return res.status(400).send("Missing required fields");
     }
 
     const adminUser = await User.findOne({ username: currentAdminUsername });
     if (!adminUser) {
-      if (expectsJson(req)) return res.status(404).json({ error: 'Admin not found' });
-      return res.redirect('/loginPage');
+      if (expectsJson(req))
+        return res.status(404).json({ error: "Admin not found" });
+      return res.redirect("/loginPage");
     }
 
     // Determine if identity/password will change
-    const willChangeIdentity = (username !== adminUser.username) || (email !== adminUser.email) || (newpassword && newpassword.trim() !== '');
+    const willChangeIdentity =
+      username !== adminUser.username ||
+      email !== adminUser.email ||
+      (newpassword && newpassword.trim() !== "");
 
     // If the client provided a currentPassword, always verify it.
     if (currentPassword) {
       const isMatch = await bcrypt.compare(currentPassword, adminUser.password);
       if (!isMatch) {
-        if (expectsJson(req)) return res.status(401).json({ error: 'Incorrect current password' });
-        return res.status(401).send('Incorrect current password');
+        if (expectsJson(req))
+          return res.status(401).json({ error: "Incorrect current password" });
+        return res.status(401).send("Incorrect current password");
       }
     } else if (willChangeIdentity) {
       // When identity (username/email) or password is changing, require the current password.
-      if (expectsJson(req)) return res.status(400).json({ error: 'Current password is required to update profile' });
-      return res.status(400).send('Current password is required');
+      if (expectsJson(req))
+        return res
+          .status(400)
+          .json({ error: "Current password is required to update profile" });
+      return res.status(400).send("Current password is required");
     }
 
     const updateData = { username, email };
-    if (newpassword && newpassword.trim() !== '') {
+    if (newpassword && newpassword.trim() !== "") {
       updateData.password = await bcrypt.hash(newpassword.trim(), 10);
     }
 
-    await User.updateOne({ username: currentAdminUsername }, { $set: updateData });
+    await User.updateOne(
+      { username: currentAdminUsername },
+      { $set: updateData }
+    );
     if (username !== currentAdminUsername) req.session.username = username;
 
-    if (expectsJson(req)) return res.status(200).json({ message: 'Profile updated successfully' });
-    return res.redirect('/admin/dashboard');
+    if (expectsJson(req))
+      return res.status(200).json({ message: "Profile updated successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
-    console.error('Error in editProfile:', error);
-    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
-    res.status(500).send('Internal Server Error');
+    console.error("Error in editProfile:", error);
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).send("Internal Server Error");
   }
 };
 
 // 🌟 FIX: Change Admin Password
 exports.changePassword = async (req, res) => {
-    const currentAdminUsername = req.session.username; // Use session for identity
-    if (!currentAdminUsername) return res.status(401).json({ error: "Unauthorized" });
+  const currentAdminUsername = req.session.username; // Use session for identity
+  if (!currentAdminUsername)
+    return res.status(401).json({ error: "Unauthorized" });
 
-    try {
-        const { currentPassword, newPassword } = req.body;
-        if (!currentPassword || !newPassword) return res.status(400).json({ error: "Missing password fields" });
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ error: "Missing password fields" });
 
-        const user = await User.findOne({ username: currentAdminUsername });
-        if (!user) return res.status(404).json({ error: "Admin not found" });
+    const user = await User.findOne({ username: currentAdminUsername });
+    if (!user) return res.status(404).json({ error: "Admin not found" });
 
-        // 1. Verify current password
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(401).json({ error: "Incorrect current password" });
+    // 1. Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch)
+      return res.status(401).json({ error: "Incorrect current password" });
 
-        // 2. Hash and update new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await User.updateOne({ username: currentAdminUsername }, { $set: { password: hashedPassword } });
+    // 2. Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.updateOne(
+      { username: currentAdminUsername },
+      { $set: { password: hashedPassword } }
+    );
 
-        res.status(200).json({ message: "Password changed successfully!" });
-    } catch (error) {
-        console.error("Error in changePassword:", error);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
+    res.status(200).json({ message: "Password changed successfully!" });
+  } catch (error) {
+    console.error("Error in changePassword:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 // 🌟 FIX: Delete Admin Account
 exports.deleteAccount = async (req, res) => {
   const currentAdminUsername = req.session.username; // Use session for identity
   if (!currentAdminUsername) {
-    if (expectsJson(req)) return res.status(401).json({ error: "Unauthorized" });
-    return res.redirect('/loginPage');
+    if (expectsJson(req))
+      return res.status(401).json({ error: "Unauthorized" });
+    return res.redirect("/loginPage");
   }
 
   try {
     // Find the admin user to be sure
-    const user = await User.findOne({ username: currentAdminUsername, role: 'admin' });
+    const user = await User.findOne({
+      username: currentAdminUsername,
+      role: "admin",
+    });
     if (!user) {
-      if (expectsJson(req)) return res.status(404).json({ error: "Admin account not found" });
-      return res.redirect('/loginPage');
+      if (expectsJson(req))
+        return res.status(404).json({ error: "Admin account not found" });
+      return res.redirect("/loginPage");
     }
 
     await User.deleteOne({ username: currentAdminUsername });
 
     // Destroy the session to log the admin out
-    req.session.destroy(err => {
+    req.session.destroy((err) => {
       if (err) console.error("Error destroying session:", err);
-      if (expectsJson(req)) return res.status(200).json({ message: "Account deleted successfully." });
-      res.redirect('/loginPage');
+      if (expectsJson(req))
+        return res
+          .status(200)
+          .json({ message: "Account deleted successfully." });
+      res.redirect("/loginPage");
     });
   } catch (error) {
     console.error("Error in deleteAccount:", error);
-    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 // Add restaurant
 exports.postAddRestaurent = async (req, res) => {
@@ -374,7 +438,10 @@ exports.postEditRestaurent = async (req, res) => {
     if (!name || !location || !amount)
       return res.status(400).json({ error: "Missing required fields!" });
 
-    await Restaurant.updateOne({ _id: id }, { $set: { name, location, amount } });
+    await Restaurant.updateOne(
+      { _id: id },
+      { $set: { name, location, amount } }
+    );
     res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in postEditRestaurent:", error);
@@ -390,18 +457,24 @@ exports.suspendRestaurant = async (req, res) => {
 
     // Require a valid suspension end date
     if (!suspensionEndDate) {
-      return res.status(400).json({ error: 'Suspension end date is required' });
+      return res.status(400).json({ error: "Suspension end date is required" });
     }
 
     const parsed = new Date(suspensionEndDate);
     if (isNaN(parsed.getTime())) {
-      return res.status(400).json({ error: 'Invalid suspension end date' });
+      return res.status(400).json({ error: "Invalid suspension end date" });
     }
 
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
     if (parsed < startOfToday) {
-      return res.status(400).json({ error: 'Suspension end date must be today or later' });
+      return res
+        .status(400)
+        .json({ error: "Suspension end date must be today or later" });
     }
 
     const updateData = {
@@ -411,11 +484,15 @@ exports.suspendRestaurant = async (req, res) => {
     };
 
     await Restaurant.updateOne({ _id: id }, { $set: updateData });
-    if (expectsJson(req)) return res.status(200).json({ message: "Restaurant suspended successfully" });
+    if (expectsJson(req))
+      return res
+        .status(200)
+        .json({ message: "Restaurant suspended successfully" });
     return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in suspendRestaurant:", error);
-    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };
@@ -424,13 +501,26 @@ exports.suspendRestaurant = async (req, res) => {
 exports.unsuspendRestaurant = async (req, res) => {
   try {
     const id = req.params.id;
-    await Restaurant.updateOne({ _id: id }, { $set: { isSuspended: false, suspensionEndDate: null, suspensionReason: null } });
-    if (expectsJson(req)) return res.status(200).json({ message: 'Restaurant unsuspended successfully' });
-    return res.redirect('/admin/dashboard');
+    await Restaurant.updateOne(
+      { _id: id },
+      {
+        $set: {
+          isSuspended: false,
+          suspensionEndDate: null,
+          suspensionReason: null,
+        },
+      }
+    );
+    if (expectsJson(req))
+      return res
+        .status(200)
+        .json({ message: "Restaurant unsuspended successfully" });
+    return res.redirect("/admin/dashboard");
   } catch (error) {
-    console.error('Error in unsuspendRestaurant:', error);
-    if (expectsJson(req)) return res.status(500).json({ error: 'Internal Server Error' });
-    res.status(500).send('Internal Server Error');
+    console.error("Error in unsuspendRestaurant:", error);
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).send("Internal Server Error");
   }
 };
 
@@ -444,11 +534,15 @@ exports.postDeleteRestaurent = async (req, res) => {
       await User.deleteMany({ rest_id: id });
     }
     await Restaurant.deleteOne({ _id: id });
-    if (expectsJson(req)) return res.status(200).json({ message: "Restaurant deleted successfully" });
+    if (expectsJson(req))
+      return res
+        .status(200)
+        .json({ message: "Restaurant deleted successfully" });
     return res.redirect("/admin/dashboard");
   } catch (error) {
     console.error("Error in postDeleteRestaurent:", error);
-    if (expectsJson(req)) return res.status(500).json({ error: "Internal Server Error" });
+    if (expectsJson(req))
+      return res.status(500).json({ error: "Internal Server Error" });
     res.status(500).send("Internal Server Error");
   }
 };
@@ -490,7 +584,7 @@ exports.getaceptreq = async (req, res) => {
 
     const newRestaurant = new Restaurant({
       name: request.name,
-      location: request.location,
+      location: request.city,
       amount: request.amount,
       created_at: new Date(),
     });
@@ -557,19 +651,22 @@ exports.getRecentActivities = async (req, res) => {
 
     // Latest 5 new users
     const newUsers = await User.find().sort({ _id: -1 }).limit(5); // Use _id as proxy for creation time since no createdAt
-    newUsers.forEach(u => {
+    newUsers.forEach((u) => {
       activities.push({
         time: u._id.getTimestamp().toLocaleString(),
-        description: `New user ${u.username} registered`
+        description: `New user ${u.username} registered`,
       });
     });
 
     // Latest 5 restaurants
     const newRestaurants = await Restaurant.find().sort({ date: -1 }).limit(5);
-    newRestaurants.forEach(r => {
+    newRestaurants.forEach((r) => {
       activities.push({
-        time: (r.date && !isNaN(new Date(r.date).getTime()) ? new Date(r.date).toLocaleString() : new Date().toLocaleString()),
-        description: `Restaurant ${r.name} added to platform`
+        time:
+          r.date && !isNaN(new Date(r.date).getTime())
+            ? new Date(r.date).toLocaleString()
+            : new Date().toLocaleString(),
+        description: `Restaurant ${r.name} added to platform`,
       });
     });
 
