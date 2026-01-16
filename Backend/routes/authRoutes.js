@@ -15,4 +15,16 @@ router.get('/logout', authController.logout);
 // GET /api/auth/check-session
 router.get('/check-session', authController.checkSession);
 
+// POST /api/auth/forgot-password/send-code
+router.post('/forgot-password/send-code', authController.sendResetCode);
+
+// POST /api/auth/forgot-password/verify-code
+router.post('/forgot-password/verify-code', authController.verifyResetCode);
+
+// POST /api/auth/forgot-password/reset
+router.post('/forgot-password/reset', authController.resetPassword);
+
+// POST /api/auth/forgot-password/resend-code
+router.post('/forgot-password/resend-code', authController.resendResetCode);
+
 module.exports = router;

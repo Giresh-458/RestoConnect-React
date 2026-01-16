@@ -8,6 +8,7 @@ const cuisines = [
   { id: 'sushi', name: 'Sushi' },
 ];
 
+
 const Filters = ({ onFilterChange }) => {
   const [filters, setFilters] = useState({
     openNow: false,
