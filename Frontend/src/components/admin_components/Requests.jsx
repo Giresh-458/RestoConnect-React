@@ -12,12 +12,13 @@ function reducer(state, action) {
     return {
       requests_list: [...action.payload],
       lastaction: "load",
-      lastpayload: "requests",
+      lastpayload: null,
     };
-  } else if (action.type === "accept" || action.type === "reject") {
+  } 
+  else if (action.type === "accept" || action.type === "reject") {
     return {
       requests_list: state.requests_list.filter(
-        (req) => req._id !== action.payload
+        (req) => req.owner_username !== action.payload
       ),
       lastaction: action.type,
       lastpayload: action.payload,
@@ -25,6 +26,7 @@ function reducer(state, action) {
   }
   return state;
 }
+
 
 export function Requests({ searchTerm }) {
   const firstRender = useRef(true);
