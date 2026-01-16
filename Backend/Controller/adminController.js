@@ -578,6 +578,7 @@ exports.getAllRestaurants = async (req, res) => {
 exports.getaceptreq = async (req, res) => {
   try {
     const ownername = req.params.owner_username;
+    console.log(ownername)
     const request = await RestaurantRequest.findOne({
       owner_username: ownername,
     });

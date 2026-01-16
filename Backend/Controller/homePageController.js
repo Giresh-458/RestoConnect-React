@@ -146,6 +146,14 @@ exports.postRestReq = async (req, res) => {
       });
     }
 
+    const existingUsername = await User.findOne({ username:ownerName });
+if (existingUsername) {
+  return res.status(409).json({
+    error: "Username already exists. Please use a different email prefix."
+  });
+}
+
+
     // Handle image upload (if provided)
     let imageFilename = null;
     if (req.file) {
@@ -156,8 +164,8 @@ exports.postRestReq = async (req, res) => {
     }
 
     // Generate username from email if not provided
-    const username = existingUser ? existingUser.username : (ownerEmail ? ownerEmail.split("@")[0] : null);
-
+   // const username = existingUser ? existingUser.username : (ownerEmail ? ownerEmail.split("@")[0] : null);
+    const username = ownerName;
     // Final validation - ensure all required fields are present
     if (!username || !ownerEmail || !password || !restaurantName) {
       console.error("Missing required fields:", {
@@ -207,7 +215,7 @@ exports.postRestReq = async (req, res) => {
     });
 
     // If user doesn't exist, create owner account
-    if (!existingUser) {
+   /* if (!existingUser) {
       const bcrypt = require("bcrypt");
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -232,7 +240,7 @@ exports.postRestReq = async (req, res) => {
     } else {
       console.log("User already exists, skipping user creation");
     }
-
+*/
     return res.status(200).json({
       success: true,
       message:
