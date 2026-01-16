@@ -10,6 +10,8 @@ const { uploadProfilePicture, handleUploadErrors } = require('../util/fileUpload
 
 
 
+router.get("/restaurants/public-cuisines", customerController.getPublicCuisines);
+
 router.get('/customerDashboard',customerController.getCustomerDashboard);
 
 router.get('/feedback', customerController.getFeedBack);
