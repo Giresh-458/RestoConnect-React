@@ -2068,3 +2068,25 @@ exports.applyPromoCode = async (req, res) => {
     });
   }
 };
+
+
+
+exports.getPublicCuisines = async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find({}, "cuisine");
+    const cuisineSet = new Set();
+
+    restaurants.forEach((r) => {
+      if (Array.isArray(r.cuisine)) {
+        r.cuisine.forEach((c) => cuisineSet.add(c));
+      }
+    });
+
+    res.json({
+      cuisines: Array.from(cuisineSet).sort(),
+    });
+  } catch (error) {
+    console.error("Error fetching cuisines:", error);
+    res.status(500).json({ error: "Failed to fetch cuisines" });
+  }
+};
