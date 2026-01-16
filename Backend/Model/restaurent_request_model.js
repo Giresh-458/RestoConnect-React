@@ -11,10 +11,14 @@ const restaurantSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  city: {
+    type: String,
+    required: true,
+  },
   amount: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
   },
   owner_username: {
     type: String,
@@ -22,25 +26,25 @@ const restaurantSchema = new mongoose.Schema({
   },
   owner_password: {
     type: String,
-    required: true, 
+    required: true,
   },
-  email:{
-    type:String,
-    required:true
+  email: {
+    type: String,
+    required: true,
   },
   contactNumber: {
     type: String,
-    required: false
+    required: false,
   },
   cuisineTypes: {
     type: [String],
     required: false,
-    default: []
+    default: [],
   },
   additionalNotes: {
     type: String,
     required: false,
-    default: ''
+    default: "",
   },
   created_at: {
     type: Date,
@@ -48,11 +52,8 @@ const restaurantSchema = new mongoose.Schema({
   },
 });
 
-restaurantSchema.pre("save", function(next) {
- 
+restaurantSchema.pre("save", function (next) {
   next();
 });
 
 module.exports = mongoose.model("RestaurantRequest", restaurantSchema);
-
-

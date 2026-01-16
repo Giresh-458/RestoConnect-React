@@ -34,6 +34,7 @@ export const DashBoardPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] =
     useState(true);
+  const [switchFocused, setSwitchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
@@ -1189,14 +1190,49 @@ export const DashBoardPage = () => {
 
             <div style={styles.notificationToggle}>
               <span>Email Notifications</span>
-              <label style={styles.switch}>
+              <label
+                style={{
+                  ...styles.switch,
+                  opacity: notificationSaving ? 0.6 : 1,
+                  cursor: notificationSaving ? "not-allowed" : "pointer",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={emailNotificationsEnabled}
                   onChange={handleNotificationToggle}
                   disabled={notificationSaving}
+                  style={styles.switchInput}
+                  role="switch"
+                  aria-checked={emailNotificationsEnabled}
+                  aria-label="Email notifications"
+                  onFocus={() => setSwitchFocused(true)}
+                  onBlur={() => setSwitchFocused(false)}
                 />
-                <span style={styles.slider}></span>
+
+                <span
+                  style={{
+                    ...styles.slider,
+                    backgroundColor: emailNotificationsEnabled
+                      ? "#22c55e"
+                      : "#e5e7eb",
+                    boxShadow: switchFocused
+                      ? emailNotificationsEnabled
+                        ? "0 0 0 4px rgba(34,197,94,0.12)"
+                        : "0 0 0 4px rgba(0,0,0,0.08)"
+                      : undefined,
+                  }}
+                >
+                  <span
+                    style={{
+                      ...styles.sliderKnob,
+                      left: emailNotificationsEnabled ? "31px" : "3px",
+                      boxShadow: emailNotificationsEnabled
+                        ? "0 2px 6px rgba(34,197,94,0.4)"
+                        : "0 1px 3px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                </span>
               </label>
             </div>
           </div>
@@ -1963,8 +1999,18 @@ const styles = {
   switch: {
     position: "relative",
     display: "inline-block",
-    width: "48px",
+    width: "52px",
     height: "24px",
+  },
+  switchInput: {
+    position: "absolute",
+    opacity: 0,
+    width: 0,
+    height: 0,
+    margin: 0,
+    padding: 0,
+    left: 0,
+    top: 0,
   },
   slider: {
     position: "absolute",
@@ -1973,9 +2019,19 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#ff6b35",
+    backgroundColor: "#e5e7eb",
     borderRadius: "24px",
-    transition: "0.4s",
+    transition: "background-color 0.25s",
+  },
+  sliderKnob: {
+    position: "absolute",
+    top: "3px",
+    left: "3px",
+    width: "18px",
+    height: "18px",
+    borderRadius: "50%",
+    backgroundColor: "#fff",
+    transition: "left 0.25s, box-shadow 0.25s",
   },
   modalOverlay: {
     position: "fixed",
