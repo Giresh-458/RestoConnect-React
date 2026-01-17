@@ -13,7 +13,7 @@ async function seed() {
   try {
     await connectDB();
 
-    console.log('Clearing existing data...');
+    console.log("Clearing existing data...");
     // Clear existing data
     await Promise.all([
       User.deleteMany({}),
@@ -23,7 +23,7 @@ async function seed() {
       Dish.deleteMany({}),
       Feedback.deleteMany({}),
       Reservation.deleteMany({}),
-      Inventory.deleteMany({})
+      Inventory.deleteMany({}),
     ]);
 
     // 1. Seed Dishes
@@ -214,8 +214,18 @@ async function seed() {
       ];
       rest.totalTables = rest.tables.length;
       rest.payments = [
-        { method: "UPI", amount: 500, date: new Date(), reference: `UPI-${index + 1}-A` },
-        { method: "Card", amount: 750, date: new Date(), reference: `CARD-${index + 1}-B` },
+        {
+          method: "UPI",
+          amount: 500,
+          date: new Date(),
+          reference: `UPI-${index + 1}-A`,
+        },
+        {
+          method: "Card",
+          amount: 750,
+          date: new Date(),
+          reference: `CARD-${index + 1}-B`,
+        },
       ];
 
       rest.inventoryData = {
@@ -383,7 +393,7 @@ async function seed() {
           restaurantName: rest.name,
           rest_id: rest._id,
           password: bcrypt.hashSync("123456", 10),
-        }
+        },
       );
     });
 
@@ -405,7 +415,7 @@ async function seed() {
         email: "customer3@example.com",
         role: "customer",
         password: bcrypt.hashSync("123456", 10),
-      }
+      },
     );
 
     await User.insertMany(users);
@@ -451,13 +461,19 @@ async function seed() {
     // Pre-populate customer favourites with valid Dish IDs so Favorite Dishes shows data
     if (createdCustomers && createdCustomers.length >= 3) {
       await Person.findByIdAndUpdate(createdCustomers[0]._id, {
-        $set: { favourites: [dishes[0]._id.toString(), dishes[2]._id.toString()] }
+        $set: {
+          favourites: [dishes[0]._id.toString(), dishes[2]._id.toString()],
+        },
       });
       await Person.findByIdAndUpdate(createdCustomers[1]._id, {
-        $set: { favourites: [dishes[1]._id.toString(), dishes[5]._id.toString()] }
+        $set: {
+          favourites: [dishes[1]._id.toString(), dishes[5]._id.toString()],
+        },
       });
       await Person.findByIdAndUpdate(createdCustomers[2]._id, {
-        $set: { favourites: [dishes[3]._id.toString(), dishes[4]._id.toString()] }
+        $set: {
+          favourites: [dishes[3]._id.toString(), dishes[4]._id.toString()],
+        },
       });
     }
 
@@ -695,12 +711,12 @@ async function seed() {
       },
     ];
 
-    const allOrders = [...tastyBitesOrders, ...todayOrders].map(order => ({
-  ...order,
-  createdAt: order.orderTime || order.date || new Date(), // ✅ MAGIC LINE
-}));
+    const allOrders = [...tastyBitesOrders, ...todayOrders].map((order) => ({
+      ...order,
+      createdAt: order.orderTime || order.date || new Date(), // ✅ MAGIC LINE
+    }));
 
-const createdOrders = await Order.insertMany(allOrders);
+    const createdOrders = await Order.insertMany(allOrders);
 
     firstRestaurant.orders = createdOrders.map((order) => order._id);
     await firstRestaurant.save();
@@ -710,46 +726,44 @@ const createdOrders = await Order.insertMany(allOrders);
     const tastyBitesReservations = [
       {
         customerName: customerA.name,
-        time: '7:30 PM',
-        table_id: 'T1',
+        time: "7:30 PM",
+        table_id: "T1",
         guests: 4,
-        status: 'confirmed',
+        status: "confirmed",
         rest_id: firstRestaurant._id,
         date: new Date(), // ✅ optional
       },
       {
         customerName: customerB.name,
-        time: '8:00 PM',
-        table_id: 'T2',
+        time: "8:00 PM",
+        table_id: "T2",
         guests: 2,
-        status: 'pending',
+        status: "pending",
         rest_id: firstRestaurant._id,
         date: new Date(),
       },
       {
         customerName: createdCustomers[2].name,
-        time: '9:00 PM',
-        table_id: 'T3',
+        time: "9:00 PM",
+        table_id: "T3",
         guests: 3,
-        status: 'completed',
+        status: "completed",
         rest_id: firstRestaurant._id,
         date: new Date(),
       },
       // ✅ add more sample reservations if you want
       {
         customerName: customerA.name,
-        time: '6:45 PM',
-        table_id: 'T4',
+        time: "6:45 PM",
+        table_id: "T4",
         guests: 5,
-        status: 'pending',
+        status: "pending",
         rest_id: firstRestaurant._id,
         date: new Date(),
       },
     ];
     await Reservation.insertMany(tastyBitesReservations);
     console.log("✅ Reservations seeded successfully");
-
-
 
     // Map orders by customer to avoid ParallelSaveError
     const customerOrdersMap = {};
@@ -782,89 +796,157 @@ const createdOrders = await Order.insertMany(allOrders);
 
     // // 6. Inventory items for first restaurant (Spice Hub)
 
-        // 6️⃣ Inventory items for all restaurants (including Spice Hub & Tasty Bites)
+    // 6️⃣ Inventory items for all restaurants (including Spice Hub & Tasty Bites)
     for (const rest of createdRestaurants) {
       let inventoryItems;
 
       // Give Spice Hub a few extra inventory items for variety
-      if (rest.name === 'Spice Hub') {
+      if (rest.name === "Spice Hub") {
         inventoryItems = [
-          { name: 'Tomato Sauce', unit: 'L', quantity: 1.5, minStock: 0.5, rest_id: rest._id },
-          { name: 'Paneer', unit: 'Kg', quantity: 2, minStock: 0.5, rest_id: rest._id },
-          { name: 'Rice', unit: 'Kg', quantity: 20, minStock: 5, rest_id: rest._id },
-          { name: 'Chicken', unit: 'Kg', quantity: 8, minStock: 2, rest_id: rest._id },
-          { name: 'Onions', unit: 'Kg', quantity: 6, minStock: 2, rest_id: rest._id },
-          { name: 'Cooking Oil', unit: 'L', quantity: 5, minStock: 2, rest_id: rest._id },
+          {
+            name: "Tomato Sauce",
+            unit: "L",
+            quantity: 1.5,
+            minStock: 0.5,
+            rest_id: rest._id,
+          },
+          {
+            name: "Paneer",
+            unit: "Kg",
+            quantity: 2,
+            minStock: 0.5,
+            rest_id: rest._id,
+          },
+          {
+            name: "Rice",
+            unit: "Kg",
+            quantity: 20,
+            minStock: 5,
+            rest_id: rest._id,
+          },
+          {
+            name: "Chicken",
+            unit: "Kg",
+            quantity: 8,
+            minStock: 2,
+            rest_id: rest._id,
+          },
+          {
+            name: "Onions",
+            unit: "Kg",
+            quantity: 6,
+            minStock: 2,
+            rest_id: rest._id,
+          },
+          {
+            name: "Cooking Oil",
+            unit: "L",
+            quantity: 5,
+            minStock: 2,
+            rest_id: rest._id,
+          },
         ];
       } else {
         // Default inventory for all other restaurants (including Tasty Bites)
         inventoryItems = [
-          { name: 'Tomato Sauce', unit: 'L', quantity: 1, minStock: 0.5, rest_id: rest._id },
-          { name: 'Paneer', unit: 'Kg', quantity: 1, minStock: 0.2, rest_id: rest._id },
-          { name: 'Rice', unit: 'Kg', quantity: 15, minStock: 2, rest_id: rest._id },
-          { name: 'Onions', unit: 'Kg', quantity: 3, minStock: 1, rest_id: rest._id },
-          { name: 'Potatoes', unit: 'Kg', quantity: 5, minStock: 2, rest_id: rest._id },
+          {
+            name: "Tomato Sauce",
+            unit: "L",
+            quantity: 1,
+            minStock: 0.5,
+            rest_id: rest._id,
+          },
+          {
+            name: "Paneer",
+            unit: "Kg",
+            quantity: 1,
+            minStock: 0.2,
+            rest_id: rest._id,
+          },
+          {
+            name: "Rice",
+            unit: "Kg",
+            quantity: 15,
+            minStock: 2,
+            rest_id: rest._id,
+          },
+          {
+            name: "Onions",
+            unit: "Kg",
+            quantity: 3,
+            minStock: 1,
+            rest_id: rest._id,
+          },
+          {
+            name: "Potatoes",
+            unit: "Kg",
+            quantity: 5,
+            minStock: 2,
+            rest_id: rest._id,
+          },
         ];
       }
 
       await Inventory.insertMany(inventoryItems);
     }
 
-
-    console.log('Seeding feedback...');
-    // 7. Feedback - Must include rest_id (String) matching Restaurant._id
+    console.log("Seeding feedback...");
+    // 7. Feedback - Must include rest_id (String) matching Restaurant._id and orderId
     const feedbacks = [
       {
         customerName: "customer1",
         rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
+        orderId: createdOrders[0]._id.toString(), // Link to first order
         diningRating: 5,
         lovedItems: "Paneer Tikka, Veg Biryani",
         orderRating: 4,
         additionalFeedback: "Loved the ambiance!",
-        status: 'Pending',
-        createdAt: randomDateInLastMonth()
+        status: "Pending",
+        createdAt: randomDateInLastMonth(),
       },
       {
         customerName: "customer2",
         rest_id: firstRestaurant._id, // Tasty Bites (String ID from shortid)
+        orderId: createdOrders[1]._id.toString(), // Link to second order
         diningRating: 4,
         lovedItems: "Paneer Tikka",
         orderRating: 5,
         additionalFeedback: "Tasty food!",
-        status: 'Resolved',
-        createdAt: randomDateInLastMonth()
+        status: "Resolved",
+        createdAt: randomDateInLastMonth(),
       },
       {
         customerName: "customer3",
         rest_id: createdRestaurants[1]._id, // Spice Hub (String ID from shortid)
+        orderId: createdOrders[3]._id.toString(), // Link to a created order
         diningRating: 5,
         lovedItems: "Masala Dosa",
         orderRating: 5,
         additionalFeedback: "Perfect breakfast!",
-        status: 'Pending',
-        createdAt: randomDateInLastMonth()
+        status: "Pending",
+        createdAt: randomDateInLastMonth(),
       },
     ];
 
     await Feedback.insertMany(feedbacks);
     console.log(`Created ${feedbacks.length} feedback entries`);
 
-    console.log('\n✅ Seed completed successfully!');
-    console.log('\n📋 Demo Credentials:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('Admin:');
-    console.log('  Username: admin1');
-    console.log('  Password: 123456');
-    console.log('\nOwner (Tasty Bites):');
-    console.log('  Username: owner1');
-    console.log('  Password: 123456');
-    console.log('\nStaff:');
-    console.log('  Username: staff1');
-    console.log('  Password: 123456');
-    console.log('\nCustomers:');
-    console.log('  Username: customer1 / customer2 / customer3');
-    console.log('  Password: 123456');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.log("\n✅ Seed completed successfully!");
+    console.log("\n📋 Demo Credentials:");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("Admin:");
+    console.log("  Username: admin1");
+    console.log("  Password: 123456");
+    console.log("\nOwner (Tasty Bites):");
+    console.log("  Username: owner1");
+    console.log("  Password: 123456");
+    console.log("\nStaff:");
+    console.log("  Username: staff1");
+    console.log("  Password: 123456");
+    console.log("\nCustomers:");
+    console.log("  Username: customer1 / customer2 / customer3");
+    console.log("  Password: 123456");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
   } catch (err) {
     console.error("Seeding error:", err);
   } finally {
