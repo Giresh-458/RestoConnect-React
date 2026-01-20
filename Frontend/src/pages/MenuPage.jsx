@@ -62,6 +62,10 @@ export function MenuPage() {
   const recommendedDishes = filteredDishes.slice(0, 4);
 
   const getQuantity = (dishId) => {
+    // Only show quantity if the cart items are from the current restaurant
+    if (currentRestId && currentRestId !== restIdForCart) {
+      return 0;
+    }
     const item = cartItems.find((item) => item.id === dishId);
     return item ? item.quantity : 0;
   };
@@ -69,11 +73,9 @@ export function MenuPage() {
   const handleAddItem = (dish) => {
     // If cart is empty: set restaurant and add without any prompt
     if (cartItems.length === 0) {
-      if (!currentRestId) {
-        dispatch(
-          setRestaurant({ restId: restIdForCart, restName: restaurant.name })
-        );
-      }
+      dispatch(
+        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
+      );
       dispatch(addItem({ ...dish, amount: dish.price }));
       return;
     }
@@ -91,7 +93,7 @@ export function MenuPage() {
     if (pendingDish) {
       dispatch(clearcart());
       dispatch(
-        setRestaurant({ restId: restIdForCart, restName: restaurant.name })
+        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
       );
       dispatch(addItem({ ...pendingDish, amount: pendingDish.price }));
       setPendingDish(null);
@@ -140,8 +142,8 @@ export function MenuPage() {
       try {
         const favs = await getFavourites();
         // Backend now returns array of dish objects, extract IDs
-        const favoriteIds = Array.isArray(favs) 
-          ? favs.map(dish => dish._id || dish.id || dish)
+        const favoriteIds = Array.isArray(favs)
+          ? favs.map((dish) => dish._id || dish.id || dish)
           : [];
         setFavourites(favoriteIds);
       } catch (error) {
@@ -184,12 +186,12 @@ export function MenuPage() {
     <div className={styles.menuPage}>
       <CheckoutSteps current="menu" />
       {/* Restaurant Banner */}
-      <div 
+      <div
         className={styles.restaurantBanner}
         style={{
-          backgroundImage: restaurant.image 
+          backgroundImage: restaurant.image
             ? `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6)), url("${restaurant.image}")`
-            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`
+            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`,
         }}
       >
         <div className={styles.bannerOverlay}>
@@ -558,7 +560,7 @@ export async function loader({ request, params }) {
       `http://localhost:3000/api/customer/menu/${params.id || params.restid}`,
       {
         credentials: "include",
-      }
+      },
     );
 
     if (!response.ok) {
