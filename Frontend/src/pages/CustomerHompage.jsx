@@ -304,7 +304,7 @@ export function CustomerHomepage() {
                       {dish.price && (
                         <div className={styles.ratingBadge}>
                           <span className={styles.ratingValue}>
-                            ${dish.price.toFixed(2)}
+                            ₹{dish.price.toFixed(2)}
                           </span>
                         </div>
                       )}

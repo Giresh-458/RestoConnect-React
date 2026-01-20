@@ -226,7 +226,7 @@ let xhr = new XMLHttpRequest();
             di.innerHTML=`
         <p><strong>Name:</strong> ${doc.name}</p>
         <p><strong>Location:</strong> ${doc.location}</p>
-        <p><strong>Amount:</strong> ${doc.amount}</p>
+        <p><strong>Amount:</strong> ₹${doc.amount}</p>
         <p><strong>Owner Username:</strong> ${doc.owner_username}</p>
         <p><strong>Owner Password:</strong> ${doc.owner_password}</p>
         <p><strong>Date Joined:</strong> ${new Date(doc.date_joined).toLocaleDateString()}</p>

@@ -82,31 +82,73 @@ exports.getAdminDashboard = async (req, res) => {
 };
 
 exports.getStatisticsGraphs = async (req, res) => {
-  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+  try {
+    const period = req.query.period || 'monthly'; // daily, monthly, yearly
+    const now = new Date();
+    let startDate, groupBy, sortBy;
 
-  const result = await Restaurant.aggregate([
-    { $unwind: "$payments" },
-    { $match: { "payments.date": { $gte: startOfYear } } },
-    {
-      $group: {
-        _id: { month: { $month: "$payments.date" } },
-        totalPayments: { $sum: "$payments.amount" },
-        countPayments: { $sum: 1 },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        month: "$_id.month",
-        totalPayments: 1,
-        countPayments: 1,
-        restaurantFee: { $multiply: ["$totalPayments", 0.1] },
-      },
-    },
-    { $sort: { month: 1 } },
-  ]);
+    // Set date range and grouping based on period
+    if (period === 'daily') {
+      // Last 30 days
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 30);
+      groupBy = {
+        year: { $year: "$payments.date" },
+        month: { $month: "$payments.date" },
+        day: { $dayOfMonth: "$payments.date" }
+      };
+      sortBy = { year: 1, month: 1, day: 1 };
+    } else if (period === 'yearly') {
+      // Last 5 years
+      startDate = new Date(now.getFullYear() - 4, 0, 1);
+      groupBy = {
+        year: { $year: "$payments.date" }
+      };
+      sortBy = { year: 1 };
+    } else {
+      // Monthly (default) - current year
+      startDate = new Date(now.getFullYear(), 0, 1);
+      groupBy = {
+        month: { $month: "$payments.date" }
+      };
+      sortBy = { month: 1 };
+    }
 
-  res.json(result);
+    const result = await Restaurant.aggregate([
+      { $unwind: "$payments" },
+      { $match: { "payments.date": { $gte: startDate } } },
+      {
+        $group: {
+          _id: groupBy,
+          totalPayments: { $sum: "$payments.amount" },
+          countPayments: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          ...(period === 'daily' ? {
+            year: "$_id.year",
+            month: "$_id.month",
+            day: "$_id.day"
+          } : period === 'yearly' ? {
+            year: "$_id.year"
+          } : {
+            month: "$_id.month"
+          }),
+          totalPayments: 1,
+          countPayments: 1,
+          restaurantFee: { $multiply: ["$totalPayments", 0.1] },
+        },
+      },
+      { $sort: sortBy },
+    ]);
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error in getStatisticsGraphs:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 exports.getAllUsers = async (req, res) => {

@@ -31,7 +31,7 @@ const RestaurantCard = ({ restaurant }) => {
         </p>
         <div className="mt-3 flex justify-between items-center">
           <span className="text-green-600 font-medium">
-            {restaurant.priceRange || '$$$'}
+            {restaurant.priceRange || '₹₹₹'}
           </span>
           <span className="text-sm text-gray-500">
             {restaurant.distance ? `${restaurant.distance} miles away` : 'Nearby'}

@@ -69,9 +69,9 @@ export const DashBoardPage = () => {
   const formatCurrency = (amount) => {
     const numeric = typeof amount === "number" ? amount : Number(amount);
     if (Number.isNaN(numeric)) {
-      return "$0.00";
+      return "₹0.00";
     }
-    return `$${numeric.toFixed(2)}`;
+    return `₹${numeric.toFixed(2)}`;
   };
 
   const formatReviewTimestamp = (value) => {
@@ -779,9 +779,9 @@ export const DashBoardPage = () => {
                 </div>
               </div>
 
-              {/* Visit Frequency */}
+              {/* order Frequency */}
               <div style={styles.frequencySection}>
-                <h3 style={styles.sectionTitle}>Visit Frequency</h3>
+                <h3 style={styles.sectionTitle}>order Frequency</h3>
                 <div style={styles.donutContainer}>
                   <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle
@@ -987,7 +987,7 @@ export const DashBoardPage = () => {
                         </p>
                       )}
                       {dish.price && (
-                        <p style={styles.dishPrice}>${Number(dish.price).toFixed(2)}</p>
+                        <p style={styles.dishPrice}>₹{Number(dish.price).toFixed(2)}</p>
                       )}
                     </div>
                   </div>

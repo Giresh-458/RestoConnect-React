@@ -269,7 +269,7 @@ async function getAllReq() {
       di.innerHTML = `
         <p><strong>Name:</strong> ${doc.name}</p>
         <p><strong>Location:</strong> ${doc.location}</p>
-        <p><strong>Amount:</strong> ${doc.amount}</p>
+        <p><strong>Amount:</strong> ₹${doc.amount}</p>
         <p><strong>Owner Username:</strong> ${doc.owner_username}</p>
         <p><strong>Owner Password:</strong> ${doc.owner_password}</p>
         <p><strong>Created At:</strong> ${new Date(doc.created_at).toLocaleString()}</p>
