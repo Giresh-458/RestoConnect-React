@@ -34,8 +34,7 @@ exports.getAdminDashboard = async (req, res) => {
       return sum;
     }, 0);
 
-    // NOTE: req.user is often set by an authentication system.
-    // If not using it, ensure you rely on req.session.username for identity.
+   
     const currentAdminUsername = req.user
       ? req.user.username
       : req.session.username;
@@ -62,7 +61,7 @@ exports.getAdminDashboard = async (req, res) => {
       return user;
     });
 
-    // Count only non-admin users
+    //non-admin users
     const totalUserCount = await User.countDocuments({
       role: { $ne: "admin" },
     });
@@ -337,6 +336,11 @@ exports.editProfile = async (req, res) => {
 
     const updateData = { username, email };
     if (newpassword && newpassword.trim() !== "") {
+      if(newpassword.time().length<6){
+      return res.status(400).json({
+  message: "password must be at least 6 letters"
+});
+      }
       updateData.password = await bcrypt.hash(newpassword.trim(), 10);
     }
 
@@ -368,6 +372,12 @@ exports.changePassword = async (req, res) => {
     if (!currentPassword || !newPassword)
       return res.status(400).json({ error: "Missing password fields" });
 
+    if(newPassword.trim().length<6){
+    return res.status(400).json({
+  message: "password must be at least 6 letters"
+});
+
+    }
     const user = await User.findOne({ username: currentAdminUsername });
     if (!user) return res.status(404).json({ error: "Admin not found" });
 
@@ -375,6 +385,7 @@ exports.changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch)
       return res.status(401).json({ error: "Incorrect current password" });
+
 
     // 2. Hash and update new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);

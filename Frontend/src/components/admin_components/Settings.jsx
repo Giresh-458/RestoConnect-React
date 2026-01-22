@@ -128,7 +128,7 @@ export function Settings(props) {
         setPwdMsg('Password changed successfully');
       } else {
         const data = await res.json().catch(() => ({}));
-        setPwdError(data.error || 'Error changing password');
+        setPwdError(data.message || 'Error changing password');
       }
     }).catch(err => {
       console.error(err);
