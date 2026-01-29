@@ -3,7 +3,7 @@ const Restaurant = require('../Model/Restaurents_model').Restaurant;
 const { getImageUrl } = require('../util/fileUpload');
 
 // Create a new dish with image upload
-exports.createDish = async (req, res) => {
+exports.createDish = async (req, res, next) => {
   try {
     const { name, price, description, restaurantId } = req.body;
     
@@ -37,16 +37,14 @@ exports.createDish = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating dish:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create dish',
-      error: error.message
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Failed to create dish';
+    return next(error);
   }
 };
 
 // Get dish by ID
-exports.getDish = async (req, res) => {
+exports.getDish = async (req, res, next) => {
   try {
     const dish = await Dish.findById(req.params.id);
     
@@ -69,16 +67,14 @@ exports.getDish = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching dish:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch dish',
-      error: error.message
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Failed to fetch dish';
+    return next(error);
   }
 };
 
 // Update dish
-exports.updateDish = async (req, res) => {
+exports.updateDish = async (req, res, next) => {
   try {
     const updates = { ...req.body };
     
@@ -113,16 +109,14 @@ exports.updateDish = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating dish:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update dish',
-      error: error.message
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Failed to update dish';
+    return next(error);
   }
 };
 
 // Delete dish
-exports.deleteDish = async (req, res) => {
+exports.deleteDish = async (req, res, next) => {
   try {
     const dish = await Dish.findByIdAndDelete(req.params.id);
     
@@ -145,10 +139,8 @@ exports.deleteDish = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting dish:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete dish',
-      error: error.message
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Failed to delete dish';
+    return next(error);
   }
 };

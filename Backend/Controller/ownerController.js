@@ -6,7 +6,7 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { Inventory } = require("../Model/Inventory_model");
 const Feedback = require('../Model/feedback');
-exports.getOwnerHomepage = async (req, res) => {
+exports.getOwnerHomepage = async (req, res, next) => {
   try {
     let username = req.session.username;
     console.log("Looking for user with username:", username);
@@ -36,7 +36,7 @@ exports.getOwnerHomepage = async (req, res) => {
   }
 };
 
-exports.getTables = async (req, res) => {
+exports.getTables = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).send("User not found");
@@ -52,7 +52,7 @@ exports.getTables = async (req, res) => {
   }
 };
 
-exports.addTable = async (req, res) => {
+exports.addTable = async (req, res, next) => {
   try {
     const { number, seats } = req.body;
     if (!number || !seats)
@@ -80,7 +80,7 @@ exports.addTable = async (req, res) => {
   }
 };
 
-exports.deleteTable = async (req, res) => {
+exports.deleteTable = async (req, res, next) => {
   try {
     const { number } = req.params;
     const user = await User.findOne({ username: req.session.username });
@@ -100,7 +100,7 @@ exports.deleteTable = async (req, res) => {
   }
 };
 // Add this to ownerController.js
-exports.getFeedback = async (req, res) => {
+exports.getFeedback = async (req, res, next) => {
   try {
     const username = req.session.username;
     const user = await User.findOne({ username });
@@ -137,7 +137,7 @@ exports.getFeedback = async (req, res) => {
   }
 };
 // Add this to ownerController.js
-exports.updateFeedbackStatus = async (req, res) => {
+exports.updateFeedbackStatus = async (req, res, next) => {
   try {
     const { id } = req.params; // Feedback ID
     const { status } = req.body; // New status (e.g., 'Resolved')
@@ -174,7 +174,7 @@ exports.updateFeedbackStatus = async (req, res) => {
 };
 
 // API endpoint to get user and restaurant info
-exports.getOwnerInfo = async (req, res) => {
+exports.getOwnerInfo = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -193,7 +193,7 @@ exports.getOwnerInfo = async (req, res) => {
 };
 
 // API endpoint for dashboard stats (KPIs)
-exports.getDashboardStats = async (req, res) => {
+exports.getDashboardStats = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -254,7 +254,7 @@ exports.getDashboardStats = async (req, res) => {
 };
 
 // API endpoint for revenue & orders trend (last 7 days)
-exports.getRevenueOrdersTrend = async (req, res) => {
+exports.getRevenueOrdersTrend = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -313,7 +313,7 @@ exports.getRevenueOrdersTrend = async (req, res) => {
 };
 
 // API endpoint for recent orders
-exports.getRecentOrders = async (req, res) => {
+exports.getRecentOrders = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -355,7 +355,7 @@ exports.getRecentOrders = async (req, res) => {
 };
 
 // API endpoint to get inventory (using restaurant inventoryData)
-exports.getInventoryAPI = async (req, res) => {
+exports.getInventoryAPI = async (req, res, next) => {
   try {
     console.log("getInventoryAPI called for user:", req.session.username);
     const user = await User.findOne({ username: req.session.username });
@@ -395,7 +395,7 @@ exports.getInventoryAPI = async (req, res) => {
 };
 
 // API endpoint to update inventory quantity (using restaurant inventoryData)
-exports.updateInventoryQuantity = async (req, res) => {
+exports.updateInventoryQuantity = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { change } = req.body; // change can be +1 or -1
@@ -446,7 +446,7 @@ exports.updateInventoryQuantity = async (req, res) => {
 };
 
 // API endpoint to create inventory item
-exports.createInventoryItem = async (req, res) => {
+exports.createInventoryItem = async (req, res, next) => {
   try {
     const { name, unit, quantity, minStock } = req.body;
 
@@ -478,7 +478,7 @@ exports.createInventoryItem = async (req, res) => {
 };
 
 // API endpoint to delete inventory item (using restaurant inventoryData)
-exports.deleteInventoryItem = async (req, res) => {
+exports.deleteInventoryItem = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -515,7 +515,7 @@ exports.deleteInventoryItem = async (req, res) => {
   }
 };
 
-exports.getownerDashboard_dashboard = async (req, res) => {
+exports.getownerDashboard_dashboard = async (req, res, next) => {
 
   try {
     // Get user from session
@@ -662,7 +662,7 @@ function getWeekNumber(date) {
   return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, "0")}`;
 }
 
-exports.getMenuManagement = async (req, res) => {
+exports.getMenuManagement = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -690,7 +690,7 @@ exports.getMenuManagement = async (req, res) => {
   }
 };
 
-exports.addProduct = async (req, res) => {
+exports.addProduct = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -720,7 +720,7 @@ exports.addProduct = async (req, res) => {
   }
 };
 
-exports.editProduct = async (req, res) => {
+exports.editProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, price, imageUrl, serves } = req.body;
@@ -750,7 +750,7 @@ exports.editProduct = async (req, res) => {
   }
 };
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     await Dish.removeDish(req.session.rest_id, id);
@@ -761,7 +761,7 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
-exports.getStaffList = async (req, res) => {
+exports.getStaffList = async (req, res, next) => {
   try {
     const rest_id = req.user.rest_id;
     const staffList = await User.find({ rest_id: rest_id, role: "staff" });
@@ -772,7 +772,7 @@ exports.getStaffList = async (req, res) => {
   }
 };
 
-exports.addStaff = async (req, res) => {
+exports.addStaff = async (req, res, next) => {
   try {
     const rest_id = req.session.rest_id;
     const { username, password, restaurantName, email } = req.body;
@@ -795,7 +795,7 @@ exports.addStaff = async (req, res) => {
   }
 };
 
-exports.editStaff = async (req, res) => {
+exports.editStaff = async (req, res, next) => {
   try {
     const staffId = req.params.id;
     const { username, password } = req.body;
@@ -814,7 +814,7 @@ exports.editStaff = async (req, res) => {
   }
 };
 
-exports.deleteStaff = async (req, res) => {
+exports.deleteStaff = async (req, res, next) => {
   try {
     const staffId = req.params.id;
     await User.deleteOne({ _id: staffId });
@@ -825,7 +825,7 @@ exports.deleteStaff = async (req, res) => {
   }
 };
 
-exports.getTasks = async (req, res) => {
+exports.getTasks = async (req, res, next) => {
   const rest_id = req.user.rest_id;
 
   const rest = await Restaurant.findById(rest_id).select("tasks");
@@ -833,7 +833,7 @@ exports.getTasks = async (req, res) => {
   res.json({ tasks: rest.tasks });
 };
 
-exports.deleteTask = async (req, res) => {
+exports.deleteTask = async (req, res, next) => {
   try {
     const taskId = req.params.id;
     const rest_id = req.session.rest_id;
@@ -850,7 +850,7 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
-exports.deleteRestaurant = async (req, res) => {
+exports.deleteRestaurant = async (req, res, next) => {
   try {
     const restaurantId = req.params.id;
     const restaurant = await Restaurant.findByIdAndDelete(restaurantId);
@@ -865,7 +865,7 @@ exports.deleteRestaurant = async (req, res) => {
   }
 };
 
-exports.getOrders = async (req, res) => {
+exports.getOrders = async (req, res, next) => {
   try {
     const username = req.session.username;
     const user = await User.findOne({ username });
@@ -925,7 +925,7 @@ exports.getOrders = async (req, res) => {
   }
 };
 
-exports.getReservations = async (req, res) => {
+exports.getReservations = async (req, res, next) => {
   try {
     const username = req.session.username;
     const user = await User.findOne({ username });
@@ -948,7 +948,7 @@ exports.getReservations = async (req, res) => {
   }
 };
 
-exports.getInventory = async (req, res) => {
+exports.getInventory = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -972,7 +972,7 @@ exports.getInventory = async (req, res) => {
   }
 };
 
-exports.updateInventory = async (req, res) => {
+exports.updateInventory = async (req, res, next) => {
   try {
     const { item, action } = req.body;
     const user = await User.findOne({ username: req.session.username });
@@ -1006,7 +1006,7 @@ exports.updateInventory = async (req, res) => {
   }
 };
 
-exports.getReportsData = async (req, res) => {
+exports.getReportsData = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -1106,7 +1106,7 @@ exports.getReportsData = async (req, res) => {
 };
 
 // Staff Management Methods
-exports.addTask = async (req, res) => {
+exports.addTask = async (req, res, next) => {
   try {
     const { description, assignedTo, priority } = req.body;
     const user = req.user;
@@ -1133,7 +1133,7 @@ exports.addTask = async (req, res) => {
   }
 };
 
-exports.addAnnouncement = async (req, res) => {
+exports.addAnnouncement = async (req, res, next) => {
   try {
     const { message, priority } = req.body;
     const user = req.user;
@@ -1159,7 +1159,7 @@ exports.addAnnouncement = async (req, res) => {
   }
 };
 
-exports.addShift = async (req, res) => {
+exports.addShift = async (req, res, next) => {
   try {
     const { name, date, startTime, endTime, assignedStaff } = req.body;
     const user = await User.findOne({ username: req.session.username });
@@ -1187,7 +1187,7 @@ exports.addShift = async (req, res) => {
   }
 };
 
-exports.getSupportMessages = async (req, res) => {
+exports.getSupportMessages = async (req, res, next) => {
   try {
     const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -1203,7 +1203,7 @@ exports.getSupportMessages = async (req, res) => {
   }
 };
 
-exports.getAnnouncements = async (req, res) => {
+exports.getAnnouncements = async (req, res, next) => {
   try {
     const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
@@ -1219,7 +1219,7 @@ exports.getAnnouncements = async (req, res) => {
   }
 };
 
-exports.deleteAnnouncement = async (req, res) => {
+exports.deleteAnnouncement = async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = req.user;
@@ -1251,7 +1251,7 @@ exports.deleteAnnouncement = async (req, res) => {
 
 
 
-exports.getStaffTasks = async (req, res) => {
+exports.getStaffTasks = async (req, res, next) => {
   try {
     const { staffId } = req.params;
 
@@ -1285,7 +1285,7 @@ exports.getStaffTasks = async (req, res) => {
 };
 
 
-exports.deleteStaffTask = async (req, res) => {
+exports.deleteStaffTask = async (req, res, next) => {
   try {
     const { taskId } = req.params;
     const user = await User.findOne({ username: req.session.username });

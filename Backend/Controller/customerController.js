@@ -63,7 +63,7 @@ exports.validateReservationDateTime = (date, time) => {
   return true;
 };
 
-exports.getCustomerDashboard = async (req, res) => {
+exports.getCustomerDashboard = async (req, res, next) => {
   try {
     const customerName =
       req.session.username || req.params.customerName || req.query.customerName;
@@ -480,13 +480,13 @@ exports.getCustomerDashboard = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getCustomerDashboard:", error);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.reorderOrder = async (req, res) => {
+exports.reorderOrder = async (req, res, next) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
@@ -563,11 +563,13 @@ exports.reorderOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in reorderOrder:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.updateEmailNotifications = async (req, res) => {
+exports.updateEmailNotifications = async (req, res, next) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
@@ -599,11 +601,13 @@ exports.updateEmailNotifications = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating email notifications:", error);
-    res.status(500).json({ success: false, error: "Internal server error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.getFeedBack = async (req, res) => {
+exports.getFeedBack = async (req, res, next) => {
   try {
     const username = req.session.username;
     console.log("=== getFeedBack called for username:", username);
@@ -757,11 +761,13 @@ exports.getFeedBack = async (req, res) => {
     res.json(responseData);
   } catch (error) {
     console.error("Error fetching feedback data:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.submitFeedback = async (req, res) => {
+exports.submitFeedback = async (req, res, next) => {
   try {
     const {
       rest_id,
@@ -841,12 +847,14 @@ exports.submitFeedback = async (req, res) => {
     });
   } catch (err) {
     console.error("Error submitting feedback:", err);
-    res.status(500).json({ error: "Server Error. Please try again." });
+    err.status = err.status || 500;
+    err.message = err.message || "Server Error. Please try again.";
+    return next(err);
   }
 };
 
 // Orders and reservations
-exports.postOrderAndReservation = async (req, res) => {
+exports.postOrderAndReservation = async (req, res, next) => {
   try {
     let restaurantName, cart, rest_id;
     console.log(req.session.cart);
@@ -877,11 +885,13 @@ exports.postOrderAndReservation = async (req, res) => {
     res.render("orderReservation", { restaurantName, cart, rest_id });
   } catch (error) {
     console.error("Error in postOrderAndReservation:", error);
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.order = async (req, res) => {
+exports.order = async (req, res, next) => {
   const { restaurant, specialRequests } = req.body;
   const newOrder = {
     id: Date.now(),
@@ -911,7 +921,7 @@ exports.order = async (req, res) => {
   res.redirect("/customer/payments");
 };
 
-exports.reservation = async (req, res) => {
+exports.reservation = async (req, res, next) => {
   const { restaurant, date, time, guests } = req.body;
   const newReservation = {
     id: Date.now(),
@@ -935,7 +945,7 @@ exports.reservation = async (req, res) => {
   res.redirect("/customer/payments");
 };
 
-exports.postOrderAndReservationCombined = async (req, res) => {
+exports.postOrderAndReservationCombined = async (req, res, next) => {
   try {
     const { restaurant, specialRequests, date, time, guests } = req.body;
 
@@ -983,7 +993,9 @@ exports.postOrderAndReservationCombined = async (req, res) => {
     res.redirect("/customer/payments");
   } catch (error) {
     console.error("Error in postOrderAndReservationCombined:", error);
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
@@ -991,7 +1003,7 @@ exports.getPayments = (req, res) => {
   res.render("payment", { bill_price: req.session.bill });
 };
 
-exports.postPaymentsSuccess = async (req, res) => {
+exports.postPaymentsSuccess = async (req, res, next) => {
   try {
     const username = req.session.username;
     const user = await Person.findOne({ name: username });
@@ -1052,12 +1064,14 @@ exports.postPaymentsSuccess = async (req, res) => {
     res.redirect("/customer/feedback");
   } catch (error) {
     console.error("Error in postPaymentsSuccess:", error);
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
 // API: create order and/or reservation from SPA
-exports.apiCheckout = async (req, res) => {
+exports.apiCheckout = async (req, res, next) => {
   try {
     const username = req.session.username || null;
     const {
@@ -1170,14 +1184,14 @@ exports.apiCheckout = async (req, res) => {
     });
   } catch (err) {
     console.error("apiCheckout error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "", error: "Server error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Server error";
+    return next(err);
   }
 };
 
 // API: confirm payment for an order/reservation
-exports.apiCheckoutPay = async (req, res) => {
+exports.apiCheckoutPay = async (req, res, next) => {
   try {
     const { orderId, rest_id, payload } = req.body;
 
@@ -1416,15 +1430,14 @@ exports.apiCheckoutPay = async (req, res) => {
     });
   } catch (err) {
     console.error("apiCheckoutPay error:", err);
-    const errorMessage = err.message || "Server error";
-    return res
-      .status(500)
-      .json({ success: false, message: "", error: errorMessage });
+    err.status = err.status || 500;
+    err.message = err.message || "Server error";
+    return next(err);
   }
 };
 
 // API: get order details by ID for Order Placed page
-exports.getOrderById = async (req, res) => {
+exports.getOrderById = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     if (!orderId) {
@@ -1461,25 +1474,27 @@ exports.getOrderById = async (req, res) => {
     });
   } catch (err) {
     console.error("getOrderById error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "", error: "Server error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Server error";
+    return next(err);
   }
 };
 
 // Profile editing
-exports.getEditProfile = async (req, res) => {
+exports.getEditProfile = async (req, res, next) => {
   try {
     const user = await Person.findOne({ name: req.session.username });
     if (!user) return res.status(404).send("User not found");
     res.render("editCustomerProfile", { user });
   } catch (error) {
     console.error("Error fetching user for edit profile:", error);
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.postEditProfile = async (req, res) => {
+exports.postEditProfile = async (req, res, next) => {
   try {
     const currentUsername = req.session.username;
     const { name, email, phone, newPassword, confirmPassword } = req.body;
@@ -1633,20 +1648,14 @@ exports.postEditProfile = async (req, res) => {
     res.redirect("/customer/customerDashboard");
   } catch (error) {
     console.error("Error updating user profile:", error);
-    const wantsJson = req.headers["content-type"]?.includes("application/json");
-    if (wantsJson) {
-      return res.status(500).json({
-        success: false,
-        error: "Internal server error",
-        details: error.message,
-      });
-    }
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
 // Search and filter restaurants for customer homepage
-exports.searchRestaurants = async (req, res) => {
+exports.searchRestaurants = async (req, res, next) => {
   try {
     const { search, cuisine, openNow, maxDistance, sortBy, location } =
       req.query;
@@ -1796,12 +1805,14 @@ exports.searchRestaurants = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in searchRestaurants:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
 // Favourites functionality
-exports.addToFavourites = async (req, res) => {
+exports.addToFavourites = async (req, res, next) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
@@ -1855,16 +1866,13 @@ exports.addToFavourites = async (req, res) => {
     res.json({ success: true, message: "Dish added to favourites" });
   } catch (error) {
     console.error("[Favorites] Add error:", error.message);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.removeFromFavourites = async (req, res) => {
+exports.removeFromFavourites = async (req, res, next) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
@@ -1906,16 +1914,13 @@ exports.removeFromFavourites = async (req, res) => {
     res.json({ success: true, message: "Dish removed from favourites" });
   } catch (error) {
     console.error("[Favorites] Remove error:", error.message);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.getFavourites = async (req, res) => {
+exports.getFavourites = async (req, res, next) => {
   try {
     const customerName = req.session.username;
     if (!customerName) {
@@ -1991,17 +1996,14 @@ exports.getFavourites = async (req, res) => {
     res.json(favoriteDishes);
   } catch (error) {
     console.error("[Favorites] Get error:", error.message);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
 // Validate promo code
-exports.validatePromoCode = async (req, res) => {
+exports.validatePromoCode = async (req, res, next) => {
   try {
     const { code, orderAmount } = req.body;
 
@@ -2050,15 +2052,14 @@ exports.validatePromoCode = async (req, res) => {
     });
   } catch (error) {
     console.error("validatePromoCode error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Server error";
+    return next(error);
   }
 };
 
 // Apply promo code to order (increment usage count)
-exports.applyPromoCode = async (req, res) => {
+exports.applyPromoCode = async (req, res, next) => {
   try {
     const { code } = req.body;
 
@@ -2090,16 +2091,15 @@ exports.applyPromoCode = async (req, res) => {
     });
   } catch (error) {
     console.error("applyPromoCode error:", error);
-    return res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Server error";
+    return next(error);
   }
 };
 
 
 
-exports.getPublicCuisines = async (req, res) => {
+exports.getPublicCuisines = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.find({}, "cuisine");
     const cuisineSet = new Set();
@@ -2115,6 +2115,8 @@ exports.getPublicCuisines = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching cuisines:", error);
-    res.status(500).json({ error: "Failed to fetch cuisines" });
+    error.status = error.status || 500;
+    error.message = error.message || "Failed to fetch cuisines";
+    return next(error);
   }
 };

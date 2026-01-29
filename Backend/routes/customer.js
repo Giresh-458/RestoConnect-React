@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const path  =require('path');
@@ -7,8 +6,6 @@ const customerController = require('../Controller/customerController');
 const menuController = require('../Controller/menuController');
 const homePageController = require("../Controller/homePageController")
 const { uploadProfilePicture, handleUploadErrors } = require('../util/fileUpload');
-
-
 
 router.get("/restaurants/public-cuisines", customerController.getPublicCuisines);
 
@@ -47,8 +44,6 @@ router.post('/cart/add', menuController.addDishToCart);
 router.post('/cart/increase', menuController.increaseDishQuantity);
 router.post('/cart/decrease', menuController.decreaseDishQuantity);
 
-
-
 // Order cart
 router.post('/cart/order', menuController.orderCart);
 
@@ -60,3 +55,4 @@ router.post('/promo/validate', customerController.validatePromoCode);
 router.post('/promo/apply', customerController.applyPromoCode);
 
 module.exports = router;
+
