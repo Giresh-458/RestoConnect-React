@@ -525,7 +525,7 @@ exports.reorderOrder = async (req, res) => {
             id: dishDoc?._id || dishName,
             name: dishDoc?.name || dishName,
             price,
-            amount: price,
+            amount: price * quantity,
             image: dishDoc?.image || dishDoc?.img_url || null,
             quantity,
           };

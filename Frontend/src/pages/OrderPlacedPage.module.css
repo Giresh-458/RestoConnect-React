@@ -62,7 +62,7 @@
 }
 
 .sectionTitle {
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
   color: #111827;
@@ -88,6 +88,78 @@
 .detailValue {
   color: #111827;
   font-weight: 600;
+}
+
+/* Reservation grid styling */
+.reservationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.reservationItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f9fafb, #ffffff);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.reservationItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.reservationItem .detailLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reservationItem .detailValue {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.detailValueHighlight {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #0d6efd !important;
+  background: linear-gradient(135deg, #e7f1ff, #f0f8ff);
+  padding: 8px;
+  border-radius: 6px;
+  display: inline-block;
+  text-align: center;
+}
+
+.statusConfirmed {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px !important;
+}
+
+.statusPending {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px !important;
+}
+
+.statusCancelled {
+  background: #fee2e2 !important;
+  color: #7f1d1d !important;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px !important;
 }
 
 .itemsSection {
@@ -138,10 +210,34 @@
   .container {
     padding: 16px;
   }
+
   .title {
     font-size: 18px;
   }
+
   .detailLabel, .detailValue {
     font-size: 13px;
+  }
+
+  .reservationGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .detailValueHighlight {
+    font-size: 16px !important;
+    padding: 10px !important;
+  }
+
+  .reservationItem {
+    padding: 10px;
+  }
+
+  .reservationItem .detailLabel {
+    font-size: 12px;
+  }
+
+  .reservationItem .detailValue {
+    font-size: 14px;
   }
 }

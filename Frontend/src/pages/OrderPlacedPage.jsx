@@ -3,6 +3,27 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 import styles from "./OrderPlacedPage.module.css";
 
+// Format time from 24h to 12h format
+const formatTimeTo12h = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${minutes} ${ampm}`;
+};
+
+// Format date to readable format
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
+
 export function OrderPlacedPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -122,28 +143,32 @@ export function OrderPlacedPage() {
 
       {reservation && (
         <section className={styles.card}>
-          <h2 className={styles.sectionTitle}>Reservation Details</h2>
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Reservation ID</span>
-            <span className={styles.detailValue}>{reservation._id}</span>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Date</span>
-            <span className={styles.detailValue}>
-              {new Date(reservation.date).toLocaleDateString()}
-            </span>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Time</span>
-            <span className={styles.detailValue}>{reservation.time}</span>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Guests</span>
-            <span className={styles.detailValue}>{reservation.guests}</span>
-          </div>
-          <div className={styles.detailRow}>
-            <span className={styles.detailLabel}>Status</span>
-            <span className={styles.detailValue}>{reservation.status}</span>
+          <h2 className={styles.sectionTitle}>🕒 Reservation Details</h2>
+          <div className={styles.reservationGrid}>
+            <div className={styles.reservationItem}>
+              <span className={styles.detailLabel}>Reservation ID</span>
+              <span className={styles.detailValue}>{reservation._id}</span>
+            </div>
+            <div className={styles.reservationItem}>
+              <span className={styles.detailLabel}>📅 Date</span>
+              <span className={styles.detailValue}>
+                {formatDate(reservation.date)}
+              </span>
+            </div>
+            <div className={styles.reservationItem}>
+              <span className={styles.detailLabel}>⏰ Time</span>
+              <span className={styles.detailValueHighlight}>{formatTimeTo12h(reservation.time)}</span>
+            </div>
+            <div className={styles.reservationItem}>
+              <span className={styles.detailLabel}>👥 Guests</span>
+              <span className={styles.detailValue}>{reservation.guests}</span>
+            </div>
+            <div className={styles.reservationItem}>
+              <span className={styles.detailLabel}>Status</span>
+              <span className={`${styles.detailValue} ${styles[`status${reservation.status?.charAt(0).toUpperCase()}${reservation.status?.slice(1).toLowerCase()}`]}`}>
+                {reservation.status}
+              </span>
+            </div>
           </div>
         </section>
       )}

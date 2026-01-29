@@ -413,15 +413,12 @@ export const DashBoardPage = () => {
       return;
     }
 
-    const recordId = entity.recordId || null;
-
-    if (!recordId && entity.restId) {
-      navigate(`/customer/restaurant/${entity.restId}`);
-      return;
-    }
+    // Use recordId (which is the MongoDB _id) for the reorder request
+    const recordId = entity.recordId || entity._id || entity.id;
 
     if (!recordId) {
-      navigate("/customer/order");
+      console.error("No valid order ID found:", entity);
+      alert("Could not identify order. Please try again.");
       return;
     }
 
@@ -444,7 +441,8 @@ export const DashBoardPage = () => {
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to reorder (${response.status})`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to reorder (${response.status})`);
       }
 
       const data = await response.json();
@@ -463,7 +461,7 @@ export const DashBoardPage = () => {
       }
     } catch (error) {
       console.error("Error during reorder:", error);
-      alert("Could not reorder this order. Please try again.");
+      alert(`Could not reorder this order: ${error.message}`);
     } finally {
       setReorderingOrderId(null);
     }
@@ -912,23 +910,23 @@ export const DashBoardPage = () => {
                             ...styles.reorderButton,
                             opacity:
                               reorderingOrderId ===
-                              (order.recordId || order.orderId)
+                              order.recordId
                                 ? 0.7
                                 : 1,
                             cursor:
                               reorderingOrderId ===
-                              (order.recordId || order.orderId)
+                              order.recordId
                                 ? "not-allowed"
                                 : "pointer",
                           }}
                           onClick={() => handleReorder(order)}
                           disabled={
                             reorderingOrderId ===
-                            (order.recordId || order.orderId)
+                            order.recordId
                           }
                         >
                           {reorderingOrderId ===
-                          (order.recordId || order.orderId)
+                          order.recordId
                             ? "Reordering..."
                             : "Reorder"}
                         </button>

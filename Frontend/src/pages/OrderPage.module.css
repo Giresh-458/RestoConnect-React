@@ -174,22 +174,24 @@
 .reservationForm {
   margin-top: 16px;
   padding: 14px;
-  background: #f8f9fa;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
   border: 1px solid #e9ecef;
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .formTitle {
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   font-size: 16px;
   font-weight: 700;
+  color: #212529;
 }
 
 .formField {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .formField span {
@@ -206,6 +208,7 @@
   background: #fff;
   font-family: inherit;
   font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .formField input,
@@ -213,15 +216,206 @@
   height: 40px;
 }
 
+.formField input:focus,
+.formField select:focus,
+.formField textarea:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+}
+
+/* Time input wrapper */
+.timeInputWrapper {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.timeInputWrapper input {
+  min-width: 0;
+}
+
+.timeDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.2);
+}
+
+.timeValue {
+  letter-spacing: 0.5px;
+}
+
+/* Preset times */
+.presetTimes {
+  margin-top: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #f8fcff 100%);
+  border-radius: 8px;
+  border: 1px solid #d4e6ff;
+}
+
+.presetTimesLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0d6efd;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.presetTimesGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.presetTimesGrid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.presetTimesGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.presetTimesGrid::-webkit-scrollbar-thumb {
+  background: #b8d4f1;
+  border-radius: 2px;
+}
+
+.presetTimesGrid::-webkit-scrollbar-thumb:hover {
+  background: #0d6efd;
+}
+
+.presetTimeBtn {
+  padding: 8px 4px;
+  background: white;
+  color: #0d6efd;
+  border: 1.5px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.timeHour {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timeSeparator {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.timeMin {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.presetTimeBtn:hover {
+  border-color: #0d6efd;
+  background: #f0f7ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
+}
+
+.presetTimeBtn:active {
+  transform: translateY(0);
+}
+
+.presetTimeBtnActive {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  color: white;
+  border-color: #0d6efd;
+  box-shadow: 0 3px 10px rgba(13, 110, 253, 0.25);
+}
+
+.presetTimeBtnActive .timeSeparator {
+  opacity: 1;
+}
+
 .helpText {
   font-size: 12px;
   color: #6c757d;
-  margin-top: 4px;
+  margin-top: 6px;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.helpText::before {
+  content: "ℹ";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #e7f1ff;
+  color: #0d6efd;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: bold;
 }
 
 .reservationActions {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .timeInputWrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .timeDisplay {
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .reservationForm {
+    padding: 12px;
+  }
+
+  .formField {
+    margin-bottom: 10px;
+  }
+
+  .presetTimesGrid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+    max-height: 140px;
+  }
+
+  .presetTimeBtn {
+    padding: 6px 3px;
+    font-size: 12px;
+  }
+
+  .timeHour {
+    font-size: 13px;
+  }
+
+  .timeMin {
+    font-size: 11px;
+  }
 }
