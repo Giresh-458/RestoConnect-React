@@ -4,7 +4,7 @@ import { getFavourites } from "../util/favourites";
 import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
-import { replaceCart } from "../store/CartSlice";
+import { replaceCart, setRestaurant } from "../store/CartSlice";
 
 export async function loader() {
   const role = await isLogin();
@@ -455,6 +455,10 @@ export const DashBoardPage = () => {
       }
 
       if (data.restaurant?.id) {
+        dispatch(setRestaurant({
+          restId: data.restaurant.id,
+          restName: data.restaurant.name || "Restaurant"
+        }));
         navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`);
       } else {
         navigate("/customer/order");

@@ -516,28 +516,43 @@ exports.reorderOrder = async (req, res) => {
     const uniqueDishNames = Object.keys(dishCounts);
 
     const items = await Promise.all(
-      uniqueDishNames.map(async (dishName) => {
+      uniqueDishNames.map(async (dishIdentifier) => {
         try {
-          const dishDoc = await Dish.findByName(dishName);
+          let dishDoc = null;
+          
+          // Try to find by ID first (for seed data)
+          if (dishIdentifier && dishIdentifier.length > 10) {
+            try {
+              dishDoc = await Dish.findById(dishIdentifier);
+            } catch (e) {
+              // If ID lookup fails, try by name
+            }
+          }
+          
+          // If not found by ID, try by name
+          if (!dishDoc) {
+            dishDoc = await Dish.findByName(dishIdentifier);
+          }
+          
           const price = dishDoc ? Number(dishDoc.price) : 0;
-          const quantity = dishCounts[dishName];
+          const quantity = dishCounts[dishIdentifier];
           return {
-            id: dishDoc?._id || dishName,
-            name: dishDoc?.name || dishName,
+            id: dishDoc?._id || dishIdentifier,
+            name: dishDoc?.name || dishIdentifier,
             price,
             amount: price * quantity,
             image: dishDoc?.image || dishDoc?.img_url || null,
             quantity,
           };
         } catch (err) {
-          console.error(`Failed to load dish ${dishName}`, err);
+          console.error(`Failed to load dish ${dishIdentifier}`, err);
           return {
-            id: dishName,
-            name: dishName,
+            id: dishIdentifier,
+            name: dishIdentifier,
             price: 0,
             amount: 0,
             image: null,
-            quantity: dishCounts[dishName],
+            quantity: dishCounts[dishIdentifier],
           };
         }
       })
