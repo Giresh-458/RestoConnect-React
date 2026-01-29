@@ -205,6 +205,49 @@ export function RestaurantApplication() {
                 Any additional information about your restaurant.
               </small>
             </div>
+
+            <h3 className="section-title" style={{ marginTop: '20px' }}>Operating Hours & Days</h3>
+            
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="openingTime">Opening Time</label>
+                <input
+                  type="time"
+                  id="openingTime"
+                  name="openingTime"
+                  defaultValue="09:00"
+                  required
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="closingTime">Closing Time</label>
+                <input
+                  type="time"
+                  id="closingTime"
+                  name="closingTime"
+                  defaultValue="22:00"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-field">
+              <label>Operating Days</label>
+              <div className="cuisine-checkboxes">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                  <label key={day} className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      name="operatingDay"
+                      value={day}
+                      defaultChecked={day !== 'Sunday'}
+                    />
+                    <span>{day}</span>
+                  </label>
+                ))}
+              </div>
+              <small className="field-hint">Select days when your restaurant is open</small>
+            </div>
           </section>
 
           <div className="form-actions">
@@ -293,7 +336,22 @@ export async function action({ request }) {
       submitFormData.append("cuisineTypes", cuisine);
     });
     
-    submitFormData.append("additionalNotes", formData.get("additionalNotes")?.trim() || "");
+    submitFormData.append(
+      "additionalNotes",
+      formData.get("additionalNotes")?.trim() || ""
+    );
+    
+    // Append operating hours
+    const openingTime = formData.get("openingTime") || "09:00";
+    const closingTime = formData.get("closingTime") || "22:00";
+    submitFormData.append("openingTime", openingTime);
+    submitFormData.append("closingTime", closingTime);
+
+    // Append operating days
+    const operatingDays = formData.getAll("operatingDay");
+    operatingDays.forEach((day) => {
+      submitFormData.append("operatingDays", day);
+    });
     
     // Append image if provided
     if (restaurantImage && restaurantImage.size > 0) {

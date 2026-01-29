@@ -346,21 +346,21 @@ exports.getCustomerDashboard = async (req, res) => {
         });
     }
 
-    // =================== VISIT FREQUENCY ===================
+    // =================== ORDER FREQUENCY ===================
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const monthOrders = await Order.find({
       customerName,
       date: { $gte: thirtyDaysAgo },
     });
-    const visitFrequency = [0, 0, 0, 0];
+    const orderFrequency = [0, 0, 0, 0];
     monthOrders.forEach((order) => {
       const orderDate = new Date(order.date);
       const daysDiff = Math.floor(
         (new Date() - orderDate) / (1000 * 60 * 60 * 24)
       );
       const weekIndex = Math.floor(daysDiff / 7);
-      if (weekIndex < 4) visitFrequency[weekIndex]++;
+      if (weekIndex < 4) orderFrequency[weekIndex]++;
     });
 
     // =================== NOTIFICATIONS ===================
@@ -474,7 +474,7 @@ exports.getCustomerDashboard = async (req, res) => {
         totalReviews,
         recentReviews,
       },
-      visitFrequency,
+      orderFrequency,
       notifications,
       emailNotificationsEnabled,
     });

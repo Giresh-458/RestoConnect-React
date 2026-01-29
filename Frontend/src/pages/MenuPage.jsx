@@ -14,6 +14,7 @@ import {
   removeFromFavourites,
   getFavourites,
 } from "../util/favourites";
+import { getImageUrl, handleImageError, handleSmallImageError } from "../util/imageUtils";
 import styles from "./MenuPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 
@@ -332,13 +333,10 @@ export function MenuPage() {
                   {cartItems.map((item) => (
                     <div key={item.id} className={styles.orderItem}>
                       <img
-                        src={item.image || "/images/default-dish.jpg"}
+                        src={getImageUrl(item.image)}
                         alt={item.name}
                         className={styles.orderItemImage}
-                        onError={(e) => {
-                          e.target.src =
-                            "https://via.placeholder.com/60x60?text=Dish";
-                        }}
+                        onError={handleSmallImageError}
                       />
                       <div className={styles.orderItemInfo}>
                         <h4 className={styles.orderItemName}>{item.name}</h4>
@@ -487,12 +485,10 @@ function DishCard({
     <div className={styles.dishCard}>
       <div className={styles.dishImageContainer}>
         <img
-          src={dish.image || "/images/default-dish.jpg"}
+          src={getImageUrl(dish.image)}
           alt={dish.name}
           className={styles.dishImage}
-          onError={(e) => {
-            e.target.src = "https://via.placeholder.com/300x200?text=Dish";
-          }}
+          onError={handleImageError}
         />
         <button
           className={`${styles.favouriteButton} ${

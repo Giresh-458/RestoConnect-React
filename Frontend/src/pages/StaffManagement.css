@@ -26,11 +26,63 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.section.staff-list-section {
+  grid-column: 1 / -1;
+}
+
 .section h2 {
   color: #555;
   margin-bottom: 15px;
   border-bottom: 2px solid #ddd;
   padding-bottom: 5px;
+}
+
+/* Staff Table Styles */
+.staff-table-wrapper {
+  overflow-x: auto;
+}
+
+.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.staff-table thead {
+  background-color: #007bff;
+  color: white;
+}
+
+.staff-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #0056b3;
+}
+
+.staff-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  color: #333;
+}
+
+.staff-table tbody tr:hover {
+  background-color: #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.staff-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.staff-status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background-color: #28a745;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .management-form {

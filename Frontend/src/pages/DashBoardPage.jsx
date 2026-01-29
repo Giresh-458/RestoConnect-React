@@ -25,7 +25,7 @@ export const DashBoardPage = () => {
   const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
   const [weeklySpending, setWeeklySpending] = useState(Array(7).fill(0));
-  const [visitFrequency, setVisitFrequency] = useState([0, 0, 0, 0]);
+  const [orderFrequency, setOrderFrequency] = useState([0, 0, 0, 0]);
   const [feedbackStats, setFeedbackStats] = useState({
     satisfactionRate: 0,
     totalReviews: 0,
@@ -212,9 +212,9 @@ export const DashBoardPage = () => {
             )
           : Array(7).fill(0)
       );
-      setVisitFrequency(
-        Array.isArray(data.visitFrequency) && data.visitFrequency.length === 4
-          ? data.visitFrequency.map((value) =>
+      setOrderFrequency(
+        Array.isArray(data.orderFrequency) && data.orderFrequency.length === 4
+          ? data.orderFrequency.map((value) =>
               Number.isFinite(Number(value)) ? Number(value) : 0
             )
           : [0, 0, 0, 0]
@@ -317,14 +317,14 @@ export const DashBoardPage = () => {
   const maxWeeklySpending = weeklyAmounts.length
     ? Math.max(...weeklyAmounts, 0)
     : 0;
-  const monthlyVisits = visitFrequency.reduce((sum, count) => sum + count, 0);
-  const visitGoal = 12;
+  const monthlyOrders = orderFrequency.reduce((sum, count) => sum + count, 0);
+  const orderGoal = 12;
   const donutCircumference = 314;
-  const visitProgress = Math.min(
-    visitGoal === 0 ? 0 : monthlyVisits / visitGoal,
+  const orderProgress = Math.min(
+    orderGoal === 0 ? 0 : monthlyOrders / orderGoal,
     1
   );
-  const visitDashOffset = donutCircumference * (1 - visitProgress);
+  const orderDashOffset = donutCircumference * (1 - orderProgress);
   const weekLabels = ["Week 1", "Week 2", "Week 3", "Week 4"];
   const visitLegendColors = ["#10b981", "#fbbf24", "#f59e0b", "#e5e7eb"];
 
@@ -761,7 +761,7 @@ export const DashBoardPage = () => {
                 </div>
                 <div style={styles.statsRow}>
                   <div>
-                    <p style={styles.statLabel}>Total Visits</p>
+                    <p style={styles.statLabel}>Total Orders</p>
                     <p style={styles.statValue}>{totalVisits}</p>
                   </div>
                   <div>
@@ -779,9 +779,9 @@ export const DashBoardPage = () => {
                 </div>
               </div>
 
-              {/* order Frequency */}
+              {/* Order Frequency */}
               <div style={styles.frequencySection}>
-                <h3 style={styles.sectionTitle}>order Frequency</h3>
+                <h3 style={styles.sectionTitle}>Order Frequency</h3>
                 <div style={styles.donutContainer}>
                   <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle
@@ -800,7 +800,7 @@ export const DashBoardPage = () => {
                       stroke="#10b981"
                       strokeWidth="20"
                       strokeDasharray={donutCircumference}
-                      strokeDashoffset={visitDashOffset}
+                      strokeDashoffset={orderDashOffset}
                       transform="rotate(-90 60 60)"
                       strokeLinecap="round"
                     />
@@ -810,7 +810,7 @@ export const DashBoardPage = () => {
                       textAnchor="middle"
                       style={styles.donutText}
                     >
-                      {monthlyVisits}
+                      {monthlyOrders}
                     </text>
                     <text
                       x="60"
@@ -818,12 +818,12 @@ export const DashBoardPage = () => {
                       textAnchor="middle"
                       style={styles.donutSubtext}
                     >
-                      Visits this month
+                      Orders this month
                     </text>
                   </svg>
                 </div>
                 <div style={styles.legend}>
-                  {visitFrequency.map((count, idx) => (
+                  {orderFrequency.map((count, idx) => (
                     <div key={weekLabels[idx]} style={styles.legendItem}>
                       <div style={styles.legendLabel}>
                         <div
@@ -835,7 +835,7 @@ export const DashBoardPage = () => {
                         <span style={styles.legendText}>{weekLabels[idx]}</span>
                       </div>
                       <span style={styles.legendCount}>
-                        {count} {count === 1 ? "visit" : "visits"}
+                        {count} {count === 1 ? "order" : "orders"}
                       </span>
                     </div>
                   ))}

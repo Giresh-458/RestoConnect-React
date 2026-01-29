@@ -56,6 +56,12 @@ exports.postRestReq = async (req, res) => {
       cuisineTypes = cuisineTypes ? [cuisineTypes] : [];
     }
 
+    // Handle operating days - might be an array or single value
+    let operatingDays = req.body.operatingDays;
+    if (!Array.isArray(operatingDays)) {
+      operatingDays = operatingDays ? [operatingDays] : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    }
+
     const {
       ownerName,
       ownerEmail,
@@ -66,6 +72,8 @@ exports.postRestReq = async (req, res) => {
       contactNumber,
       amount: amountRaw,
       additionalNotes,
+      openingTime = "09:00",
+      closingTime = "22:00",
     } = req.body;
 
     console.log("Parsed values:", {
@@ -191,6 +199,11 @@ if (existingUsername) {
       contactNumber: contactNumber || "",
       cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : [], // Ensure array
       additionalNotes: additionalNotes || "",
+      operatingHours: {
+        open: openingTime,
+        close: closingTime,
+      },
+      operatingDays: operatingDays.length > 0 ? operatingDays : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
       image: imageFilename || null, // Store restaurant image filename
     });
 

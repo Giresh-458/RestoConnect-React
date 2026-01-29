@@ -198,12 +198,26 @@
 }
 
 .formField input,
-.formField select {
-  height: 40px;
+.formField select,
+.formField textarea {
   padding: 0 10px;
   border: 1px solid #dee2e6;
   border-radius: 8px;
   background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.formField input,
+.formField select {
+  height: 40px;
+}
+
+.helpText {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+  font-style: italic;
 }
 
 .reservationActions {
