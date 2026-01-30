@@ -7,7 +7,11 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { PromoCode } = require("../Model/PromoCode_model");
 const { User } = require("../Model/userRoleModel");
-const { getImageUrl, getProfilePicUrl, getRestaurantImageUrl } = require("../util/fileUpload");
+const {
+  getImageUrl,
+  getProfilePicUrl,
+  getRestaurantImageUrl,
+} = require("../util/fileUpload");
 // Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
@@ -83,7 +87,8 @@ exports.getCustomerDashboard = async (req, res, next) => {
       : [];
     const restaurantList = Array.isArray(userData.restaurent_list)
       ? userData.restaurent_list.filter(
-          (name) => typeof name === "string" && name.trim() && name !== "others"
+          (name) =>
+            typeof name === "string" && name.trim() && name !== "others",
         )
       : [];
     const emailNotificationsEnabled =
@@ -194,7 +199,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
           restaurant: order.restaurant || "Unknown Restaurant",
           restId: restId,
         };
-      })
+      }),
     );
 
     // =================== FAVORITE RESTAURANTS ===================
@@ -214,7 +219,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
             restaurant: restaurantName,
             image: restaurant.image || "/dish-placeholder.png",
           };
-        })
+        }),
       )
     ).filter((r) => r !== null);
 
@@ -234,7 +239,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
                 parseInt(hours) || 0,
                 parseInt(minutes) || 0,
                 0,
-                0
+                0,
               );
             }
             allReservations.push({
@@ -280,7 +285,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
     const totalOrders = allOrders.length;
     const totalSpent = allOrders.reduce(
       (sum, order) => sum + order.totalAmount,
-      0
+      0,
     );
     const avgSpend =
       totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : "0.00";
@@ -296,8 +301,8 @@ exports.getCustomerDashboard = async (req, res, next) => {
     if (totalReviews > 0) {
       const ratingValues = feedbacks.flatMap((fb) =>
         [fb.orderRating, fb.diningRating].filter(
-          (val) => typeof val === "number"
-        )
+          (val) => typeof val === "number",
+        ),
       );
 
       if (ratingValues.length > 0) {
@@ -308,7 +313,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
       }
 
       const restaurantIdSet = Array.from(
-        new Set(feedbacks.map((fb) => fb.rest_id).filter(Boolean))
+        new Set(feedbacks.map((fb) => fb.rest_id).filter(Boolean)),
       );
       const restaurantLookup = {};
       if (restaurantIdSet.length > 0) {
@@ -327,7 +332,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
           const restaurantName =
             restaurantLookup[fb.rest_id?.toString()] || "Unknown Restaurant";
           const ratings = [fb.orderRating, fb.diningRating].filter(
-            (val) => typeof val === "number"
+            (val) => typeof val === "number",
           );
           const averageRating =
             ratings.length > 0
@@ -357,7 +362,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
     monthOrders.forEach((order) => {
       const orderDate = new Date(order.date);
       const daysDiff = Math.floor(
-        (new Date() - orderDate) / (1000 * 60 * 60 * 24)
+        (new Date() - orderDate) / (1000 * 60 * 60 * 24),
       );
       const weekIndex = Math.floor(daysDiff / 7);
       if (weekIndex < 4) orderFrequency[weekIndex]++;
@@ -369,7 +374,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
     // Add notifications for recent orders (limit to last 3 orders with pending/delivered status)
     const recentOrderNotifications = recentOrders
       .filter(
-        (order) => order.status === "pending" || order.status === "delivered"
+        (order) => order.status === "pending" || order.status === "delivered",
       )
       .slice(0, 3)
       .map((order) => {
@@ -377,8 +382,8 @@ exports.getCustomerDashboard = async (req, res, next) => {
           order.status === "delivered"
             ? "has been delivered successfully!"
             : order.status === "pending"
-            ? "is being prepared"
-            : `is currently ${order.status}`;
+              ? "is being prepared"
+              : `is currently ${order.status}`;
         return {
           id: `order-${order.orderId}`,
           type: "order",
@@ -397,7 +402,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
           : null;
         const hoursUntilReservation = reservationDateTime
           ? Math.round(
-              (reservationDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
+              (reservationDateTime.getTime() - Date.now()) / (1000 * 60 * 60),
             )
           : null;
 
@@ -508,59 +513,37 @@ exports.reorderOrder = async (req, res, next) => {
     }
 
     const dishCounts = {};
-    (order.dishes || []).forEach((dishName) => {
-      if (!dishName) return;
-      dishCounts[dishName] = (dishCounts[dishName] || 0) + 1;
+    (order.dishes || []).forEach((dish) => {
+      if (!dish) return;
+      dishCounts[dish] = (dishCounts[dish] || 0) + 1;
     });
 
-    const uniqueDishNames = Object.keys(dishCounts);
-
     const items = await Promise.all(
-      uniqueDishNames.map(async (dishIdentifier) => {
+      Object.keys(dishCounts).map(async (dishKey) => {
+        let dishDoc = null;
+        // Try by ID
         try {
-          let dishDoc = null;
-          
-          // Try to find by ID first (for seed data)
-          if (dishIdentifier && dishIdentifier.length > 10) {
-            try {
-              dishDoc = await Dish.findById(dishIdentifier);
-            } catch (e) {
-              // If ID lookup fails, try by name
-            }
-          }
-          
-          // If not found by ID, try by name
-          if (!dishDoc) {
-            dishDoc = await Dish.findByName(dishIdentifier);
-          }
-          
-          const price = dishDoc ? Number(dishDoc.price) : 0;
-          const quantity = dishCounts[dishIdentifier];
-          return {
-            id: dishDoc?._id || dishIdentifier,
-            name: dishDoc?.name || dishIdentifier,
-            price,
-            amount: price * quantity,
-            image: dishDoc?.image || dishDoc?.img_url || null,
-            quantity,
-          };
-        } catch (err) {
-          console.error(`Failed to load dish ${dishIdentifier}`, err);
-          return {
-            id: dishIdentifier,
-            name: dishIdentifier,
-            price: 0,
-            amount: 0,
-            image: null,
-            quantity: dishCounts[dishIdentifier],
-          };
+          dishDoc = await Dish.findById(dishKey);
+        } catch (e) {}
+        // If not found by ID, try by name
+        if (!dishDoc) {
+          dishDoc = await Dish.findByName(dishKey);
         }
-      })
+        const price = dishDoc ? Number(dishDoc.price) : 0;
+        return {
+          id: dishDoc?._id || dishKey,
+          name: dishDoc?.name || dishKey,
+          price,
+          amount: price * dishCounts[dishKey],
+          image: dishDoc?.image || dishDoc?.img_url || null,
+          quantity: dishCounts[dishKey],
+        };
+      }),
     );
 
     const person = await Person.findOne({ name: customerName });
     if (person) {
-      person.cart = uniqueDishNames.map((dishName) => ({
+      person.cart = Object.keys(dishCounts).map((dishName) => ({
         dish: dishName,
         quantity: dishCounts[dishName],
       }));
@@ -639,7 +622,7 @@ exports.getFeedBack = async (req, res, next) => {
     if (recentOrders.length > 0) {
       console.log(
         "First order sample:",
-        JSON.stringify(recentOrders[0], null, 2)
+        JSON.stringify(recentOrders[0], null, 2),
       );
     }
 
@@ -650,7 +633,7 @@ exports.getFeedBack = async (req, res, next) => {
           "Processing order:",
           order._id,
           "with dishes array:",
-          order.dishes
+          order.dishes,
         );
 
         if (
@@ -665,7 +648,7 @@ exports.getFeedBack = async (req, res, next) => {
             if (dishes.length === 0 && order.dishes.length > 0) {
               console.log(
                 "No dishes found by ID, trying by name:",
-                order.dishes
+                order.dishes,
               );
               dishes = await Dish.find({ name: { $in: order.dishes } }).lean();
             }
@@ -674,7 +657,7 @@ exports.getFeedBack = async (req, res, next) => {
               "Fetched",
               dishes.length,
               "dishes for order",
-              order._id
+              order._id,
             );
           } catch (err) {
             console.log("Could not fetch dish details:", err.message);
@@ -702,7 +685,7 @@ exports.getFeedBack = async (req, res, next) => {
             description: d.description,
           })),
         };
-      })
+      }),
     );
 
     const restaurantIds = [
@@ -759,17 +742,17 @@ exports.getFeedBack = async (req, res, next) => {
 
     console.log(
       "Response data - recentOrders count:",
-      responseData.recentOrders.length
+      responseData.recentOrders.length,
     );
     console.log("Response data - orders count:", responseData.orders.length);
     if (responseData.recentOrders[0]) {
       console.log(
         "Sample items from first order count:",
-        responseData.recentOrders[0].items.length
+        responseData.recentOrders[0].items.length,
       );
       console.log(
         "Sample items:",
-        JSON.stringify(responseData.recentOrders[0].items.slice(0, 2), null, 2)
+        JSON.stringify(responseData.recentOrders[0].items.slice(0, 2), null, 2),
       );
     }
 
@@ -1157,7 +1140,7 @@ exports.apiCheckout = async (req, res, next) => {
         "✅ Created reservation:",
         newReservation._id,
         "for rest_id:",
-        restIdString
+        restIdString,
       );
 
       order.reservation_id = newReservation._id;
@@ -1239,7 +1222,7 @@ exports.apiCheckoutPay = async (req, res, next) => {
           if (restForReservation) {
             // Check if reservation already exists in restaurant's reservations array
             const reservationExists = restForReservation.reservations.some(
-              (r) => r.id === existingReservation._id
+              (r) => r.id === existingReservation._id,
             );
             if (!reservationExists) {
               restForReservation.reservations =
@@ -1258,7 +1241,7 @@ exports.apiCheckoutPay = async (req, res, next) => {
               });
               await restForReservation.save();
               console.log(
-                "✅ Added existing reservation to restaurant reservations array"
+                "✅ Added existing reservation to restaurant reservations array",
               );
             }
           } else {
@@ -1267,7 +1250,7 @@ exports.apiCheckoutPay = async (req, res, next) => {
         } else {
           console.warn(
             "⚠️ Reservation not found for reservation_id:",
-            order.reservation_id
+            order.reservation_id,
           );
         }
       }
@@ -1376,7 +1359,7 @@ exports.apiCheckoutPay = async (req, res, next) => {
           "✅ Created reservation:",
           newReservation._id,
           "for rest_id:",
-          restIdString
+          restIdString,
         );
 
         order.reservation_id = newReservation._id;
@@ -1604,14 +1587,14 @@ exports.postEditProfile = async (req, res, next) => {
       const { Order } = require("../Model/Order_model");
       await Order.updateMany(
         { customerName: currentUsername },
-        { customerName: name }
+        { customerName: name },
       );
 
       // Update all Feedback with the old customer name
       const Feedback = require("../Model/feedback");
       await Feedback.updateMany(
         { customerName: currentUsername },
-        { customerName: name }
+        { customerName: name },
       );
 
       // Update reservations in restaurants
@@ -1619,11 +1602,11 @@ exports.postEditProfile = async (req, res, next) => {
       await Restaurant.updateMany(
         { "reservations.name": currentUsername },
         { $set: { "reservations.$[elem].name": name } },
-        { arrayFilters: [{ "elem.name": currentUsername }] }
+        { arrayFilters: [{ "elem.name": currentUsername }] },
       );
 
       console.log(
-        `✅ Updated all references from ${currentUsername} to ${name}`
+        `✅ Updated all references from ${currentUsername} to ${name}`,
       );
     }
 
@@ -1794,7 +1777,9 @@ exports.searchRestaurants = async (req, res, next) => {
       return {
         _id: restaurant._id,
         name: restaurant.name,
-        image: restaurant.image ? getRestaurantImageUrl(req, restaurant.image) : null,
+        image: restaurant.image
+          ? getRestaurantImageUrl(req, restaurant.image)
+          : null,
         rating: restaurant.rating,
         location: restaurant.location, // Full address for menu page
         city: restaurant.city, // City for filtering
@@ -1846,7 +1831,7 @@ exports.addToFavourites = async (req, res, next) => {
     // Normalize dishId to string for comparison
     const dishIdStr = String(dishId);
     console.log(
-      `[Favorites] Adding dish ${dishIdStr} for user ${customerName}`
+      `[Favorites] Adding dish ${dishIdStr} for user ${customerName}`,
     );
 
     const person = await Person.findOne({ name: customerName });
@@ -1861,7 +1846,7 @@ exports.addToFavourites = async (req, res, next) => {
 
     // Check if already favorited by comparing as strings
     const alreadyFavourited = person.favourites.some(
-      (fav) => String(fav) === dishIdStr
+      (fav) => String(fav) === dishIdStr,
     );
 
     if (alreadyFavourited) {
@@ -1876,7 +1861,7 @@ exports.addToFavourites = async (req, res, next) => {
     await person.save();
 
     console.log(
-      `[Favorites] Added dish ${dishIdStr} to favorites for ${customerName}`
+      `[Favorites] Added dish ${dishIdStr} to favorites for ${customerName}`,
     );
     res.json({ success: true, message: "Dish added to favourites" });
   } catch (error) {
@@ -1906,7 +1891,7 @@ exports.removeFromFavourites = async (req, res, next) => {
     // Normalize dishId to string for comparison
     const dishIdStr = String(dishId);
     console.log(
-      `[Favorites] Removing dish ${dishIdStr} for user ${customerName}`
+      `[Favorites] Removing dish ${dishIdStr} for user ${customerName}`,
     );
 
     const person = await Person.findOne({ name: customerName });
@@ -1919,7 +1904,7 @@ exports.removeFromFavourites = async (req, res, next) => {
     // Remove from favourites using string comparison
     if (person.favourites) {
       person.favourites = person.favourites.filter(
-        (id) => String(id) !== dishIdStr
+        (id) => String(id) !== dishIdStr,
       );
       person.markModified("favourites");
       await person.save();
@@ -1998,7 +1983,7 @@ exports.getFavourites = async (req, res, next) => {
       } catch (error) {
         console.error(
           `[Favorites] Error fetching dish ${dishId}:`,
-          error.message
+          error.message,
         );
         // Continue with other dishes even if one fails
         continue;
@@ -2006,7 +1991,7 @@ exports.getFavourites = async (req, res, next) => {
     }
 
     console.log(
-      `[Favorites] Returning ${favoriteDishes.length} favorite dishes with details`
+      `[Favorites] Returning ${favoriteDishes.length} favorite dishes with details`,
     );
     res.json(favoriteDishes);
   } catch (error) {
@@ -2111,8 +2096,6 @@ exports.applyPromoCode = async (req, res, next) => {
     return next(error);
   }
 };
-
-
 
 exports.getPublicCuisines = async (req, res, next) => {
   try {

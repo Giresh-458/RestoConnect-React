@@ -14,7 +14,11 @@ import {
   removeFromFavourites,
   getFavourites,
 } from "../util/favourites";
-import { getImageUrl, handleImageError, handleSmallImageError } from "../util/imageUtils";
+import {
+  getImageUrl,
+  handleImageError,
+  handleSmallImageError,
+} from "../util/imageUtils";
 import styles from "./MenuPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 
@@ -128,9 +132,11 @@ export function MenuPage() {
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const deliveryFee = 3.0;
-  const taxes = (cartTotal * 0.08).toFixed(2); // 8% tax
+  const safeCartTotal =
+    typeof cartTotal === "number" && !isNaN(cartTotal) ? cartTotal : 0;
+  const taxes = (safeCartTotal * 0.08).toFixed(2); // 8% tax
   const finalTotal = (
-    parseFloat(cartTotal) +
+    parseFloat(safeCartTotal) +
     deliveryFee +
     parseFloat(taxes)
   ).toFixed(2);
@@ -342,7 +348,12 @@ export function MenuPage() {
                         <h4 className={styles.orderItemName}>{item.name}</h4>
                         <div className={styles.orderItemControls}>
                           <span className={styles.orderItemPrice}>
-                            ₹{item.price.toFixed(2)}
+                            ₹
+                            {(typeof item.price === "number" &&
+                            !isNaN(item.price)
+                              ? item.price
+                              : 0
+                            ).toFixed(2)}
                           </span>
                           <div className={styles.orderQuantityControls}>
                             <button
@@ -379,7 +390,7 @@ export function MenuPage() {
                 <div className={styles.orderSummaryFooter}>
                   <div className={styles.orderSummaryRow}>
                     <span>Subtotal</span>
-                    <span>₹{cartTotal.toFixed(2)}</span>
+                    <span>₹{safeCartTotal.toFixed(2)}</span>
                   </div>
                   <div className={styles.orderSummaryRow}>
                     <span>Delivery Fee</span>
@@ -432,7 +443,7 @@ export function MenuPage() {
             className={styles.showOrderButton}
             onClick={() => setShowOrderSummary(true)}
           >
-            🛒 {cartItemCount} items - ₹{cartTotal.toFixed(2)}
+            🛒 {cartItemCount} items - ₹{safeCartTotal.toFixed(2)}
           </button>
         )}
       </div>
@@ -518,7 +529,9 @@ function DishCard({
           <p className={styles.dishDescription}>{dish.description}</p>
         )}
         {dish.serves && (
-          <p className={styles.dishServes}>Serves {dish.serves} {dish.serves === 1 ? 'person' : 'people'}</p>
+          <p className={styles.dishServes}>
+            Serves {dish.serves} {dish.serves === 1 ? "person" : "people"}
+          </p>
         )}
         <div className={styles.dishFooter}>
           <span className={styles.dishPrice}>₹{dish.price}</span>
