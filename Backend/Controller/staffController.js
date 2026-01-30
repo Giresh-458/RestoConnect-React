@@ -4,7 +4,7 @@ const { Order } = require("../Model/Order_model");
 const bcrypt = require("bcrypt");
 
 // Dashboard Methods
-exports.getDashBoard = async (req, res) => {
+exports.getDashBoard = async (req, res, next) => {
   try {
     let r_name = await Restaurant.findById(req.session.rest_id);
     let rest = await Restaurant.findById(req.session.rest_id).populate(
@@ -70,11 +70,13 @@ exports.getDashBoard = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in getDashBoard:", error);
-    res.status(500).send("Internal Server Error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.postUpdateOrder = async (req, res) => {
+exports.postUpdateOrder = async (req, res, next) => {
   try {
     const { orderId, status } = req.body;
 
@@ -112,11 +114,13 @@ exports.postUpdateOrder = async (req, res) => {
     res.json({ success: true, message: "Order status updated successfully", order: updatedOrder });
   } catch (error) {
     console.error("Error updating order:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.postAllocateTable = async (req, res) => {
+exports.postAllocateTable = async (req, res, next) => {
   try {
     const { Reservation } = require("../Model/Reservation_model");
     const { reservationId, tableNumber } = req.body;
@@ -169,12 +173,14 @@ exports.postAllocateTable = async (req, res) => {
     });
   } catch (error) {
     console.error("Error allocating table:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
 // HomePage Methods - Legacy route that renders HTML (for backward compatibility)
-exports.getHomePage = async (req, res) => {
+exports.getHomePage = async (req, res, next) => {
  
   // Only render HTML if this is NOT an API route
 
@@ -220,7 +226,7 @@ exports.getHomePage = async (req, res) => {
   });
 };
 
-exports.postHomePageTask = async (req, res) => {
+exports.postHomePageTask = async (req, res, next) => {
   const restaurant = await Restaurant.findById(req.session.rest_id);
   if (!restaurant) {
     return res.status(404).send("Restaurant not found");
@@ -236,7 +242,7 @@ exports.postHomePageTask = async (req, res) => {
   res.redirect("/staff/Homepage");
 };
 
-exports.deleteHomePageTasks = async (req, res) => {
+exports.deleteHomePageTasks = async (req, res, next) => {
   try {
     const restaurant = await Restaurant.findById(req.session.rest_id);
     if (!restaurant) {
@@ -257,11 +263,13 @@ exports.deleteHomePageTasks = async (req, res) => {
     res.redirect("/staff/HomePage");
   } catch (error) {
     console.error("Error deleting task:", error);
-    res.status(500).send("Internal server error");
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.postRemoveReservation = async (req, res) => {
+exports.postRemoveReservation = async (req, res, next) => {
   try {
     const { Reservation } = require("../Model/Reservation_model");
     const reservationId = req.params.id;
@@ -300,11 +308,13 @@ exports.postRemoveReservation = async (req, res) => {
     });
   } catch (error) {
     console.error("Error removing reservation:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.postAddTable = async (req, res) => {
+exports.postAddTable = async (req, res, next) => {
   try {
     const { number, capacity } = req.body;
     const rest = await Restaurant.findById(req.session.rest_id);
@@ -329,11 +339,13 @@ exports.postAddTable = async (req, res) => {
     res.json({ success: true, message: "Table added successfully" });
   } catch (error) {
     console.error("Error adding table:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.postUpdateInventory = async (req, res) => {
+exports.postUpdateInventory = async (req, res, next) => {
   try {
     const { item, action } = req.body;
 
@@ -355,16 +367,18 @@ exports.postUpdateInventory = async (req, res) => {
     res.redirect("/staff/Dashboard");
   } catch (err) {
     console.error("Error updating inventory:", err);
-    res.status(500).send("Error updating inventory");
+    err.status = err.status || 500;
+    err.message = err.message || "Error updating inventory";
+    return next(err);
   }
 };
 
-exports.postAutoAllocateTable = async (req, res) => {
+exports.postAutoAllocateTable = async (req, res, next) => {
   // Stub implementation for postAutoAllocateTable
   res.status(200).send("postAutoAllocateTable endpoint is under construction");
 };
 
-exports.getStaffHomepageData = async (req, res) => {
+exports.getStaffHomepageData = async (req, res, next) => {
   // Explicitly set Content-Type to JSON for all responses
   res.setHeader('Content-Type', 'application/json');
   
@@ -522,11 +536,13 @@ exports.getStaffHomepageData = async (req, res) => {
     res.json(staffData);
   } catch (error) {
     console.error("Error fetching staff homepage data:", error);
-    res.status(500).json({ error: "Internal server error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal server error";
+    return next(error);
   }
 };
 
-exports.postSupportMessage = async (req, res) => {
+exports.postSupportMessage = async (req, res, next) => {
   try {
     const { message } = req.body;
     const staffMember = await User.findOne({ username: req.session.username });
@@ -555,11 +571,13 @@ exports.postSupportMessage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error sending support message:", error);
-    res.status(500).json({ error: "Failed to send message" });
+    error.status = error.status || 500;
+    error.message = error.message || "Failed to send message";
+    return next(error);
   }
 };
 
-exports.changePassword = async (req, res) => {
+exports.changePassword = async (req, res, next) => {
   const currentStaffUsername = req.session.username;
   if (!currentStaffUsername) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -592,11 +610,13 @@ exports.changePassword = async (req, res) => {
     res.status(200).json({ message: "Password changed successfully!" });
   } catch (error) {
     console.error("Error in changePassword:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 
-exports.updateTaskStatus = async (req, res) => {
+exports.updateTaskStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -624,7 +644,9 @@ exports.updateTaskStatus = async (req, res) => {
     res.json({ success: true, message: "Task updated successfully", task });
   } catch (error) {
     console.error("Error updating task:", error);
-    res.status(500).json({ error: "Failed to update task" });
+    error.status = error.status || 500;
+    error.message = error.message || "Failed to update task";
+    return next(error);
   }
 };
 
@@ -666,7 +688,7 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
-exports.getDashBoardData = async (req, res) => {
+exports.getDashBoardData = async (req, res, next) => {
    console.log("==============================================================")
   // console.log("🚀🚀🚀 getDashBoardData function called!");
   // console.log("Request method:", req.method);
@@ -845,10 +867,9 @@ exports.getDashBoardData = async (req, res) => {
     // console.log("------ STAFF DASHBOARD DEBUG END ------");
   } catch (error) {
     console.error("🔥 Error in getDashBoardData:", error.message);
-    res.status(500).json({
-      error: "Internal Server Error",
-      details: error.message,
-    });
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
 };
 

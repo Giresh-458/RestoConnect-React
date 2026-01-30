@@ -7,7 +7,7 @@ const RestaurantRequest = require("../Model/restaurent_request_model"); // ✅ C
 const { Dish } = require("../Model/Dishes_model_test");
 
 // Admin Dashboard
-exports.getAdminDashboard = async (req, res) => {
+exports.getAdminDashboard = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     const formattedRestaurants = restaurants.map((r) => ({
@@ -80,7 +80,7 @@ exports.getAdminDashboard = async (req, res) => {
   }
 };
 
-exports.getStatisticsGraphs = async (req, res) => {
+exports.getStatisticsGraphs = async (req, res, next) => {
   try {
     const period = req.query.period || 'monthly'; // daily, monthly, yearly
     const now = new Date();
@@ -150,7 +150,7 @@ exports.getStatisticsGraphs = async (req, res) => {
   }
 };
 
-exports.getAllUsers = async (req, res) => {
+exports.getAllUsers = async (req, res, next) => {
   try {
     const currentAdminUsername = req.user ? req.user.username : null;
     let users = [];
@@ -171,7 +171,7 @@ exports.getAllUsers = async (req, res) => {
 };
 
 // Get statistics
-exports.getStatistics = async (req, res) => {
+exports.getStatistics = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalRestaurants = await Restaurant.countDocuments();
@@ -198,7 +198,7 @@ const expectsJson = (req) => {
 };
 
 // Delete user
-exports.deleteUser = async (req, res) => {
+exports.deleteUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     await User.deleteOne({ _id: userId });
@@ -214,7 +214,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 // Suspend user
-exports.suspendUser = async (req, res) => {
+exports.suspendUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     const { suspensionEndDate, suspensionReason } = req.body || {};
@@ -261,7 +261,7 @@ exports.suspendUser = async (req, res) => {
 };
 
 // Unsuspend user
-exports.unsuspendUser = async (req, res) => {
+exports.unsuspendUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     await User.updateOne(
@@ -286,7 +286,7 @@ exports.unsuspendUser = async (req, res) => {
 };
 
 // 🌟 FIX: Edit admin profile
-exports.editProfile = async (req, res) => {
+exports.editProfile = async (req, res, next) => {
   try {
     const currentAdminUsername = req.user
       ? req.user.username
@@ -362,7 +362,7 @@ exports.editProfile = async (req, res) => {
 };
 
 // 🌟 FIX: Change Admin Password
-exports.changePassword = async (req, res) => {
+exports.changePassword = async (req, res, next) => {
   const currentAdminUsername = req.session.username; // Use session for identity
   if (!currentAdminUsername)
     return res.status(401).json({ error: "Unauthorized" });
@@ -402,7 +402,7 @@ exports.changePassword = async (req, res) => {
 };
 
 // 🌟 FIX: Delete Admin Account
-exports.deleteAccount = async (req, res) => {
+exports.deleteAccount = async (req, res, next) => {
   const currentAdminUsername = req.session.username; // Use session for identity
   if (!currentAdminUsername) {
     if (expectsJson(req))
@@ -442,7 +442,7 @@ exports.deleteAccount = async (req, res) => {
 };
 
 // Add restaurant
-exports.postAddRestaurent = async (req, res) => {
+exports.postAddRestaurent = async (req, res, next) => {
   try {
     const {
       name,
@@ -484,7 +484,7 @@ exports.postAddRestaurent = async (req, res) => {
 };
 
 // Edit restaurant
-exports.postEditRestaurent = async (req, res) => {
+exports.postEditRestaurent = async (req, res, next) => {
   try {
     const id = req.params.id;
     const { name, location, amount } = req.body;
@@ -503,7 +503,7 @@ exports.postEditRestaurent = async (req, res) => {
 };
 
 // Suspend restaurant
-exports.suspendRestaurant = async (req, res) => {
+exports.suspendRestaurant = async (req, res, next) => {
   try {
     const id = req.params.id;
     const { suspensionEndDate, suspensionReason } = req.body || {};
@@ -551,7 +551,7 @@ exports.suspendRestaurant = async (req, res) => {
 };
 
 // Unsuspend restaurant
-exports.unsuspendRestaurant = async (req, res) => {
+exports.unsuspendRestaurant = async (req, res, next) => {
   try {
     const id = req.params.id;
     await Restaurant.updateOne(
@@ -578,7 +578,7 @@ exports.unsuspendRestaurant = async (req, res) => {
 };
 
 // Delete restaurant
-exports.postDeleteRestaurent = async (req, res) => {
+exports.postDeleteRestaurent = async (req, res, next) => {
   console.log("in the the admin controller delete restarant")
   try {
     const id = req.params.id;
@@ -602,7 +602,7 @@ exports.postDeleteRestaurent = async (req, res) => {
 };
 
 // Get all restaurants
-exports.getAllRestaurants = async (req, res) => {
+exports.getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     const restaurantsWithOwners = await Promise.all(
@@ -628,7 +628,7 @@ exports.getAllRestaurants = async (req, res) => {
 };
 
 // Accept restaurant request
-exports.getaceptreq = async (req, res) => {
+exports.getaceptreq = async (req, res, next) => {
   try {
     const ownername = req.params.owner_username;
     console.log(ownername)
@@ -672,7 +672,7 @@ exports.getaceptreq = async (req, res) => {
   }
 };
 
-exports.getrejectreq = async (req, res) => {
+exports.getrejectreq = async (req, res, next) => {
   try {
     const ownername = req.params.owner_username;
     const request = await RestaurantRequest.findOne({
@@ -688,7 +688,7 @@ exports.getrejectreq = async (req, res) => {
   }
 };
 
-exports.getAllRequests = async (req, res) => {
+exports.getAllRequests = async (req, res, next) => {
   try {
     const requests = await RestaurantRequest.find();
     res.json(requests);
@@ -698,7 +698,7 @@ exports.getAllRequests = async (req, res) => {
   }
 };
 
-exports.getPublicRestaurants = async (req, res) => {
+exports.getPublicRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     res.json(restaurants);
@@ -708,7 +708,7 @@ exports.getPublicRestaurants = async (req, res) => {
   }
 };
 
-exports.getRecentActivities = async (req, res) => {
+exports.getRecentActivities = async (req, res, next) => {
   try {
     const activities = [];
 

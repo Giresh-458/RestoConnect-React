@@ -28,7 +28,7 @@ const validateMobile = (mobile) => {
 };
 
 // Login Controller
-const login = async (req, res) => {
+const login = async (req, res, next) => {
     try {
         let { username, password } = req.body;
 
@@ -95,15 +95,14 @@ const login = async (req, res) => {
 
     } catch (error) {
         console.error('Login error:', error);
-        return res.status(500).json({ 
-            valid: false, 
-            error: 'Server error during login' 
-        });
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error during login';
+        return next(error);
     }
 };
 
 // Signup Controller
-const signup = async (req, res) => {
+const signup = async (req, res, next) => {
     try {
         let { username, email, password, fullName, mobile, role } = req.body;
 
@@ -219,22 +218,20 @@ const signup = async (req, res) => {
 
     } catch (error) {
         console.error('Signup error:', error);
-        return res.status(500).json({ 
-            success: false, 
-            error: 'Server error during signup' 
-        });
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error during signup';
+        return next(error);
     }
 };
 
 // Logout Controller
-const logout = (req, res) => {
+const logout = (req, res, next) => {
     req.session.destroy(err => {
         if (err) {
             console.error('Logout error:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to logout' 
-            });
+            err.status = err.status || 500;
+            err.message = err.message || 'Failed to logout';
+            return next(err);
         }
         res.clearCookie('connect.sid');
         return res.status(200).json({ 
@@ -245,7 +242,7 @@ const logout = (req, res) => {
 };
 
 // Check Session Controller
-const checkSession = async (req, res) => {
+const checkSession = async (req, res, next) => {
     try {
         if (req.session.username && req.session.cookie._expires > new Date()) {
             const user = await User.findOne({ username: req.session.username }).select("role");
@@ -261,7 +258,9 @@ const checkSession = async (req, res) => {
         res.json({ valid: false });
     } catch (err) {
         console.error("Error in check-session:", err);
-        res.status(500).json({ valid: false, error: "Server error" });
+        err.status = err.status || 500;
+        err.message = err.message || 'Server error';
+        return next(err);
     }
 };
 
@@ -271,7 +270,7 @@ const generateResetCode = () => {
 };
 
 // Send Password Reset Code
-const sendResetCode = async (req, res) => {
+const sendResetCode = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -333,15 +332,14 @@ const sendResetCode = async (req, res) => {
 
   } catch (error) {
     console.error('Send reset code error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Server error. Please try again later.'
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Server error. Please try again later.';
+    return next(error);
   }
 };
 
 // Verify Reset Code
-const verifyResetCode = async (req, res) => {
+const verifyResetCode = async (req, res, next) => {
   try {
     const { email, code } = req.body;
 
@@ -389,15 +387,14 @@ const verifyResetCode = async (req, res) => {
 
   } catch (error) {
     console.error('Verify reset code error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Server error. Please try again later.'
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Server error. Please try again later.';
+    return next(error);
   }
 };
 
 // Reset Password with Code
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     const { email, code, newPassword } = req.body;
 
@@ -473,15 +470,14 @@ const resetPassword = async (req, res) => {
 
   } catch (error) {
     console.error('Reset password error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Server error. Please try again later.'
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Server error. Please try again later.';
+    return next(error);
   }
 };
 
 // Resend Reset Code
-const resendResetCode = async (req, res) => {
+const resendResetCode = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -543,10 +539,9 @@ const resendResetCode = async (req, res) => {
 
   } catch (error) {
     console.error('Resend reset code error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Server error. Please try again later.'
-    });
+    error.status = error.status || 500;
+    error.message = error.message || 'Server error. Please try again later.';
+    return next(error);
   }
 };
 

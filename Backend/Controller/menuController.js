@@ -5,7 +5,7 @@ const Dish = require('../Model/Dishes_model_test').Dish;
 const { getImageUrl } = require('../util/fileUpload');
 
 
-exports.getMenu = async (req,res)=>{    
+exports.getMenu = async (req,res,next)=>{    
     try {
         const id = req.params.restid;
         const rest = await Restaurant.find_by_id(id);
@@ -51,12 +51,14 @@ exports.getMenu = async (req,res)=>{
         });
     } catch (error) {
         console.error('Error in getMenu:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        error.status = error.status || 500;
+        error.message = error.message || 'Internal server error';
+        return next(error);
     }
 }
 
 // Add dish to cart
-exports.addDishToCart = async (req, res) => {
+exports.addDishToCart = async (req, res, next) => {
     try {
         const user = req.user;
         const dishName = req.body.dish;
@@ -82,12 +84,14 @@ exports.addDishToCart = async (req, res) => {
         res.redirect('back');
     } catch (error) {
         console.error(error);
-        res.status(500).send('Server error');
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error';
+        return next(error);
     }
 };
 
 // Increase dish quantity in cart
-exports.increaseDishQuantity = async (req, res) => {
+exports.increaseDishQuantity = async (req, res, next) => {
     try {
         
         const user = req.session.username;
@@ -117,12 +121,14 @@ exports.increaseDishQuantity = async (req, res) => {
         res.redirect('back');
     } catch (error) {
         console.error(error);
-        res.status(500).send('Server error');
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error';
+        return next(error);
     }
 };
 
 // Decrease dish quantity in cart
-exports.decreaseDishQuantity = async (req, res) => {
+exports.decreaseDishQuantity = async (req, res, next) => {
     try {
         const user = req.session.username;
         
@@ -150,12 +156,14 @@ exports.decreaseDishQuantity = async (req, res) => {
         res.redirect('back');
     } catch (error) {
         console.error(error);
-        res.status(500).send('Server error');
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error';
+        return next(error);
     }
 };
 
 // Order cart - clear cart array and redirect with cart data
-exports.orderCart = async (req, res) => {
+exports.orderCart = async (req, res, next) => {
     try {
         const user = req.user;
         let person = await Person.findOne({ email: user.email });
@@ -177,6 +185,8 @@ exports.orderCart = async (req, res) => {
         res.redirect('/customer/order_reservation');
     } catch (error) {
         console.error(error);
-        res.status(500).send('Server error');
+        error.status = error.status || 500;
+        error.message = error.message || 'Server error';
+        return next(error);
     }
 };

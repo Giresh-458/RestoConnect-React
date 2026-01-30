@@ -3,7 +3,7 @@
 const { Reservation } = require("../Model/Reservation_model");
 
 // ✅ Get all reservations for the logged-in restaurant
-exports.getAllReservations = async (req, res) => {
+exports.getAllReservations = async (req, res, next) => {
   try {
     const rest_id = req.session.rest_id;
     if (!rest_id) {
@@ -14,12 +14,14 @@ exports.getAllReservations = async (req, res) => {
     res.json(reservations);
   } catch (err) {
     console.error("Error fetching reservations:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };
 
 // ✅ Create a new reservation
-exports.createReservation = async (req, res) => {
+exports.createReservation = async (req, res, next) => {
   try {
     const rest_id = req.session.rest_id;
     const { customerName, table_id, time, guests, status } = req.body;
@@ -41,12 +43,14 @@ exports.createReservation = async (req, res) => {
     res.status(201).json({ message: "Reservation created successfully", reservation });
   } catch (err) {
     console.error("Error creating reservation:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };
 
 // ✅ Update reservation status
-exports.updateReservationStatus = async (req, res) => {
+exports.updateReservationStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -64,12 +68,14 @@ exports.updateReservationStatus = async (req, res) => {
     res.json({ message: "Status updated successfully", reservation: updated });
   } catch (err) {
     console.error("Error updating reservation:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };
 
 // ✅ Delete reservation
-exports.deleteReservation = async (req, res) => {
+exports.deleteReservation = async (req, res, next) => {
   try {
     const { id } = req.params;
     const deleted = await Reservation.findByIdAndDelete(id);
@@ -81,6 +87,8 @@ exports.deleteReservation = async (req, res) => {
     res.json({ message: "Reservation deleted successfully" });
   } catch (err) {
     console.error("Error deleting reservation:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };

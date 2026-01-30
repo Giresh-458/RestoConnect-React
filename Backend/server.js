@@ -73,6 +73,7 @@ app.get("/logout", (req, res) => {
   });
 });
 
+
 app.use("/loginPage", loginPage);
 
 //  public
@@ -100,17 +101,75 @@ app.use('/api/staff', authentication('staff'), staffRouter);
 app.use('/staff', authentication('staff'),
 staffRouter);
 
-app.get("/", homepageController.getHomePage);
-app.post("/", validation, homepageController.putHomePage);
+// Inline try/catch route handlers to forward errors via next(err)
+app.get("/", async (req, res, next) => {
+  try {
+    await homepageController.getHomePage(req, res, next);
+  } catch (err) {
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
+  }
+});
 
-app.get("/menu/:restid", authentication("customer"), menuController.getMenu);
+app.post("/", validation, async (req, res, next) => {
+  try {
+    await homepageController.putHomePage(req, res, next);
+  } catch (err) {
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
+  }
+});
+
+app.get(
+  "/menu/:restid",
+  authentication("customer"),
+  async (req, res, next) => {
+    try {
+      await menuController.getMenu(req, res, next);
+    } catch (err) {
+      err.status = err.status || 500;
+      err.message = err.message || "Internal Server Error";
+      return next(err);
+    }
+  }
+);
 
 app.get("/create", (req, res) => {
   res.render("restaurantRequest");
 });
 
 app.get("/req_res", homepageController.getRestReq);
-app.post("/req_res", uploadRestaurantImage, handleUploadErrors, homepageController.postRestReq);
+app.post(
+  "/req_res",
+  uploadRestaurantImage,
+  handleUploadErrors,
+  async (req, res, next) => {
+    try {
+      await homepageController.postRestReq(req, res, next);
+    } catch (err) {
+      err.status = err.status || 500;
+      err.message = err.message || "Server error. Please try again later.";
+      return next(err);
+    }
+  }
+);
+
+// Error-handling middleware (must be added after all routes)
+app.use((err, req, res, next) => {
+  // Log full error server-side
+  console.error("Unhandled error:", err && err.stack ? err.stack : err);
+
+  const status = err && err.status ? err.status : 500;
+  const message = err && err.message ? err.message : "Internal Server Error";
+
+  // Return standardized JSON error with message and original URL
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(status).json({ message, url: req.originalUrl });
+});
 
 app.get("/check-session", async (req, res) => {
   try {
