@@ -115,7 +115,7 @@ export function Requests({ searchTerm }) {
                 <td className={styles.ownerName}>{request.owner_username}</td>
                 <td className={styles.email}>{request.email}</td>
                 <td className={styles.location}>{request.location}</td>
-                <td className={styles.amount}>${request.amount}</td>
+                <td className={styles.amount}>₹{request.amount}</td>
                 <td className={styles.actions}>
                   <button
                     onClick={() =>

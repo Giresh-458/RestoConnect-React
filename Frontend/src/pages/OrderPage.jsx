@@ -27,6 +27,16 @@ export function OrderPage() {
   const openTime = "08:00";
   const closeTime = "23:00";
   
+  // Format time from 24h to 12h format
+  const formatTimeTo12h = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+  
   // Get current time in HH:MM format for validation
   const getCurrentTime = () => {
     const now = new Date();
@@ -65,6 +75,36 @@ export function OrderPage() {
     
     // For future dates, use opening time
     return openTime;
+  };
+
+  // Generate preset times based on restaurant hours - ONLY 15 min intervals
+  const getPresetTimes = (selectedDate) => {
+    const times = [];
+    const startHour = selectedDate === minDate ? getMinTime(selectedDate) : openTime;
+    const [startH, startM] = startHour.split(':').map(Number);
+    const [endH] = closeTime.split(':').map(Number);
+    
+    // Round start time up to next valid 15-min interval
+    let currentHour = startH;
+    let currentMin = Math.ceil(startM / 15) * 15;
+    
+    if (currentMin === 60) {
+      currentHour++;
+      currentMin = 0;
+    }
+    
+    // Generate times: only 0, 15, 30, 45 minutes
+    while (currentHour < endH) {
+      times.push(`${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`);
+      
+      currentMin += 15;
+      if (currentMin >= 60) {
+        currentHour++;
+        currentMin = 0;
+      }
+    }
+    
+    return times;
   };
 
   const subtotal = cartItems.reduce(
@@ -259,19 +299,45 @@ export function OrderPage() {
 
             <label className={styles.formField}>
               <span>Time</span>
-              <input
-                type="time"
-                step="900"
-                min={reservation.date ? getMinTime(reservation.date) : openTime}
-                max={closeTime}
-                value={reservation.time}
-                onChange={(e) => setReservation({ ...reservation, time: e.target.value })}
-                required
-              />
+              <div className={styles.timeInputWrapper}>
+                <input
+                  type="time"
+                  step="900"
+                  min={reservation.date ? getMinTime(reservation.date) : openTime}
+                  max={closeTime}
+                  value={reservation.time}
+                  onChange={(e) => setReservation({ ...reservation, time: e.target.value })}
+                  required
+                />
+                {reservation.time && (
+                  <div className={styles.timeDisplay}>
+                    <span className={styles.timeValue}>{formatTimeTo12h(reservation.time)}</span>
+                  </div>
+                )}
+              </div>
+              {reservation.date && (
+                <div className={styles.presetTimes}>
+                  <div className={styles.presetTimesLabel}>Quick select</div>
+                  <div className={styles.presetTimesGrid}>
+                    {getPresetTimes(reservation.date).map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        className={`${styles.presetTimeBtn} ${reservation.time === time ? styles.presetTimeBtnActive : ''}`}
+                        onClick={() => setReservation({ ...reservation, time })}
+                      >
+                        <span className={styles.timeHour}>{time.split(':')[0]}</span>
+                        <span className={styles.timeSeparator}>:</span>
+                        <span className={styles.timeMin}>{time.split(':')[1]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <small className={styles.helpText}>
                 {reservation.date === minDate 
-                  ? `Select between ${getMinTime(reservation.date)} and ${closeTime} (at least 1 hour from now).`
-                  : `Select between ${openTime} and ${closeTime} (15-minute slots).`}
+                  ? `Select between ${formatTimeTo12h(getMinTime(reservation.date))} and ${formatTimeTo12h(closeTime)} (at least 1 hour from now).`
+                  : `Select between ${formatTimeTo12h(openTime)} and ${formatTimeTo12h(closeTime)} (15-minute slots).`}
               </small>
             </label>
 

@@ -7,7 +7,7 @@ const RestaurantRequest = require("../Model/restaurent_request_model"); // ✅ C
 const { Dish } = require("../Model/Dishes_model_test");
 
 // Admin Dashboard
-exports.getAdminDashboard = async (req, res) => {
+exports.getAdminDashboard = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     const formattedRestaurants = restaurants.map((r) => ({
@@ -34,8 +34,7 @@ exports.getAdminDashboard = async (req, res) => {
       return sum;
     }, 0);
 
-    // NOTE: req.user is often set by an authentication system.
-    // If not using it, ensure you rely on req.session.username for identity.
+   
     const currentAdminUsername = req.user
       ? req.user.username
       : req.session.username;
@@ -62,7 +61,7 @@ exports.getAdminDashboard = async (req, res) => {
       return user;
     });
 
-    // Count only non-admin users
+    //non-admin users
     const totalUserCount = await User.countDocuments({
       role: { $ne: "admin" },
     });
@@ -81,35 +80,77 @@ exports.getAdminDashboard = async (req, res) => {
   }
 };
 
-exports.getStatisticsGraphs = async (req, res) => {
-  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+exports.getStatisticsGraphs = async (req, res, next) => {
+  try {
+    const period = req.query.period || 'monthly'; // daily, monthly, yearly
+    const now = new Date();
+    let startDate, groupBy, sortBy;
 
-  const result = await Restaurant.aggregate([
-    { $unwind: "$payments" },
-    { $match: { "payments.date": { $gte: startOfYear } } },
-    {
-      $group: {
-        _id: { month: { $month: "$payments.date" } },
-        totalPayments: { $sum: "$payments.amount" },
-        countPayments: { $sum: 1 },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        month: "$_id.month",
-        totalPayments: 1,
-        countPayments: 1,
-        restaurantFee: { $multiply: ["$totalPayments", 0.1] },
-      },
-    },
-    { $sort: { month: 1 } },
-  ]);
+    // Set date range and grouping based on period
+    if (period === 'daily') {
+      // Last 30 days
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 30);
+      groupBy = {
+        year: { $year: "$payments.date" },
+        month: { $month: "$payments.date" },
+        day: { $dayOfMonth: "$payments.date" }
+      };
+      sortBy = { year: 1, month: 1, day: 1 };
+    } else if (period === 'yearly') {
+      // Last 5 years
+      startDate = new Date(now.getFullYear() - 4, 0, 1);
+      groupBy = {
+        year: { $year: "$payments.date" }
+      };
+      sortBy = { year: 1 };
+    } else {
+      // Monthly (default) - current year
+      startDate = new Date(now.getFullYear(), 0, 1);
+      groupBy = {
+        month: { $month: "$payments.date" }
+      };
+      sortBy = { month: 1 };
+    }
 
-  res.json(result);
+    const result = await Restaurant.aggregate([
+      { $unwind: "$payments" },
+      { $match: { "payments.date": { $gte: startDate } } },
+      {
+        $group: {
+          _id: groupBy,
+          totalPayments: { $sum: "$payments.amount" },
+          countPayments: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          ...(period === 'daily' ? {
+            year: "$_id.year",
+            month: "$_id.month",
+            day: "$_id.day"
+          } : period === 'yearly' ? {
+            year: "$_id.year"
+          } : {
+            month: "$_id.month"
+          }),
+          totalPayments: 1,
+          countPayments: 1,
+          restaurantFee: { $multiply: ["$totalPayments", 0.1] },
+        },
+      },
+      { $sort: sortBy },
+    ]);
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error in getStatisticsGraphs:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
-exports.getAllUsers = async (req, res) => {
+exports.getAllUsers = async (req, res, next) => {
   try {
     const currentAdminUsername = req.user ? req.user.username : null;
     let users = [];
@@ -130,7 +171,7 @@ exports.getAllUsers = async (req, res) => {
 };
 
 // Get statistics
-exports.getStatistics = async (req, res) => {
+exports.getStatistics = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalRestaurants = await Restaurant.countDocuments();
@@ -157,7 +198,7 @@ const expectsJson = (req) => {
 };
 
 // Delete user
-exports.deleteUser = async (req, res) => {
+exports.deleteUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     await User.deleteOne({ _id: userId });
@@ -173,7 +214,7 @@ exports.deleteUser = async (req, res) => {
 };
 
 // Suspend user
-exports.suspendUser = async (req, res) => {
+exports.suspendUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     const { suspensionEndDate, suspensionReason } = req.body || {};
@@ -220,7 +261,7 @@ exports.suspendUser = async (req, res) => {
 };
 
 // Unsuspend user
-exports.unsuspendUser = async (req, res) => {
+exports.unsuspendUser = async (req, res, next) => {
   try {
     const userId = req.params.id;
     await User.updateOne(
@@ -245,7 +286,7 @@ exports.unsuspendUser = async (req, res) => {
 };
 
 // 🌟 FIX: Edit admin profile
-exports.editProfile = async (req, res) => {
+exports.editProfile = async (req, res, next) => {
   try {
     const currentAdminUsername = req.user
       ? req.user.username
@@ -295,6 +336,11 @@ exports.editProfile = async (req, res) => {
 
     const updateData = { username, email };
     if (newpassword && newpassword.trim() !== "") {
+      if(newpassword.time().length<6){
+      return res.status(400).json({
+  message: "password must be at least 6 letters"
+});
+      }
       updateData.password = await bcrypt.hash(newpassword.trim(), 10);
     }
 
@@ -316,7 +362,7 @@ exports.editProfile = async (req, res) => {
 };
 
 // 🌟 FIX: Change Admin Password
-exports.changePassword = async (req, res) => {
+exports.changePassword = async (req, res, next) => {
   const currentAdminUsername = req.session.username; // Use session for identity
   if (!currentAdminUsername)
     return res.status(401).json({ error: "Unauthorized" });
@@ -326,6 +372,12 @@ exports.changePassword = async (req, res) => {
     if (!currentPassword || !newPassword)
       return res.status(400).json({ error: "Missing password fields" });
 
+    if(newPassword.trim().length<6){
+    return res.status(400).json({
+  message: "password must be at least 6 letters"
+});
+
+    }
     const user = await User.findOne({ username: currentAdminUsername });
     if (!user) return res.status(404).json({ error: "Admin not found" });
 
@@ -333,6 +385,7 @@ exports.changePassword = async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch)
       return res.status(401).json({ error: "Incorrect current password" });
+
 
     // 2. Hash and update new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -349,7 +402,7 @@ exports.changePassword = async (req, res) => {
 };
 
 // 🌟 FIX: Delete Admin Account
-exports.deleteAccount = async (req, res) => {
+exports.deleteAccount = async (req, res, next) => {
   const currentAdminUsername = req.session.username; // Use session for identity
   if (!currentAdminUsername) {
     if (expectsJson(req))
@@ -389,7 +442,7 @@ exports.deleteAccount = async (req, res) => {
 };
 
 // Add restaurant
-exports.postAddRestaurent = async (req, res) => {
+exports.postAddRestaurent = async (req, res, next) => {
   try {
     const {
       name,
@@ -431,7 +484,7 @@ exports.postAddRestaurent = async (req, res) => {
 };
 
 // Edit restaurant
-exports.postEditRestaurent = async (req, res) => {
+exports.postEditRestaurent = async (req, res, next) => {
   try {
     const id = req.params.id;
     const { name, location, amount } = req.body;
@@ -450,7 +503,7 @@ exports.postEditRestaurent = async (req, res) => {
 };
 
 // Suspend restaurant
-exports.suspendRestaurant = async (req, res) => {
+exports.suspendRestaurant = async (req, res, next) => {
   try {
     const id = req.params.id;
     const { suspensionEndDate, suspensionReason } = req.body || {};
@@ -498,7 +551,7 @@ exports.suspendRestaurant = async (req, res) => {
 };
 
 // Unsuspend restaurant
-exports.unsuspendRestaurant = async (req, res) => {
+exports.unsuspendRestaurant = async (req, res, next) => {
   try {
     const id = req.params.id;
     await Restaurant.updateOne(
@@ -525,7 +578,7 @@ exports.unsuspendRestaurant = async (req, res) => {
 };
 
 // Delete restaurant
-exports.postDeleteRestaurent = async (req, res) => {
+exports.postDeleteRestaurent = async (req, res, next) => {
   console.log("in the the admin controller delete restarant")
   try {
     const id = req.params.id;
@@ -549,7 +602,7 @@ exports.postDeleteRestaurent = async (req, res) => {
 };
 
 // Get all restaurants
-exports.getAllRestaurants = async (req, res) => {
+exports.getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     const restaurantsWithOwners = await Promise.all(
@@ -575,7 +628,7 @@ exports.getAllRestaurants = async (req, res) => {
 };
 
 // Accept restaurant request
-exports.getaceptreq = async (req, res) => {
+exports.getaceptreq = async (req, res, next) => {
   try {
     const ownername = req.params.owner_username;
     console.log(ownername)
@@ -586,8 +639,11 @@ exports.getaceptreq = async (req, res) => {
 
     const newRestaurant = new Restaurant({
       name: request.name,
-      location: request.city,
+      location: request.location, // Full address including city
+      city: request.city, // City for filtering
       amount: request.amount,
+      cuisine: request.cuisineTypes || [], // Transfer cuisine types
+      image: request.image, // Transfer image
       created_at: new Date(),
     });
     await newRestaurant.save();
@@ -616,7 +672,7 @@ exports.getaceptreq = async (req, res) => {
   }
 };
 
-exports.getrejectreq = async (req, res) => {
+exports.getrejectreq = async (req, res, next) => {
   try {
     const ownername = req.params.owner_username;
     const request = await RestaurantRequest.findOne({
@@ -632,7 +688,7 @@ exports.getrejectreq = async (req, res) => {
   }
 };
 
-exports.getAllRequests = async (req, res) => {
+exports.getAllRequests = async (req, res, next) => {
   try {
     const requests = await RestaurantRequest.find();
     res.json(requests);
@@ -642,7 +698,7 @@ exports.getAllRequests = async (req, res) => {
   }
 };
 
-exports.getPublicRestaurants = async (req, res) => {
+exports.getPublicRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
     res.json(restaurants);
@@ -652,7 +708,7 @@ exports.getPublicRestaurants = async (req, res) => {
   }
 };
 
-exports.getRecentActivities = async (req, res) => {
+exports.getRecentActivities = async (req, res, next) => {
   try {
     const activities = [];
 

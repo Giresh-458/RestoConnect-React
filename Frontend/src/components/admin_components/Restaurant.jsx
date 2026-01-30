@@ -126,7 +126,7 @@ export function Restaurant({ searchTerm }) {
                     <div className={styles.email}>{ownerInfo.email}</div>
                   </td>
                   <td className={styles.amountPaid}>
-                    ${restaurant.amount || 0}
+                    ₹{restaurant.amount || 0}
                   </td>
                   <td className={styles.actions}>
                     <RestaurantEdit Dispatch={Dispatch} restaurant={restaurant} />

@@ -4,7 +4,7 @@ import { getFavourites } from "../util/favourites";
 import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
-import { replaceCart } from "../store/CartSlice";
+import { replaceCart, setRestaurant } from "../store/CartSlice";
 
 export async function loader() {
   const role = await isLogin();
@@ -25,7 +25,7 @@ export const DashBoardPage = () => {
   const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
   const [weeklySpending, setWeeklySpending] = useState(Array(7).fill(0));
-  const [visitFrequency, setVisitFrequency] = useState([0, 0, 0, 0]);
+  const [orderFrequency, setOrderFrequency] = useState([0, 0, 0, 0]);
   const [feedbackStats, setFeedbackStats] = useState({
     satisfactionRate: 0,
     totalReviews: 0,
@@ -69,9 +69,9 @@ export const DashBoardPage = () => {
   const formatCurrency = (amount) => {
     const numeric = typeof amount === "number" ? amount : Number(amount);
     if (Number.isNaN(numeric)) {
-      return "$0.00";
+      return "₹0.00";
     }
-    return `$${numeric.toFixed(2)}`;
+    return `₹${numeric.toFixed(2)}`;
   };
 
   const formatReviewTimestamp = (value) => {
@@ -128,7 +128,8 @@ export const DashBoardPage = () => {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   // Refetch favorites when window regains focus (e.g., returning from another tab/window)
@@ -153,7 +154,7 @@ export const DashBoardPage = () => {
           headers: {
             Accept: "application/json",
           },
-        }
+        },
       );
 
       if (response.status === 401) {
@@ -195,29 +196,29 @@ export const DashBoardPage = () => {
       setRecentOrders(recent);
       setPastOrders(past);
       setFavoriteRestaurants(
-        Array.isArray(data.favoriteRestaurants) ? data.favoriteRestaurants : []
+        Array.isArray(data.favoriteRestaurants) ? data.favoriteRestaurants : [],
       );
       setUpcomingReservations(
         Array.isArray(data.upcomingReservations)
           ? data.upcomingReservations
-          : []
+          : [],
       );
       setPastReservations(
-        Array.isArray(data.pastReservations) ? data.pastReservations : []
+        Array.isArray(data.pastReservations) ? data.pastReservations : [],
       );
       setWeeklySpending(
         Array.isArray(data.weeklySpending) && data.weeklySpending.length === 7
           ? data.weeklySpending.map((value) =>
-              Number.isFinite(Number(value)) ? Number(value) : 0
+              Number.isFinite(Number(value)) ? Number(value) : 0,
             )
-          : Array(7).fill(0)
+          : Array(7).fill(0),
       );
-      setVisitFrequency(
-        Array.isArray(data.visitFrequency) && data.visitFrequency.length === 4
-          ? data.visitFrequency.map((value) =>
-              Number.isFinite(Number(value)) ? Number(value) : 0
+      setOrderFrequency(
+        Array.isArray(data.orderFrequency) && data.orderFrequency.length === 4
+          ? data.orderFrequency.map((value) =>
+              Number.isFinite(Number(value)) ? Number(value) : 0,
             )
-          : [0, 0, 0, 0]
+          : [0, 0, 0, 0],
       );
       setFeedbackStats({
         satisfactionRate: data.feedbackStats?.satisfactionRate ?? 0,
@@ -227,18 +228,18 @@ export const DashBoardPage = () => {
           : [],
       });
       setNotifications(
-        Array.isArray(data.notifications) ? data.notifications : []
+        Array.isArray(data.notifications) ? data.notifications : [],
       );
       setEmailNotificationsEnabled(
         typeof data.emailNotificationsEnabled === "boolean"
           ? data.emailNotificationsEnabled
-          : true
+          : true,
       );
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       setFetchError(
-        "We had trouble loading your dashboard. Please refresh to try again."
+        "We had trouble loading your dashboard. Please refresh to try again.",
       );
       setLoading(false);
     }
@@ -248,11 +249,11 @@ export const DashBoardPage = () => {
     try {
       console.log("Starting to fetch favorite dishes...");
       setLoadingFavorites(true);
-      
+
       // Backend now returns full dish details with restaurant info
       const favoriteDishes = await getFavourites();
       console.log("Received favorite dishes:", favoriteDishes);
-      
+
       if (!Array.isArray(favoriteDishes)) {
         console.warn("Invalid favorites response format:", favoriteDishes);
         setFavoriteDishes([]);
@@ -260,7 +261,9 @@ export const DashBoardPage = () => {
       }
 
       // Backend already returns full dish details, so use them directly
-      const dishes = favoriteDishes.filter(dish => dish !== null && dish !== undefined);
+      const dishes = favoriteDishes.filter(
+        (dish) => dish !== null && dish !== undefined,
+      );
       console.log("Processed favorite dishes:", dishes);
       setFavoriteDishes(dishes);
     } catch (error) {
@@ -317,14 +320,14 @@ export const DashBoardPage = () => {
   const maxWeeklySpending = weeklyAmounts.length
     ? Math.max(...weeklyAmounts, 0)
     : 0;
-  const monthlyVisits = visitFrequency.reduce((sum, count) => sum + count, 0);
-  const visitGoal = 12;
+  const monthlyOrders = orderFrequency.reduce((sum, count) => sum + count, 0);
+  const orderGoal = 12;
   const donutCircumference = 314;
-  const visitProgress = Math.min(
-    visitGoal === 0 ? 0 : monthlyVisits / visitGoal,
-    1
+  const orderProgress = Math.min(
+    orderGoal === 0 ? 0 : monthlyOrders / orderGoal,
+    1,
   );
-  const visitDashOffset = donutCircumference * (1 - visitProgress);
+  const orderDashOffset = donutCircumference * (1 - orderProgress);
   const weekLabels = ["Week 1", "Week 2", "Week 3", "Week 4"];
   const visitLegendColors = ["#10b981", "#fbbf24", "#f59e0b", "#e5e7eb"];
 
@@ -367,7 +370,7 @@ export const DashBoardPage = () => {
           },
           credentials: "include",
           body: JSON.stringify({ enabled: nextValue }),
-        }
+        },
       );
       if (response.status === 401) {
         navigate("/login?message=Please login again");
@@ -383,7 +386,7 @@ export const DashBoardPage = () => {
     } catch (error) {
       console.error("Error updating email notifications:", error);
       alert(
-        "Could not update email notification preference. Please try again."
+        "Could not update email notification preference. Please try again.",
       );
       setEmailNotificationsEnabled((prev) => !prev);
     } finally {
@@ -413,15 +416,12 @@ export const DashBoardPage = () => {
       return;
     }
 
-    const recordId = entity.recordId || null;
-
-    if (!recordId && entity.restId) {
-      navigate(`/customer/restaurant/${entity.restId}`);
-      return;
-    }
+    // Use recordId (which is the MongoDB _id) for the reorder request
+    const recordId = entity.recordId || entity._id || entity.id;
 
     if (!recordId) {
-      navigate("/customer/order");
+      console.error("No valid order ID found:", entity);
+      alert("Could not identify order. Please try again.");
       return;
     }
 
@@ -435,7 +435,7 @@ export const DashBoardPage = () => {
             Accept: "application/json",
           },
           credentials: "include",
-        }
+        },
       );
 
       if (response.status === 401) {
@@ -444,7 +444,10 @@ export const DashBoardPage = () => {
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to reorder (${response.status})`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Failed to reorder (${response.status})`,
+        );
       }
 
       const data = await response.json();
@@ -452,18 +455,79 @@ export const DashBoardPage = () => {
         throw new Error(data.error || "Failed to reorder");
       }
 
-      if (Array.isArray(data.items)) {
-        dispatch(replaceCart(data.items));
+      let items = Array.isArray(data.items) ? data.items : [];
+
+      let needsMenu = items.some((item) => !item.name || !item.price);
+      if (needsMenu && data.restaurant?.id) {
+        try {
+          const menuResp = await fetch(
+            `http://localhost:3000/api/customer/menu/${data.restaurant.id}`,
+            { credentials: "include" },
+          );
+          if (menuResp.ok) {
+            const menuData = await menuResp.json();
+            const menuDishes = Array.isArray(menuData.dishes)
+              ? menuData.dishes
+              : [];
+
+            const grouped = {};
+            for (const item of items) {
+              let dish = menuDishes.find(
+                (d) =>
+                  d.id === item.id ||
+                  d._id === item.id ||
+                  d.id === item._id ||
+                  d._id === item._id ||
+                  String(d.id) === String(item.id) ||
+                  String(d._id) === String(item.id) ||
+                  String(d.id) === String(item._id) ||
+                  String(d._id) === String(item._id),
+              );
+              if (!dish) {
+                console.warn("Could not find menu dish for cart item", item);
+                dish = {};
+              }
+
+              const dishId =
+                dish.id || dish._id || item.id || item._id || "unknown";
+              const key = `${dishId}-${dish.price || item.price || 0}`;
+              if (!grouped[key]) {
+                grouped[key] = {
+                  ...dish,
+                  ...item,
+                  id: dish.id || item.id,
+                  _id: dish._id || item._id,
+                  name: dish.name || item.name || "Unknown",
+                  price: item.price || dish.price || 0,
+                  image: item.image || dish.image || "",
+                  quantity: item.quantity ?? 1,
+                };
+              } else {
+                grouped[key].quantity += item.quantity ?? 1;
+              }
+            }
+            items = Object.values(grouped);
+          }
+        } catch (e) {
+          // fallback: use items as-is
+        }
       }
+      dispatch(replaceCart(items));
 
       if (data.restaurant?.id) {
+        dispatch(
+          setRestaurant({
+            restId: data.restaurant.id,
+            restName: data.restaurant.name || "Restaurant",
+          }),
+        );
         navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`);
       } else {
         navigate("/customer/order");
       }
     } catch (error) {
       console.error("Error during reorder:", error);
-      alert("Could not reorder this order. Please try again.");
+      alert(`Could not reorder this order: ${error.message}`);
     } finally {
       setReorderingOrderId(null);
     }
@@ -485,7 +549,7 @@ export const DashBoardPage = () => {
             ? list.find(
                 (r) =>
                   (r.name || "").toLowerCase() ===
-                  fallbackRestaurantName.toLowerCase()
+                  fallbackRestaurantName.toLowerCase(),
               )
             : null;
           if (match && match._id) {
@@ -537,13 +601,13 @@ export const DashBoardPage = () => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file");
         return;
       }
       // Validate file size (2MB max)
       if (file.size > 2 * 1024 * 1024) {
-        alert('File size must be less than 2MB');
+        alert("File size must be less than 2MB");
         return;
       }
 
@@ -594,19 +658,19 @@ export const DashBoardPage = () => {
     try {
       // Create FormData to handle file upload
       const formData = new FormData();
-      formData.append('name', editFormData.name);
-      formData.append('email', editFormData.email);
-      formData.append('phone', editFormData.phone);
-      
+      formData.append("name", editFormData.name);
+      formData.append("email", editFormData.email);
+      formData.append("phone", editFormData.phone);
+
       // Add profile picture if selected
       if (selectedProfileFile) {
-        formData.append('profilePicture', selectedProfileFile);
+        formData.append("profilePicture", selectedProfileFile);
       }
-      
+
       // Add passwords if provided
       if (editFormData.newPassword) {
-        formData.append('newPassword', editFormData.newPassword);
-        formData.append('confirmPassword', editFormData.confirmPassword);
+        formData.append("newPassword", editFormData.newPassword);
+        formData.append("confirmPassword", editFormData.confirmPassword);
       }
 
       const response = await fetch("http://localhost:3000/api/customer/edit", {
@@ -681,18 +745,20 @@ export const DashBoardPage = () => {
           </div>
         </div>
         <div style={styles.headerRight}>
-          <button 
-            style={styles.editButton} 
+          <button
+            style={styles.editButton}
             onClick={handleEditProfileClick}
             onMouseEnter={(e) => {
               e.target.style.background = "rgba(255, 255, 255, 0.4)";
               e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+              e.target.style.boxShadow =
+                "0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
             }}
             onMouseLeave={(e) => {
               e.target.style.background = "rgba(255, 255, 255, 0.3)";
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
+              e.target.style.boxShadow =
+                "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
             }}
           >
             Edit Profile
@@ -710,12 +776,14 @@ export const DashBoardPage = () => {
             onMouseEnter={(e) => {
               e.target.style.background = "rgba(220, 38, 38, 0.9)";
               e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 6px 24px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
+              e.target.style.boxShadow =
+                "0 6px 24px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
             }}
             onMouseLeave={(e) => {
               e.target.style.background = "rgba(239, 68, 68, 0.8)";
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
+              e.target.style.boxShadow =
+                "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
             }}
           >
             Logout
@@ -750,8 +818,8 @@ export const DashBoardPage = () => {
                             index === 2
                               ? "#ff6b35"
                               : index % 2 === 0
-                              ? "#fbbf24"
-                              : "#fcd34d",
+                                ? "#fbbf24"
+                                : "#fcd34d",
                         }}
                         title={formatCurrency(amount)}
                       ></div>
@@ -761,7 +829,7 @@ export const DashBoardPage = () => {
                 </div>
                 <div style={styles.statsRow}>
                   <div>
-                    <p style={styles.statLabel}>Total Visits</p>
+                    <p style={styles.statLabel}>Total Orders</p>
                     <p style={styles.statValue}>{totalVisits}</p>
                   </div>
                   <div>
@@ -779,9 +847,9 @@ export const DashBoardPage = () => {
                 </div>
               </div>
 
-              {/* Visit Frequency */}
+              {/* Order Frequency */}
               <div style={styles.frequencySection}>
-                <h3 style={styles.sectionTitle}>Visit Frequency</h3>
+                <h3 style={styles.sectionTitle}>Order Frequency</h3>
                 <div style={styles.donutContainer}>
                   <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle
@@ -800,7 +868,7 @@ export const DashBoardPage = () => {
                       stroke="#10b981"
                       strokeWidth="20"
                       strokeDasharray={donutCircumference}
-                      strokeDashoffset={visitDashOffset}
+                      strokeDashoffset={orderDashOffset}
                       transform="rotate(-90 60 60)"
                       strokeLinecap="round"
                     />
@@ -810,7 +878,7 @@ export const DashBoardPage = () => {
                       textAnchor="middle"
                       style={styles.donutText}
                     >
-                      {monthlyVisits}
+                      {monthlyOrders}
                     </text>
                     <text
                       x="60"
@@ -818,12 +886,12 @@ export const DashBoardPage = () => {
                       textAnchor="middle"
                       style={styles.donutSubtext}
                     >
-                      Visits this month
+                      Orders this month
                     </text>
                   </svg>
                 </div>
                 <div style={styles.legend}>
-                  {visitFrequency.map((count, idx) => (
+                  {orderFrequency.map((count, idx) => (
                     <div key={weekLabels[idx]} style={styles.legendItem}>
                       <div style={styles.legendLabel}>
                         <div
@@ -835,7 +903,7 @@ export const DashBoardPage = () => {
                         <span style={styles.legendText}>{weekLabels[idx]}</span>
                       </div>
                       <span style={styles.legendCount}>
-                        {count} {count === 1 ? "visit" : "visits"}
+                        {count} {count === 1 ? "order" : "orders"}
                       </span>
                     </div>
                   ))}
@@ -911,31 +979,23 @@ export const DashBoardPage = () => {
                           style={{
                             ...styles.reorderButton,
                             opacity:
-                              reorderingOrderId ===
-                              (order.recordId || order.orderId)
-                                ? 0.7
-                                : 1,
+                              reorderingOrderId === order.recordId ? 0.7 : 1,
                             cursor:
-                              reorderingOrderId ===
-                              (order.recordId || order.orderId)
+                              reorderingOrderId === order.recordId
                                 ? "not-allowed"
                                 : "pointer",
                           }}
                           onClick={() => handleReorder(order)}
-                          disabled={
-                            reorderingOrderId ===
-                            (order.recordId || order.orderId)
-                          }
+                          disabled={reorderingOrderId === order.recordId}
                         >
-                          {reorderingOrderId ===
-                          (order.recordId || order.orderId)
+                          {reorderingOrderId === order.recordId
                             ? "Reordering..."
                             : "Reorder"}
                         </button>
                       </div>
                     </div>
                   );
-                }
+                },
               )}
               {(activeOrderTab === "recent" ? recentOrders : pastOrders)
                 .length === 0 && (
@@ -961,38 +1021,47 @@ export const DashBoardPage = () => {
             ) : favoriteDishes.length > 0 ? (
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                 <div style={styles.favoriteDishesGrid}>
-                {favoriteDishes.map((dish, index) => {
-                  console.log("Rendering favorite dish:", dish);
-                  return (
-                  <div
-                    key={dish._id || index}
-                    style={styles.dishCard}
-                    onClick={() =>
-                      (dish.restaurantId || dish.rest_id) &&
-                      navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)
-                    }
-                  >
-                    <div style={styles.dishImageContainer}>
-                      <img
-                        src={dish.image || dish.imageUrl || "https://via.placeholder.com/80"}
-                        alt={dish.name}
-                        style={styles.dishImage}
-                      />
-                    </div>
-                    <div style={styles.dishInfo}>
-                      <h4 style={styles.dishName}>{dish.name}</h4>
-                      {(dish.restaurantName || dish.restaurant) && (
-                        <p style={styles.restaurantName}>
-                          <i className="bi bi-shop"></i> {dish.restaurantName || dish.restaurant}
-                        </p>
-                      )}
-                      {dish.price && (
-                        <p style={styles.dishPrice}>${Number(dish.price).toFixed(2)}</p>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
+                  {favoriteDishes.map((dish, index) => {
+                    console.log("Rendering favorite dish:", dish);
+                    return (
+                      <div
+                        key={dish._id || index}
+                        style={styles.dishCard}
+                        onClick={() =>
+                          (dish.restaurantId || dish.rest_id) &&
+                          navigate(
+                            `/customer/restaurant/${dish.restaurantId || dish.rest_id}`,
+                          )
+                        }
+                      >
+                        <div style={styles.dishImageContainer}>
+                          <img
+                            src={
+                              dish.image ||
+                              dish.imageUrl ||
+                              "https://via.placeholder.com/80"
+                            }
+                            alt={dish.name}
+                            style={styles.dishImage}
+                          />
+                        </div>
+                        <div style={styles.dishInfo}>
+                          <h4 style={styles.dishName}>{dish.name}</h4>
+                          {(dish.restaurantName || dish.restaurant) && (
+                            <p style={styles.restaurantName}>
+                              <i className="bi bi-shop"></i>{" "}
+                              {dish.restaurantName || dish.restaurant}
+                            </p>
+                          )}
+                          {dish.price && (
+                            <p style={styles.dishPrice}>
+                              ₹{Number(dish.price).toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -1299,35 +1368,39 @@ export const DashBoardPage = () => {
               <div style={styles.formGroup}>
                 <label style={styles.formLabel}>Profile Picture</label>
                 <div style={styles.profilePicContainer}>
-                  <div 
+                  <div
                     style={{
                       ...styles.profilePicPreview,
-                      backgroundImage: profilePicPreview ? `url('${profilePicPreview}')` : 'none',
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: profilePicPreview ? 'transparent' : '#999',
+                      backgroundImage: profilePicPreview
+                        ? `url('${profilePicPreview}')`
+                        : "none",
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: profilePicPreview ? "transparent" : "#999",
                     }}
                     onClick={handleProfilePicClick}
                   >
-                    {!profilePicPreview && '📷'}
+                    {!profilePicPreview && "📷"}
                   </div>
-                  <input 
+                  <input
                     ref={fileInputRef}
-                    type="file" 
+                    type="file"
                     accept="image/jpeg,image/jpg,image/png,image/webp"
                     onChange={handleProfilePicChange}
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={handleProfilePicClick}
                     style={styles.changePicButton}
                   >
-                    {selectedProfileFile ? '✓ Image Selected' : 'Change Picture'}
+                    {selectedProfileFile
+                      ? "✓ Image Selected"
+                      : "Change Picture"}
                   </button>
                 </div>
               </div>
@@ -1387,8 +1460,10 @@ export const DashBoardPage = () => {
 
 const styles = {
   container: {
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
-    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
+    fontFamily:
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+    background:
+      "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
     backgroundSize: "400% 400%",
     animation: "gradientShift 15s ease infinite",
     animationDelay: "0s",
@@ -1413,7 +1488,8 @@ const styles = {
     padding: "20px 30px",
     borderRadius: "20px",
     marginBottom: "20px",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    boxShadow:
+      "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
     border: "1px solid rgba(255, 255, 255, 0.3)",
   },
   headerLeft: {
@@ -1491,7 +1567,8 @@ const styles = {
     fontSize: "14px",
     color: "#fff",
     fontWeight: 600,
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    boxShadow:
+      "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
     transition: "all 0.3s ease",
   },
   logoutButton: {
@@ -1505,7 +1582,8 @@ const styles = {
     cursor: "pointer",
     fontSize: "14px",
     fontWeight: 600,
-    boxShadow: "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+    boxShadow:
+      "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
     transition: "all 0.3s ease",
   },
   mainContent: {
@@ -1538,7 +1616,8 @@ const styles = {
     WebkitBackdropFilter: "blur(30px) saturate(180%)",
     padding: "24px",
     borderRadius: "20px",
-    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    boxShadow:
+      "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
     border: "1px solid rgba(255, 255, 255, 0.5)",
   },
   cardTitle: {

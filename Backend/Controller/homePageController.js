@@ -3,7 +3,7 @@ const Restaurant = require("../Model/Restaurents_model").Restaurant;
 const { User } = require("../Model/userRoleModel");
 const restaurantReq = require("../Model/restaurent_request_model");
 
-exports.getHomePage = async (req, res) => {
+exports.getHomePage = async (req, res, next) => {
   try {
     let login = req.session?.username ? true : false;
     const { city_option_home: loco, name_resaurent: name2 } = req.query;
@@ -35,15 +35,17 @@ exports.getHomePage = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in getHomePage:", err);
-    res.status(500).send("Internal Server Error");
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };
 
-exports.getRestReq = async (req, res) => {
+exports.getRestReq = async (req, res, next) => {
   res.render("restaurantRequest");
 };
 
-exports.postRestReq = async (req, res) => {
+exports.postRestReq = async (req, res, next) => {
   try {
     // Debug: Log what we're receiving
     console.log("Request body:", req.body);
@@ -56,6 +58,12 @@ exports.postRestReq = async (req, res) => {
       cuisineTypes = cuisineTypes ? [cuisineTypes] : [];
     }
 
+    // Handle operating days - might be an array or single value
+    let operatingDays = req.body.operatingDays;
+    if (!Array.isArray(operatingDays)) {
+      operatingDays = operatingDays ? [operatingDays] : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    }
+
     const {
       ownerName,
       ownerEmail,
@@ -66,6 +74,8 @@ exports.postRestReq = async (req, res) => {
       contactNumber,
       amount: amountRaw,
       additionalNotes,
+      openingTime = "09:00",
+      closingTime = "22:00",
     } = req.body;
 
     console.log("Parsed values:", {
@@ -191,6 +201,11 @@ if (existingUsername) {
       contactNumber: contactNumber || "",
       cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : [], // Ensure array
       additionalNotes: additionalNotes || "",
+      operatingHours: {
+        open: openingTime,
+        close: closingTime,
+      },
+      operatingDays: operatingDays.length > 0 ? operatingDays : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
       image: imageFilename || null, // Store restaurant image filename
     });
 
@@ -248,15 +263,14 @@ if (existingUsername) {
     });
   } catch (error) {
     console.error("Error submitting restaurant request:", error);
-    console.error("Error stack:", error.stack);
-    return res.status(500).json({
-      error: "Server error. Please try again later.",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    });
+    console.error("Error stack:", error && error.stack ? error.stack : error);
+    error.status = error.status || 500;
+    error.message = error.message || "Server error. Please try again later.";
+    return next(error);
   }
 };
 
-exports.putHomePage = async (req, res) => {
+exports.putHomePage = async (req, res, next) => {
   try {
     const user = await User.findOne({ username: req.session?.username });
     if (!user) return res.json({ valid: false });
@@ -283,6 +297,8 @@ exports.putHomePage = async (req, res) => {
     return res.json({ valid: true, role: user.role });
   } catch (err) {
     console.error("Error in putHomePage:", err);
-    res.status(500).send("Internal Server Error");
+    err.status = err.status || 500;
+    err.message = err.message || "Internal Server Error";
+    return next(err);
   }
 };

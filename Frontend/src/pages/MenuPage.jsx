@@ -14,6 +14,11 @@ import {
   removeFromFavourites,
   getFavourites,
 } from "../util/favourites";
+import {
+  getImageUrl,
+  handleImageError,
+  handleSmallImageError,
+} from "../util/imageUtils";
 import styles from "./MenuPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 
@@ -62,6 +67,10 @@ export function MenuPage() {
   const recommendedDishes = filteredDishes.slice(0, 4);
 
   const getQuantity = (dishId) => {
+    // Only show quantity if the cart items are from the current restaurant
+    if (currentRestId && currentRestId !== restIdForCart) {
+      return 0;
+    }
     const item = cartItems.find((item) => item.id === dishId);
     return item ? item.quantity : 0;
   };
@@ -69,11 +78,9 @@ export function MenuPage() {
   const handleAddItem = (dish) => {
     // If cart is empty: set restaurant and add without any prompt
     if (cartItems.length === 0) {
-      if (!currentRestId) {
-        dispatch(
-          setRestaurant({ restId: restIdForCart, restName: restaurant.name })
-        );
-      }
+      dispatch(
+        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
+      );
       dispatch(addItem({ ...dish, amount: dish.price }));
       return;
     }
@@ -91,7 +98,7 @@ export function MenuPage() {
     if (pendingDish) {
       dispatch(clearcart());
       dispatch(
-        setRestaurant({ restId: restIdForCart, restName: restaurant.name })
+        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
       );
       dispatch(addItem({ ...pendingDish, amount: pendingDish.price }));
       setPendingDish(null);
@@ -125,9 +132,11 @@ export function MenuPage() {
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const deliveryFee = 3.0;
-  const taxes = (cartTotal * 0.08).toFixed(2); // 8% tax
+  const safeCartTotal =
+    typeof cartTotal === "number" && !isNaN(cartTotal) ? cartTotal : 0;
+  const taxes = (safeCartTotal * 0.08).toFixed(2); // 8% tax
   const finalTotal = (
-    parseFloat(cartTotal) +
+    parseFloat(safeCartTotal) +
     deliveryFee +
     parseFloat(taxes)
   ).toFixed(2);
@@ -140,8 +149,8 @@ export function MenuPage() {
       try {
         const favs = await getFavourites();
         // Backend now returns array of dish objects, extract IDs
-        const favoriteIds = Array.isArray(favs) 
-          ? favs.map(dish => dish._id || dish.id || dish)
+        const favoriteIds = Array.isArray(favs)
+          ? favs.map((dish) => dish._id || dish.id || dish)
           : [];
         setFavourites(favoriteIds);
       } catch (error) {
@@ -184,12 +193,12 @@ export function MenuPage() {
     <div className={styles.menuPage}>
       <CheckoutSteps current="menu" />
       {/* Restaurant Banner */}
-      <div 
+      <div
         className={styles.restaurantBanner}
         style={{
-          backgroundImage: restaurant.image 
+          backgroundImage: restaurant.image
             ? `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6)), url("${restaurant.image}")`
-            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`
+            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`,
         }}
       >
         <div className={styles.bannerOverlay}>
@@ -330,19 +339,21 @@ export function MenuPage() {
                   {cartItems.map((item) => (
                     <div key={item.id} className={styles.orderItem}>
                       <img
-                        src={item.image || "/images/default-dish.jpg"}
+                        src={getImageUrl(item.image)}
                         alt={item.name}
                         className={styles.orderItemImage}
-                        onError={(e) => {
-                          e.target.src =
-                            "https://via.placeholder.com/60x60?text=Dish";
-                        }}
+                        onError={handleSmallImageError}
                       />
                       <div className={styles.orderItemInfo}>
                         <h4 className={styles.orderItemName}>{item.name}</h4>
                         <div className={styles.orderItemControls}>
                           <span className={styles.orderItemPrice}>
-                            ₹{item.price.toFixed(2)}
+                            ₹
+                            {(typeof item.price === "number" &&
+                            !isNaN(item.price)
+                              ? item.price
+                              : 0
+                            ).toFixed(2)}
                           </span>
                           <div className={styles.orderQuantityControls}>
                             <button
@@ -379,7 +390,7 @@ export function MenuPage() {
                 <div className={styles.orderSummaryFooter}>
                   <div className={styles.orderSummaryRow}>
                     <span>Subtotal</span>
-                    <span>₹{cartTotal.toFixed(2)}</span>
+                    <span>₹{safeCartTotal.toFixed(2)}</span>
                   </div>
                   <div className={styles.orderSummaryRow}>
                     <span>Delivery Fee</span>
@@ -432,7 +443,7 @@ export function MenuPage() {
             className={styles.showOrderButton}
             onClick={() => setShowOrderSummary(true)}
           >
-            🛒 {cartItemCount} items - ₹{cartTotal.toFixed(2)}
+            🛒 {cartItemCount} items - ₹{safeCartTotal.toFixed(2)}
           </button>
         )}
       </div>
@@ -485,12 +496,10 @@ function DishCard({
     <div className={styles.dishCard}>
       <div className={styles.dishImageContainer}>
         <img
-          src={dish.image || "/images/default-dish.jpg"}
+          src={getImageUrl(dish.image)}
           alt={dish.name}
           className={styles.dishImage}
-          onError={(e) => {
-            e.target.src = "https://via.placeholder.com/300x200?text=Dish";
-          }}
+          onError={handleImageError}
         />
         <button
           className={`${styles.favouriteButton} ${
@@ -518,6 +527,11 @@ function DishCard({
         <h3 className={styles.dishName}>{dish.name}</h3>
         {dish.description && (
           <p className={styles.dishDescription}>{dish.description}</p>
+        )}
+        {dish.serves && (
+          <p className={styles.dishServes}>
+            Serves {dish.serves} {dish.serves === 1 ? "person" : "people"}
+          </p>
         )}
         <div className={styles.dishFooter}>
           <span className={styles.dishPrice}>₹{dish.price}</span>
@@ -555,7 +569,7 @@ export async function loader({ request, params }) {
       `http://localhost:3000/api/customer/menu/${params.id || params.restid}`,
       {
         credentials: "include",
-      }
+      },
     );
 
     if (!response.ok) {

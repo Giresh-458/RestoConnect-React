@@ -76,10 +76,7 @@ export function CustomerHomepage() {
         credentials: "include",
       });
       const data = await response.json();
-      const uniqueLocations = [
-        ...new Set(data.map((r) => r.location).filter(Boolean)),
-      ];
-      setLocations(["All", ...uniqueLocations]);
+      setLocations(data.cities || ["All"]); // Use cities from API response
     } catch (error) {
       console.error("Error fetching locations:", error);
     }
@@ -307,7 +304,7 @@ export function CustomerHomepage() {
                       {dish.price && (
                         <div className={styles.ratingBadge}>
                           <span className={styles.ratingValue}>
-                            ${dish.price.toFixed(2)}
+                            ₹{dish.price.toFixed(2)}
                           </span>
                         </div>
                       )}

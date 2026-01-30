@@ -1,14 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const ownerController = require("../Controller/ownerController");
+const { uploadDishImage, handleUploadErrors } = require("../util/fileUpload");
 
 
 router.get("/", ownerController.getOwnerHomepage);
 router.get("/dashboard", ownerController.getownerDashboard_dashboard);
 router.get("/dashboard/ownerdashboard", ownerController.getownerDashboard_dashboard);
 router.get("/menuManagement", ownerController.getMenuManagement);
-router.post("/menuManagement/add", ownerController.addProduct);
-router.post("/menuManagement/edit/:id", ownerController.editProduct);
+router.post("/menuManagement/add", uploadDishImage, handleUploadErrors, ownerController.addProduct);
+router.post("/menuManagement/edit/:id", uploadDishImage, handleUploadErrors, ownerController.editProduct);
 router.post("/menuManagement/delete/:id", ownerController.deleteProduct);
 
 router.get('/orders', ownerController.getOrders);

@@ -111,6 +111,31 @@ export function Settings(props) {
     const confirmPassword = form.elements.confirmPassword.value;
     const newPassword = form.elements.newPassword.value;
 
+    // Validation: Check if fields are empty
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPwdError('All fields are required');
+      setSubmittingPwd(false);
+      return;
+    }
+
+    // Validation: Password must be at least 8 characters
+    if (newPassword.length < 8) {
+      setPwdError('Password must be at least 8 characters long');
+      setSubmittingPwd(false);
+      return;
+    }
+
+    // Validation: Password must contain uppercase, lowercase, and number
+    const hasUppercase = /[A-Z]/.test(newPassword);
+    const hasLowercase = /[a-z]/.test(newPassword);
+    const hasNumber = /\d/.test(newPassword);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber) {
+      setPwdError('Password must contain uppercase, lowercase, and number');
+      setSubmittingPwd(false);
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setPwdError('New passwords do not match');
       form.reset();
@@ -128,7 +153,7 @@ export function Settings(props) {
         setPwdMsg('Password changed successfully');
       } else {
         const data = await res.json().catch(() => ({}));
-        setPwdError(data.error || 'Error changing password');
+        setPwdError(data.message || 'Error changing password');
       }
     }).catch(err => {
       console.error(err);

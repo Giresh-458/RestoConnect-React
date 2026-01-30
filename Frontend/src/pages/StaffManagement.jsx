@@ -285,6 +285,36 @@ const StaffManagement = () => {
       <h1>Staff Management</h1>
 
       <div className="management-sections">
+        {/* Staff List Table */}
+        <div className="section staff-list-section">
+          <h2>Staff Members</h2>
+          {staffList.length === 0 ? (
+            <p>No staff members found.</p>
+          ) : (
+            <div className="staff-table-wrapper">
+              <table className="staff-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Shifts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffList.map((staff) => (
+                    <tr key={staff._id}>
+                      <td>{staff.name || 'N/A'}</td>
+                      <td>{staff.username}</td>
+                      <td><span className="staff-status-badge">Active</span></td>
+                      <td>{staff.shifts?.length || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         {/* Add Task Section */}
         <div className="section">
           <h2>Add Task</h2>
