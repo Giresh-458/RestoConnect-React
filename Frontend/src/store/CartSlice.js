@@ -91,14 +91,25 @@ const cartSlice = createSlice({
     },
     replaceCart: (state, action) => {
       const items = Array.isArray(action.payload) ? action.payload : [];
-      state.dishes = items.map((item) => ({
-        ...item,
-        quantity: item.quantity ?? 1,
-        amount: item.amount ?? item.price ?? 0,
-      }));
+      state.dishes = items.map((item) => {
+        let quantity = item.quantity ?? 1;
+        let price = item.price ?? 0;
+        let amount = price;
+
+        if (!item.price && item.amount && quantity) {
+          amount = item.amount / quantity;
+        } else if (item.amount && item.price === undefined) {
+          amount = item.amount;
+        }
+        return {
+          ...item,
+          quantity,
+          amount,
+        };
+      });
       state.amount = state.dishes.reduce(
         (total, item) => total + (item.amount ?? 0) * (item.quantity ?? 1),
-        0
+        0,
       );
       if (!state.reservation) {
         state.reservation = {};
