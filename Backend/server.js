@@ -6,6 +6,8 @@ const cookieParser = require("cookie-parser");
 const session = require("express-session");
 const { connectDB } = require("./util/database");
 const cors = require("cors");
+const morgan = require("morgan");
+const rfs = require("rotating-file-stream");
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
 const { Restaurant } = require("./Model/Restaurents_model.js");
@@ -61,7 +63,21 @@ const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
 const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
 
-connectDB();
+connectDB()
+
+// Logging setup
+const programLogStream = rfs.createStream('programlog.txt', {
+  interval: '1d', // rotate daily
+  path: path.join(__dirname, 'logs')
+});
+
+const errorLogStream = rfs.createStream('error.txt', {
+  interval: '1d', // rotate daily
+  path: path.join(__dirname, 'logs')
+});
+
+// Morgan middleware for logging all requests
+app.use(morgan('combined', { stream: programLogStream }));
 
 // Mount auth routes
 app.use("/api/auth", authRoutes);
@@ -158,8 +174,9 @@ app.post(
 
 // Error-handling middleware (must be added after all routes)
 app.use((err, req, res, next) => {
-  // Log full error server-side
-  console.error("Unhandled error:", err && err.stack ? err.stack : err);
+  // Log full error to error.txt
+  const errorMessage = `Unhandled error: ${err && err.stack ? err.stack : err}\n`;
+  errorLogStream.write(errorMessage);
 
   const status = err && err.status ? err.status : 500;
   const message = err && err.message ? err.message : "Internal Server Error";
