@@ -4,6 +4,7 @@ const { PasswordResetCode } = require('../Model/PasswordResetCode_model');
 const bcrypt = require('bcrypt');
 const { getProfilePicUrl } = require('../util/fileUpload');
 const { sendPasswordResetCode } = require('../util/emailService');
+const { signToken, verifyToken, AUTH_TOKEN_COOKIE } = require('../util/jwtHelper');
 
 // Validation helper functions
 const validateEmail = (email) => {
@@ -85,6 +86,16 @@ const login = async (req, res, next) => {
         // Set session
         req.session.username = user.username;
         req.session.role = user.role;
+
+        // Set JWT in httpOnly cookie (fallback when session expires; sent automatically with credentials)
+        const token = signToken({ username: user.username, role: user.role });
+        res.cookie(AUTH_TOKEN_COOKIE, token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 1000 * 60 * 60 * 24 * 30 // 30 days, match session
+        });
 
         return res.status(200).json({
             valid: true,
@@ -234,6 +245,7 @@ const logout = (req, res, next) => {
             return next(err);
         }
         res.clearCookie('connect.sid');
+        res.clearCookie(AUTH_TOKEN_COOKIE, { path: '/' });
         return res.status(200).json({ 
             success: true, 
             message: 'Logged out successfully' 
@@ -241,9 +253,10 @@ const logout = (req, res, next) => {
     });
 };
 
-// Check Session Controller
+// Check Session Controller: session first, then JWT from cookie (minimal frontend change)
 const checkSession = async (req, res, next) => {
     try {
+        // 1) Session valid (exists and not expired)
         if (req.session.username && req.session.cookie._expires > new Date()) {
             const user = await User.findOne({ username: req.session.username }).select("role");
             if (!user) {
@@ -254,6 +267,21 @@ const checkSession = async (req, res, next) => {
                 username: req.session.username,
                 role: user.role
             });
+        }
+        // 2) Session expired/missing: check JWT in cookie (not expired)
+        const token = req.cookies?.[AUTH_TOKEN_COOKIE];
+        if (token) {
+            const payload = verifyToken(token);
+            if (payload?.username) {
+                const user = await User.findOne({ username: payload.username }).select("role");
+                if (user) {
+                    return res.json({
+                        valid: true,
+                        username: payload.username,
+                        role: user.role
+                    });
+                }
+            }
         }
         res.json({ valid: false });
     } catch (err) {

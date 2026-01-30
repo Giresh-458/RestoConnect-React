@@ -61,6 +61,7 @@ const menuController = require("./Controller/menuController.js");
 const staffController = require("./Controller/staffController.js");
 const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
+const { verifyToken, AUTH_TOKEN_COOKIE } = require("./util/jwtHelper.js");
 const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
 
 connectDB()
@@ -85,6 +86,7 @@ app.use("/api/auth", authRoutes);
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) console.log(err);
+    res.clearCookie(AUTH_TOKEN_COOKIE, { path: "/" });
     res.redirect("/");
   });
 });
@@ -128,7 +130,7 @@ app.get("/", async (req, res, next) => {
   }
 });
 
-app.post("/", validation, async (req, res, next) => {
+/*app.post("/", validation, async (req, res, next) => {
   try {
     await homepageController.putHomePage(req, res, next);
   } catch (err) {
@@ -136,7 +138,7 @@ app.post("/", validation, async (req, res, next) => {
     err.message = err.message || "Internal Server Error";
     return next(err);
   }
-});
+});*/
 
 app.get(
   "/menu/:restid",
@@ -188,20 +190,21 @@ app.use((err, req, res, next) => {
   res.status(status).json({ message, url: req.originalUrl });
 });
 
+// Legacy /check-session: same logic as /api/auth/check-session (session then JWT)
 app.get("/check-session", async (req, res) => {
   try {
     if (req.session.username && req.session.cookie._expires > new Date()) {
-      const user = await User.findOne({
-        username: req.session.username,
-      }).select("role");
-      if (!user) {
-        return res.json({ valid: false });
+      const user = await User.findOne({ username: req.session.username }).select("role");
+      if (!user) return res.json({ valid: false });
+      return res.json({ valid: true, username: req.session.username, role: user.role });
+    }
+    const token = req.cookies?.[AUTH_TOKEN_COOKIE];
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload?.username) {
+        const user = await User.findOne({ username: payload.username }).select("role");
+        if (user) return res.json({ valid: true, username: payload.username, role: user.role });
       }
-      return res.json({
-        valid: true,
-        username: req.session.username,
-        role: user.role,
-      });
     }
     res.json({ valid: false });
   } catch (err) {
