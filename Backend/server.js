@@ -4,6 +4,7 @@ const path = require("path");
 const bodyparser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
+const csrf = require("csurf");
 const { connectDB } = require("./util/database");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -47,6 +48,9 @@ app.use(
   })
 );
 
+const csrfProtection = csrf();
+app.use(csrfProtection);
+
 const authRoutes = require("./routes/authRoutes.js");
 const loginPage = require("./routes/loginPage.js");
 const customerRouter = require("./routes/customer.js");
@@ -82,6 +86,11 @@ app.use(morgan('combined', { stream: programLogStream }));
 
 // Mount auth routes
 app.use("/api/auth", authRoutes);
+
+// CSRF token endpoint
+app.get("/api/csrf-token", (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -173,6 +182,14 @@ app.post(
     }
   }
 );
+
+// CSRF error handling
+app.use((err, req, res, next) => {
+  if (err && err.code === "EBADCSRFTOKEN") {
+    return res.status(403).json({ message: "Invalid CSRF token" });
+  }
+  return next(err);
+});
 
 // Error-handling middleware (must be added after all routes)
 app.use((err, req, res, next) => {
