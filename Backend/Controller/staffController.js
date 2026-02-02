@@ -317,21 +317,45 @@ exports.postRemoveReservation = async (req, res, next) => {
 exports.postAddTable = async (req, res, next) => {
   try {
     const { number, capacity } = req.body;
+
+    // Recover rest_id if missing - ensure it's always set for staff
+    if (!req.session.rest_id && req.session.username) {
+      const staffUser = await User.findOne({ username: req.session.username });
+      if (staffUser && staffUser.rest_id) {
+        req.session.rest_id = staffUser.rest_id;
+      }
+    }
+
+    if (!req.session.rest_id) {
+      return res.status(400).json({ error: "No restaurant ID in session" });
+    }
+
+    const tableNumber = Number(number);
+    const tableCapacity = Number(capacity);
+
+    if (!Number.isInteger(tableNumber) || tableNumber <= 0) {
+      return res.status(400).json({ error: "Table number must be a positive integer" });
+    }
+
+    if (!Number.isInteger(tableCapacity) || tableCapacity <= 0) {
+      return res.status(400).json({ error: "Capacity must be a positive integer" });
+    }
+
     const rest = await Restaurant.findById(req.session.rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
     // Check if table number already exists
-    const existingTable = rest.tables.find(t => t.number == number);
+    const existingTable = rest.tables.find(t => Number(t.number) === tableNumber);
     if (existingTable) {
       return res.status(400).json({ error: "Table number already exists" });
     }
 
     // Add new table
     rest.tables.push({
-      number: number,
-      seats: capacity || 4,
+      number: tableNumber,
+      seats: tableCapacity,
       status: "Available"
     });
 
