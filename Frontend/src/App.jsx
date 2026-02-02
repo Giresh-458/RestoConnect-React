@@ -42,6 +42,7 @@ import {action as restaurantApplicationAction} from './pages/RestaurantApplicati
 
 import { logout } from "./util/auth";
 import { isLogin } from "./util/auth";
+import ErrorPage from "./pages/ErrorPage";
 
 
 const router = createBrowserRouter([
@@ -109,8 +110,11 @@ const router = createBrowserRouter([
     path: "/restaurant-application",
     element: <RestaurantApplication></RestaurantApplication>,
     action: restaurantApplicationAction
+  },
+  {
+    path: "*",
+    element: <ErrorPage></ErrorPage>
   }
- 
 ]
 );
 
