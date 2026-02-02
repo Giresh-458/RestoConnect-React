@@ -1,0 +1,336 @@
+/* ============================================
+   404 Error Page - Premium Styling
+   ============================================ */
+
+/* Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 77, 109, 0.3), inset 0 -6px 18px rgba(0, 0, 0, 0.03);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 77, 109, 0.5), inset 0 -6px 18px rgba(0, 0, 0, 0.03);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes wobble {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+
+/* Main Container */
+.error-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background decorative elements */
+.error-page::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 77, 109, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  top: -100px;
+  right: -100px;
+  z-index: 0;
+}
+
+.error-page::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  bottom: -50px;
+  left: -50px;
+  z-index: 0;
+}
+
+/* Card Container */
+.error-card {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 60px 40px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 0 1px rgba(255, 255, 255, 0.5);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  animation: slide-up 0.6s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Illustration Circle */
+.error-illustration {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 30px auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fff6f6 0%, #ffecec 40%, #ffdede 100%);
+  box-shadow: 0 0 20px rgba(255, 77, 109, 0.3);
+  animation: float 3s ease-in-out infinite, pulse-glow 2s ease-in-out infinite;
+  position: relative;
+}
+
+.error-illustration::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #ff7a59, #ff4d6d, #ff7a59);
+  opacity: 0;
+  animation: shimmer 2s infinite;
+  z-index: -1;
+}
+
+/* Error Code */
+.code {
+  font-size: 72px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff7a59 0%, #ff4d6d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 4px;
+  margin: 0;
+  display: block;
+  font-family: 'Courier New', monospace;
+}
+
+/* Friendly emoji inside the illustration */
+.emoji {
+  display: block;
+  font-size: 44px;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.25));
+  transform-origin: center;
+  animation: wobble 3s ease-in-out infinite;
+}
+
+/* Title */
+.title {
+  font-size: 32px;
+  margin: 24px 0 12px 0;
+  color: #0f172a;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Message/Description */
+.message {
+  color: #64748b;
+  margin-bottom: 32px;
+  line-height: 1.6;
+  font-size: 16px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Actions Container */
+.actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 40px;
+}
+
+/* Buttons */
+.btn {
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-size: 15px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Primary Button */
+.btn-primary {
+  background: linear-gradient(135deg, #ff7a59 0%, #ff4d6d 100%);
+  color: #fff;
+  box-shadow: 
+    0 10px 30px rgba(255, 77, 109, 0.3),
+    0 0 0 0 rgba(255, 77, 109, 0.1);
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 15px 40px rgba(255, 77, 109, 0.4),
+    0 0 0 0 rgba(255, 77, 109, 0.2);
+  background: linear-gradient(135deg, #ff8a6b 0%, #ff5d7d 100%);
+}
+
+.btn-primary:active {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 20px rgba(255, 77, 109, 0.3),
+    0 0 0 0 rgba(255, 77, 109, 0.1);
+}
+
+/* Secondary/Ghost Button */
+.btn-ghost {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 2px solid #cbd5e1;
+  color: #0f172a;
+  font-weight: 700;
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-ghost:hover {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  transform: translateY(-4px);
+  border-color: #94a3b8;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+}
+
+.btn-ghost:active {
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .error-card {
+    padding: 48px 32px;
+  }
+
+  .code {
+    font-size: 56px;
+  }
+
+  .title {
+    font-size: 28px;
+    margin: 20px 0 10px 0;
+  }
+
+  .message {
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .error-illustration {
+    width: 160px;
+    height: 160px;
+  }
+
+  .actions {
+    gap: 12px;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .error-page {
+    padding: 24px 16px;
+  }
+
+  .error-card {
+    padding: 36px 24px;
+    border-radius: 16px;
+  }
+
+  .code {
+    font-size: 48px;
+    letter-spacing: 2px;
+  }
+
+  .title {
+    font-size: 24px;
+    margin: 16px 0 8px 0;
+  }
+
+  .message {
+    font-size: 14px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .error-illustration {
+    width: 140px;
+    height: 140px;
+    margin-bottom: 24px;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .btn-primary:hover,
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+  }
+}
