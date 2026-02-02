@@ -5,6 +5,7 @@ import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
 import { replaceCart, setRestaurant } from "../store/CartSlice";
+import styles from "./DashBoardPage.module.css";
 
 export async function loader() {
   const role = await isLogin();
@@ -310,7 +311,7 @@ export const DashBoardPage = () => {
   };
 
   if (loading) {
-    return <div style={styles.loading}>Loading...</div>;
+    return <div className={styles.loading}>Loading...</div>;
   }
 
   const weeklyAmounts = weeklySpending.map((value) => {
@@ -712,145 +713,110 @@ export const DashBoardPage = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <style>{`
-        @keyframes gradientShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-5px); }
-        }
-      `}</style>
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <div style={styles.userSection}>
+    <div className={styles.container}>
+      {/* Hero Header */}
+      <div className={styles.heroHeader}>
+        <div className={styles.heroContent}>
+          <div className={styles.heroLeft}>
             <img
               src={userData?.img_url || "/default-avatar.png"}
               alt="User"
-              style={styles.avatar}
+              className={styles.avatar}
             />
-            <div>
-              <h1 style={styles.welcomeText}>
+            <div className={styles.userInfo}>
+              <h1 className={styles.welcomeText}>
                 Welcome back, {userData?.name} 👋
               </h1>
-              <p style={styles.subtitle}>Your meal moments await!</p>
-              <p style={styles.orderCount}>
+              <p className={styles.subtitle}>Your meal moments await!</p>
+              <p className={styles.orderCount}>
                 {userData?.totalOrders || 0} Total Orders
               </p>
             </div>
           </div>
-        </div>
-        <div style={styles.headerRight}>
-          <button
-            style={styles.editButton}
-            onClick={handleEditProfileClick}
-            onMouseEnter={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.4)";
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow =
-                "0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "rgba(255, 255, 255, 0.3)";
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow =
-                "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
-            }}
-          >
-            Edit Profile
-          </button>
-          <button
-            style={styles.logoutButton}
-            onClick={async () => {
-              try {
-                await logout();
-              } catch (e) {
-                console.error("Logout failed", e);
-              }
-              navigate("/login");
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "rgba(220, 38, 38, 0.9)";
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow =
-                "0 6px 24px rgba(239, 68, 68, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "rgba(239, 68, 68, 0.8)";
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow =
-                "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)";
-            }}
-          >
-            Logout
-          </button>
+          <div className={styles.heroRight}>
+            <button
+              className={styles.editButton}
+              onClick={handleEditProfileClick}
+            >
+              Edit Profile
+            </button>
+            <button
+              className={styles.logoutButton}
+              onClick={async () => {
+                try {
+                  await logout();
+                } catch (e) {
+                  console.error("Logout failed", e);
+                }
+                navigate("/login");
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
-      {fetchError && <div style={styles.dashboardError}>{fetchError}</div>}
+      {fetchError && <div className={styles.dashboardError}>{fetchError}</div>}
 
       {/* Main Content */}
-      <div style={styles.mainContent}>
+      <div className={styles.mainContent}>
         {/* Left Section */}
-        <div style={styles.leftSection}>
+        <div className={styles.leftSection}>
           {/* Dine-In Insights */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Dine-In Insights</h2>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Dine-In Insights</h2>
 
-            <div style={styles.insightsRow}>
+            <div className={styles.insightsRow}>
               {/* Weekly Spending */}
-              <div style={styles.spendingSection}>
-                <h3 style={styles.sectionTitle}>Weekly Spending</h3>
-                <div style={styles.chartContainer}>
+              <div className={styles.spendingSection}>
+                <h3 className={styles.sectionTitle}>Weekly Spending</h3>
+                <div className={styles.chartContainer}>
                   {weeklyAmounts.map((amount, index) => (
-                    <div key={index} style={styles.barContainer}>
+                    <div key={index} className={styles.barContainer}>
                       <div
+                        className={styles.bar}
                         style={{
-                          ...styles.bar,
                           height: maxWeeklySpending
                             ? `${(amount / maxWeeklySpending) * 100}%`
                             : "0%",
                           backgroundColor:
                             index === 2
-                              ? "#ff6b35"
+                              ? "#667eea"
                               : index % 2 === 0
-                                ? "#fbbf24"
-                                : "#fcd34d",
+                                ? "#764ba2"
+                                : "#8b5cf6",
                         }}
                         title={formatCurrency(amount)}
                       ></div>
-                      <span style={styles.barLabel}>{getDayName(index)}</span>
+                      <span className={styles.barLabel}>{getDayName(index)}</span>
                     </div>
                   ))}
                 </div>
-                <div style={styles.statsRow}>
-                  <div>
-                    <p style={styles.statLabel}>Total Orders</p>
-                    <p style={styles.statValue}>{totalVisits}</p>
+                <div className={styles.statsRow}>
+                  <div className={styles.statItem}>
+                    <p className={styles.statLabel}>Total Orders</p>
+                    <p className={styles.statValue}>{totalVisits}</p>
                   </div>
-                  <div>
-                    <p style={styles.statLabel}>Avg Spend</p>
-                    <p style={styles.statValue}>{averageSpend}</p>
+                  <div className={styles.statItem}>
+                    <p className={styles.statLabel}>Avg Spend</p>
+                    <p className={styles.statValue}>{averageSpend}</p>
                   </div>
-                  <div>
-                    <p style={styles.statLabel}>Top Restaurant</p>
-                    <p style={styles.statValue}>{topRestaurant}</p>
+                  <div className={styles.statItem}>
+                    <p className={styles.statLabel}>Top Restaurant</p>
+                    <p className={styles.statValue}>{topRestaurant}</p>
                   </div>
-                  <div>
-                    <p style={styles.statLabel}>Total Spent</p>
-                    <p style={styles.statValue}>{totalSpentDisplay}</p>
+                  <div className={styles.statItem}>
+                    <p className={styles.statLabel}>Total Spent</p>
+                    <p className={styles.statValue}>{totalSpentDisplay}</p>
                   </div>
                 </div>
               </div>
 
               {/* Order Frequency */}
-              <div style={styles.frequencySection}>
-                <h3 style={styles.sectionTitle}>Order Frequency</h3>
-                <div style={styles.donutContainer}>
+              <div className={styles.frequencySection}>
+                <h3 className={styles.sectionTitle}>Order Frequency</h3>
+                <div className={styles.donutContainer}>
                   <svg width="120" height="120" viewBox="0 0 120 120">
                     <circle
                       cx="60"
@@ -865,7 +831,7 @@ export const DashBoardPage = () => {
                       cy="60"
                       r="50"
                       fill="none"
-                      stroke="#10b981"
+                      stroke="#667eea"
                       strokeWidth="20"
                       strokeDasharray={donutCircumference}
                       strokeDashoffset={orderDashOffset}
@@ -876,7 +842,7 @@ export const DashBoardPage = () => {
                       x="60"
                       y="65"
                       textAnchor="middle"
-                      style={styles.donutText}
+                      className={styles.donutText}
                     >
                       {monthlyOrders}
                     </text>
@@ -884,25 +850,25 @@ export const DashBoardPage = () => {
                       x="60"
                       y="80"
                       textAnchor="middle"
-                      style={styles.donutSubtext}
+                      className={styles.donutSubtext}
                     >
                       Orders this month
                     </text>
                   </svg>
                 </div>
-                <div style={styles.legend}>
+                <div className={styles.legend}>
                   {orderFrequency.map((count, idx) => (
-                    <div key={weekLabels[idx]} style={styles.legendItem}>
-                      <div style={styles.legendLabel}>
+                    <div key={weekLabels[idx]} className={styles.legendItem}>
+                      <div className={styles.legendLabel}>
                         <div
+                          className={styles.legendDot}
                           style={{
-                            ...styles.legendDot,
                             backgroundColor: visitLegendColors[idx],
                           }}
                         ></div>
-                        <span style={styles.legendText}>{weekLabels[idx]}</span>
+                        <span className={styles.legendText}>{weekLabels[idx]}</span>
                       </div>
-                      <span style={styles.legendCount}>
+                      <span className={styles.legendCount}>
                         {count} {count === 1 ? "order" : "orders"}
                       </span>
                     </div>
@@ -913,12 +879,12 @@ export const DashBoardPage = () => {
           </div>
 
           {/* Order Overview */}
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <h2 style={styles.cardTitle}>Order Overview</h2>
-              <div style={styles.tabs}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Order Overview</h2>
+              <div className={styles.tabs}>
                 <button
-                  style={
+                  className={
                     activeOrderTab === "recent" ? styles.tabActive : styles.tab
                   }
                   onClick={() => setActiveOrderTab("recent")}
@@ -926,7 +892,7 @@ export const DashBoardPage = () => {
                   Ongoing Orders
                 </button>
                 <button
-                  style={
+                  className={
                     activeOrderTab === "past" ? styles.tabActive : styles.tab
                   }
                   onClick={() => setActiveOrderTab("past")}
@@ -936,30 +902,30 @@ export const DashBoardPage = () => {
               </div>
             </div>
 
-            <div style={styles.ordersList}>
+            <div className={styles.ordersList}>
               {(activeOrderTab === "recent" ? recentOrders : pastOrders).map(
                 (order, index) => {
                   const formattedStatus = formatOrderStatus(order.status);
                   return (
-                    <div key={order.recordId || index} style={styles.orderItem}>
+                    <div key={order.recordId || index} className={styles.orderItem}>
                       <img
                         src={order.image || "/dish-placeholder.png"}
                         alt={order.dishName}
-                        style={styles.orderImage}
+                        className={styles.orderImage}
                       />
-                      <div style={styles.orderInfo}>
-                        <h4 style={styles.orderName}>
+                      <div className={styles.orderInfo}>
+                        <h4 className={styles.orderName}>
                           {order.restaurant || "Restaurant"}
                         </h4>
-                        <p style={styles.orderPrice}>
+                        <p className={styles.orderPrice}>
                           {formatCurrency(order.price)}
                         </p>
-                        <p style={styles.orderMeta}>
+                        <p className={styles.orderMeta}>
                           {order.dishName || "Unknown Dish"}
                         </p>
                         <p
+                          className={styles.orderStatus}
                           style={{
-                            ...styles.orderStatus,
                             color: getOrderStatusColor(formattedStatus),
                           }}
                         >
@@ -968,16 +934,16 @@ export const DashBoardPage = () => {
                             : `Order is ${formattedStatus}`}
                         </p>
                       </div>
-                      <div style={styles.orderActions}>
+                      <div className={styles.orderActions}>
                         <button
-                          style={styles.rateButton}
+                          className={styles.rateButton}
                           onClick={() => handleRateOrder(order)}
                         >
                           Rate
                         </button>
                         <button
+                          className={styles.reorderButton}
                           style={{
-                            ...styles.reorderButton,
                             opacity:
                               reorderingOrderId === order.recordId ? 0.7 : 1,
                             cursor:
@@ -999,7 +965,7 @@ export const DashBoardPage = () => {
               )}
               {(activeOrderTab === "recent" ? recentOrders : pastOrders)
                 .length === 0 && (
-                <div style={styles.noOrdersMessage}>
+                <div className={styles.noOrdersMessage}>
                   <p>
                     No {activeOrderTab === "recent" ? "recent" : "past"} orders
                     found
@@ -1010,8 +976,8 @@ export const DashBoardPage = () => {
           </div>
 
           {/* Favorite Dishes */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Favorite Dishes</h2>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Favorite Dishes</h2>
             {loadingFavorites ? (
               <div style={{ textAlign: "center", padding: "20px" }}>
                 <div className="spinner-border text-primary" role="status">
@@ -1020,13 +986,13 @@ export const DashBoardPage = () => {
               </div>
             ) : favoriteDishes.length > 0 ? (
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                <div style={styles.favoriteDishesGrid}>
+                <div className={styles.favoriteDishesGrid}>
                   {favoriteDishes.map((dish, index) => {
                     console.log("Rendering favorite dish:", dish);
                     return (
                       <div
                         key={dish._id || index}
-                        style={styles.dishCard}
+                        className={styles.dishCard}
                         onClick={() =>
                           (dish.restaurantId || dish.rest_id) &&
                           navigate(
@@ -1034,7 +1000,7 @@ export const DashBoardPage = () => {
                           )
                         }
                       >
-                        <div style={styles.dishImageContainer}>
+                        <div className={styles.dishImageContainer}>
                           <img
                             src={
                               dish.image ||
@@ -1042,19 +1008,19 @@ export const DashBoardPage = () => {
                               "https://via.placeholder.com/80"
                             }
                             alt={dish.name}
-                            style={styles.dishImage}
+                            className={styles.dishImage}
                           />
                         </div>
-                        <div style={styles.dishInfo}>
-                          <h4 style={styles.dishName}>{dish.name}</h4>
+                        <div className={styles.dishInfo}>
+                          <h4 className={styles.dishName}>{dish.name}</h4>
                           {(dish.restaurantName || dish.restaurant) && (
-                            <p style={styles.restaurantName}>
+                            <p className={styles.restaurantName}>
                               <i className="bi bi-shop"></i>{" "}
                               {dish.restaurantName || dish.restaurant}
                             </p>
                           )}
                           {dish.price && (
-                            <p style={styles.dishPrice}>
+                            <p className={styles.dishPrice}>
                               ₹{Number(dish.price).toFixed(2)}
                             </p>
                           )}
@@ -1065,10 +1031,10 @@ export const DashBoardPage = () => {
                 </div>
               </div>
             ) : (
-              <div style={styles.emptyState}>
-                <i className="bi bi-heart" style={styles.emptyIcon}></i>
-                <p style={styles.emptyText}>No favorite dishes yet</p>
-                <p style={styles.emptySubtext}>
+              <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>❤️</div>
+                <p className={styles.emptyText}>No favorite dishes yet</p>
+                <p className={styles.emptySubtext}>
                   Save your favorite dishes to see them here
                 </p>
               </div>
@@ -1076,24 +1042,24 @@ export const DashBoardPage = () => {
           </div>
 
           {/* Table Reservations */}
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <h2 style={styles.cardTitle}>Table Reservations</h2>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Table Reservations</h2>
             </div>
 
-            <div style={styles.reservationsContainer}>
-              <div style={styles.reservationColumn}>
-                <h3 style={styles.reservationTitle}>Upcoming</h3>
+            <div className={styles.reservationsContainer}>
+              <div className={styles.reservationColumn}>
+                <h3 className={styles.reservationTitle}>Upcoming</h3>
                 {upcomingReservations.length > 0 ? (
                   upcomingReservations.map((res, index) => (
                     <div
                       key={res.id || res._id || index}
-                      style={styles.reservationItem}
+                      className={styles.reservationItem}
                     >
-                      <span style={styles.restaurantIcon}>🍽️</span>
+                      <span className={styles.restaurantIcon}>🍽️</span>
                       <div>
-                        <p style={styles.reservationName}>{res.restaurant}</p>
-                        <p style={styles.reservationDetails}>
+                        <p className={styles.reservationName}>{res.restaurant}</p>
+                        <p className={styles.reservationDetails}>
                           {formatReservationDate(res.date)}
                           {res.time ? ` at ${res.time}` : ""} ·{" "}
                           {formatGuestCount(res.guests)}
@@ -1102,25 +1068,25 @@ export const DashBoardPage = () => {
                     </div>
                   ))
                 ) : (
-                  <div style={styles.emptyState}>
+                  <div className={styles.emptyState}>
                     No upcoming reservations. Book your next table to see it
                     here.
                   </div>
                 )}
               </div>
 
-              <div style={styles.reservationColumn}>
-                <h3 style={styles.reservationTitle}>Past</h3>
+              <div className={styles.reservationColumn}>
+                <h3 className={styles.reservationTitle}>Past</h3>
                 {pastReservations.length > 0 ? (
                   pastReservations.map((res, index) => (
                     <div
                       key={res.id || res._id || `past-${index}`}
-                      style={styles.reservationItem}
+                      className={styles.reservationItem}
                     >
-                      <span style={styles.restaurantIcon}>🍽️</span>
+                      <span className={styles.restaurantIcon}>🍽️</span>
                       <div>
-                        <p style={styles.reservationName}>{res.restaurant}</p>
-                        <p style={styles.reservationDetails}>
+                        <p className={styles.reservationName}>{res.restaurant}</p>
+                        <p className={styles.reservationDetails}>
                           {formatReservationDate(res.date)}
                           {res.time ? ` at ${res.time}` : ""} ·{" "}
                           {formatGuestCount(res.guests)}
@@ -1129,7 +1095,7 @@ export const DashBoardPage = () => {
                     </div>
                   ))
                 ) : (
-                  <div style={styles.emptyState}>
+                  <div className={styles.emptyState}>
                     Past reservations will appear once you complete a booking.
                   </div>
                 )}
@@ -1139,11 +1105,11 @@ export const DashBoardPage = () => {
         </div>
 
         {/* Right Section */}
-        <div style={styles.rightSection}>
+        <div className={styles.rightSection}>
           {/* Feedback & Reviews */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Feedback & Reviews</h2>
-            <div style={styles.satisfactionContainer}>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Feedback & Reviews</h2>
+            <div className={styles.satisfactionContainer}>
               <svg width="100" height="100" viewBox="0 0 100 100">
                 <circle
                   cx="50"
@@ -1169,63 +1135,63 @@ export const DashBoardPage = () => {
                   x="50"
                   y="55"
                   textAnchor="middle"
-                  style={styles.satisfactionText}
+                  className={styles.satisfactionText}
                 >
                   {`${Math.round(Math.max(0, satisfactionRate))}%`}
                 </text>
               </svg>
-              <p style={styles.satisfactionLabel}>
+              <p className={styles.satisfactionLabel}>
                 {totalReviews > 0
                   ? `Based on your ${totalReviews} ${reviewLabel}`
                   : "Share feedback to see your satisfaction score"}
               </p>
             </div>
 
-            <div style={styles.reviewsSection}>
-              <h3 style={styles.sectionTitle}>Recent Feedback</h3>
+            <div className={styles.reviewsSection}>
+              <h3 className={styles.sectionTitle}>Recent Feedback</h3>
               {recentReviewsList.length > 0 ? (
                 recentReviewsList.map((review, index) => (
                   <div
                     key={review.createdAt || index}
-                    style={styles.reviewItem}
+                    className={styles.reviewItem}
                   >
-                    <div style={styles.reviewHeader}>
-                      <p style={styles.reviewRestaurant}>{review.restaurant}</p>
+                    <div className={styles.reviewHeader}>
+                      <p className={styles.reviewRestaurant}>{review.restaurant}</p>
                       {typeof review.rating === "number" &&
                       !Number.isNaN(review.rating) ? (
-                        <div style={styles.reviewRating}>
-                          <span style={styles.reviewStars}>
+                        <div className={styles.reviewRating}>
+                          <span className={styles.reviewStars}>
                             {renderStars(review.rating)}
                           </span>
-                          <span style={styles.reviewRatingValue}>
+                          <span className={styles.reviewRatingValue}>
                             {review.rating.toFixed(1)}
                           </span>
                         </div>
                       ) : (
-                        <span style={styles.reviewRatingValue}>
+                        <span className={styles.reviewRatingValue}>
                           No rating yet
                         </span>
                       )}
                     </div>
-                    <p style={styles.reviewText}>
+                    <p className={styles.reviewText}>
                       {review.comment
                         ? `"${review.comment}"`
                         : "No written feedback provided."}
                     </p>
                     {review.lovedItems ? (
-                      <p style={styles.reviewLovedItems}>
+                      <p className={styles.reviewLovedItems}>
                         Loved: {review.lovedItems}
                       </p>
                     ) : null}
                     {review.createdAt ? (
-                      <p style={styles.reviewTimestamp}>
+                      <p className={styles.reviewTimestamp}>
                         {formatReviewTimestamp(review.createdAt)}
                       </p>
                     ) : null}
                   </div>
                 ))
               ) : (
-                <div style={styles.emptyState}>
+                <div className={styles.emptyState}>
                   Share your first review to see it highlighted here.
                 </div>
               )}
@@ -1233,18 +1199,18 @@ export const DashBoardPage = () => {
           </div>
 
           {/* Notifications */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Notifications</h2>
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Notifications</h2>
 
             {notifications.map((notification) => (
-              <div key={notification.id} style={styles.notificationItem}>
+              <div key={notification.id} className={styles.notificationItem}>
                 <div style={getNotificationIconStyle(notification.type)}>
                   {notification.icon || "ℹ️"}
                 </div>
                 <div>
-                  <p style={styles.notificationText}>{notification.message}</p>
+                  <p className={styles.notificationText}>{notification.message}</p>
                   {notification.timeAgo ? (
-                    <p style={styles.notificationTime}>
+                    <p className={styles.notificationTime}>
                       {notification.timeAgo}
                     </p>
                   ) : null}
@@ -1252,12 +1218,12 @@ export const DashBoardPage = () => {
               </div>
             ))}
             {notifications.length === 0 && (
-              <div style={styles.emptyState}>
+              <div className={styles.emptyState}>
                 You're all caught up. Order or book to see updates here.
               </div>
             )}
 
-            <div style={styles.notificationToggle}>
+            <div className={styles.notificationToggle}>
               <span>Email Notifications</span>
               <label
                 style={{
@@ -1271,7 +1237,7 @@ export const DashBoardPage = () => {
                   checked={emailNotificationsEnabled}
                   onChange={handleNotificationToggle}
                   disabled={notificationSaving}
-                  style={styles.switchInput}
+                  className={styles.switchInput}
                   role="switch"
                   aria-checked={emailNotificationsEnabled}
                   aria-label="Email notifications"
@@ -1310,64 +1276,64 @@ export const DashBoardPage = () => {
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div style={styles.modalOverlay} onClick={handleCloseModal}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Edit Profile</h2>
+        <div className={styles.modalOverlay} onClick={handleCloseModal}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Edit Profile</h2>
               <button
-                style={styles.modalCloseButton}
+                className={styles.modalCloseButton}
                 onClick={handleCloseModal}
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleUpdateProfile} style={styles.modalForm}>
+            <form onSubmit={handleUpdateProfile} className={styles.modalForm}>
               {updateError && (
-                <div style={styles.errorMessage}>{updateError}</div>
+                <div className={styles.errorMessage}>{updateError}</div>
               )}
               {updateSuccess && (
-                <div style={styles.successMessage}>{updateSuccess}</div>
+                <div className={styles.successMessage}>{updateSuccess}</div>
               )}
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Name</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Name</label>
                 <input
                   type="text"
                   name="name"
                   value={editFormData.name}
                   onChange={handleInputChange}
-                  style={styles.formInput}
+                  className={styles.formInput}
                   required
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Email</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Email</label>
                 <input
                   type="email"
                   name="email"
                   value={editFormData.email}
                   onChange={handleInputChange}
-                  style={styles.formInput}
+                  className={styles.formInput}
                   required
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Phone</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Phone</label>
                 <input
                   type="text"
                   name="phone"
                   value={editFormData.phone}
                   onChange={handleInputChange}
-                  style={styles.formInput}
+                  className={styles.formInput}
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Profile Picture</label>
-                <div style={styles.profilePicContainer}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Profile Picture</label>
+                <div className={styles.profilePicContainer}>
                   <div
                     style={{
                       ...styles.profilePicPreview,
@@ -1396,7 +1362,7 @@ export const DashBoardPage = () => {
                   <button
                     type="button"
                     onClick={handleProfilePicClick}
-                    style={styles.changePicButton}
+                    className={styles.changePicButton}
                   >
                     {selectedProfileFile
                       ? "✓ Image Selected"
@@ -1405,46 +1371,46 @@ export const DashBoardPage = () => {
                 </div>
               </div>
 
-              <div style={styles.formDivider}>
-                <p style={styles.formDividerText}>Change Password (optional)</p>
+              <div className={styles.formDivider}>
+                <p className={styles.formDividerText}>Change Password (optional)</p>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>New Password</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>New Password</label>
                 <input
                   type="password"
                   name="newPassword"
                   value={editFormData.newPassword}
                   onChange={handleInputChange}
-                  style={styles.formInput}
+                  className={styles.formInput}
                   placeholder="Leave empty to keep current password"
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Confirm Password</label>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Confirm Password</label>
                 <input
                   type="password"
                   name="confirmPassword"
                   value={editFormData.confirmPassword}
                   onChange={handleInputChange}
-                  style={styles.formInput}
+                  className={styles.formInput}
                   placeholder="Leave empty to keep current password"
                 />
               </div>
 
-              <div style={styles.modalActions}>
+              <div className={styles.modalActions}>
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  style={styles.cancelButton}
+                  className={styles.cancelButton}
                   disabled={isUpdating}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  style={styles.saveButton}
+                  className={styles.saveButton}
                   disabled={isUpdating}
                 >
                   {isUpdating ? "Updating..." : "Save Changes"}
@@ -1457,848 +1423,3 @@ export const DashBoardPage = () => {
     </div>
   );
 };
-
-const styles = {
-  container: {
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
-    background:
-      "linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%)",
-    backgroundSize: "400% 400%",
-    animation: "gradientShift 15s ease infinite",
-    animationDelay: "0s",
-    minHeight: "100vh",
-    padding: "20px",
-    position: "relative",
-  },
-  loading: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    height: "100vh",
-    fontSize: "18px",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "rgba(255, 255, 255, 0.25)",
-    backdropFilter: "blur(30px) saturate(200%)",
-    WebkitBackdropFilter: "blur(30px) saturate(200%)",
-    padding: "20px 30px",
-    borderRadius: "20px",
-    marginBottom: "20px",
-    boxShadow:
-      "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
-    border: "1px solid rgba(255, 255, 255, 0.3)",
-  },
-  headerLeft: {
-    display: "flex",
-    gap: "30px",
-    alignItems: "center",
-    flex: 1,
-  },
-  brandSection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.75rem",
-    fontSize: "1.5rem",
-    fontWeight: "800",
-    color: "#fff",
-    textShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-    letterSpacing: "-0.5px",
-    paddingRight: "30px",
-    borderRight: "2px solid rgba(255, 255, 255, 0.3)",
-  },
-  brandIcon: {
-    fontSize: "2rem",
-    filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))",
-    animation: "float 3s ease-in-out infinite",
-  },
-  brandName: {
-    background: "linear-gradient(135deg, #fff 0%, #e0f7fa 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
-    filter: "drop-shadow(0 2px 4px rgba(255, 255, 255, 0.5))",
-  },
-  userSection: {
-    display: "flex",
-    gap: "20px",
-    alignItems: "center",
-  },
-  avatar: {
-    width: "70px",
-    height: "70px",
-    borderRadius: "50%",
-    objectFit: "cover",
-  },
-  welcomeText: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    margin: "0 0 5px 0",
-    color: "#fff",
-    textShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-  },
-  subtitle: {
-    fontSize: "14px",
-    color: "rgba(255, 255, 255, 0.9)",
-    margin: "0 0 5px 0",
-    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-  },
-  orderCount: {
-    fontSize: "13px",
-    color: "rgba(255, 255, 255, 0.8)",
-    margin: 0,
-    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-  },
-  headerRight: {
-    display: "flex",
-    gap: "10px",
-  },
-  editButton: {
-    padding: "10px 20px",
-    background: "rgba(255, 255, 255, 0.3)",
-    backdropFilter: "blur(15px) saturate(180%)",
-    WebkitBackdropFilter: "blur(15px) saturate(180%)",
-    border: "1px solid rgba(255, 255, 255, 0.4)",
-    borderRadius: "12px",
-    cursor: "pointer",
-    fontSize: "14px",
-    color: "#fff",
-    fontWeight: 600,
-    boxShadow:
-      "0 4px 12px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
-    transition: "all 0.3s ease",
-  },
-  logoutButton: {
-    padding: "10px 20px",
-    background: "rgba(239, 68, 68, 0.8)",
-    backdropFilter: "blur(20px) saturate(200%)",
-    WebkitBackdropFilter: "blur(20px) saturate(200%)",
-    color: "#ffffff",
-    border: "1px solid rgba(255, 255, 255, 0.3)",
-    borderRadius: "12px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: 600,
-    boxShadow:
-      "0 4px 16px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
-    transition: "all 0.3s ease",
-  },
-  mainContent: {
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gap: "20px",
-  },
-  dashboardError: {
-    margin: "0 0 20px 0",
-    padding: "12px 16px",
-    borderRadius: "8px",
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    border: "1px solid #fcd34d",
-    fontSize: "13px",
-  },
-  leftSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
-  rightSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
-  card: {
-    background: "rgba(255, 255, 255, 0.4)",
-    backdropFilter: "blur(30px) saturate(180%)",
-    WebkitBackdropFilter: "blur(30px) saturate(180%)",
-    padding: "24px",
-    borderRadius: "20px",
-    boxShadow:
-      "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9)",
-    border: "1px solid rgba(255, 255, 255, 0.5)",
-  },
-  cardTitle: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    margin: "0 0 20px 0",
-  },
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  tabs: {
-    display: "flex",
-    gap: "10px",
-  },
-  tabActive: {
-    padding: "8px 16px",
-    backgroundColor: "#fff",
-    color: "#ff6b35",
-    border: "none",
-    borderBottom: "2px solid #ff6b35",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  tab: {
-    padding: "8px 16px",
-    backgroundColor: "#fff",
-    color: "#6b7280",
-    border: "none",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  insightsRow: {
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gap: "30px",
-  },
-  spendingSection: {
-    flex: 1,
-  },
-  frequencySection: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  sectionTitle: {
-    fontSize: "14px",
-    fontWeight: "600",
-    marginBottom: "15px",
-    color: "#374151",
-  },
-  chartContainer: {
-    display: "flex",
-    gap: "15px",
-    height: "150px",
-    alignItems: "flex-end",
-    marginBottom: "20px",
-  },
-  barContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    flex: 1,
-    height: "100%",
-    justifyContent: "flex-end",
-  },
-  bar: {
-    width: "100%",
-    borderRadius: "6px 6px 0 0",
-    transition: "height 0.3s",
-  },
-  barLabel: {
-    fontSize: "11px",
-    color: "#6b7280",
-    marginTop: "8px",
-  },
-  statsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-    gap: "16px",
-    marginTop: "20px",
-  },
-  statLabel: {
-    fontSize: "12px",
-    color: "#6b7280",
-    margin: "0 0 5px 0",
-  },
-  statValue: {
-    fontSize: "16px",
-    fontWeight: "bold",
-    margin: 0,
-  },
-  donutContainer: {
-    marginBottom: "20px",
-  },
-  donutText: {
-    fontSize: "28px",
-    fontWeight: "bold",
-    fill: "#111827",
-  },
-  donutSubtext: {
-    fontSize: "11px",
-    fill: "#6b7280",
-  },
-  legend: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    width: "100%",
-  },
-  legendItem: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "8px",
-    width: "100%",
-  },
-  legendLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  legendDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-  },
-  legendText: {
-    fontSize: "12px",
-    color: "#6b7280",
-  },
-  legendCount: {
-    fontSize: "12px",
-    color: "#374151",
-    fontWeight: "500",
-  },
-  ordersList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px",
-    minHeight: "200px",
-  },
-  noOrdersMessage: {
-    textAlign: "center",
-    padding: "40px 20px",
-    color: "#6b7280",
-    fontSize: "14px",
-  },
-  orderItem: {
-    display: "flex",
-    gap: "15px",
-    alignItems: "center",
-    padding: "12px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-  },
-  orderImage: {
-    width: "60px",
-    height: "60px",
-    borderRadius: "8px",
-    objectFit: "cover",
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderName: {
-    fontSize: "15px",
-    fontWeight: "600",
-    margin: "0 0 5px 0",
-  },
-  orderPrice: {
-    fontSize: "14px",
-    color: "#6b7280",
-    margin: "0 0 5px 0",
-  },
-  orderMeta: {
-    fontSize: "12px",
-    color: "#94a3b8",
-    margin: "0 0 6px 0",
-  },
-  orderStatus: {
-    fontSize: "12px",
-    margin: 0,
-  },
-  orderActions: {
-    display: "flex",
-    gap: "10px",
-  },
-  rateButton: {
-    padding: "8px 16px",
-    backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#1f2937",
-    fontWeight: 600,
-  },
-  reorderButton: {
-    padding: "8px 16px",
-    backgroundColor: "#ff6b35",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 600,
-  },
-  dishesGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "20px",
-  },
-  favoriteDishesGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-    gap: "12px",
-  },
-  dishCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    overflow: "hidden",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
-  dishImageContainer: {
-    width: "100%",
-    overflow: "hidden",
-  },
-  dishImage: {
-    width: "100%",
-    height: "100px",
-    objectFit: "cover",
-  },
-  dishInfo: {
-    padding: "10px 12px",
-  },
-  dishName: {
-    fontSize: "13px",
-    fontWeight: "600",
-    margin: "0 0 4px 0",
-    color: "#1f2937",
-  },
-  restaurantName: {
-    fontSize: "11px",
-    color: "#6b7280",
-    margin: "0 0 4px 0",
-  },
-  dishPrice: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#00d4aa",
-    margin: 0,
-  },
-  dishRestaurant: {
-    fontSize: "13px",
-    color: "#6b7280",
-    margin: "0 0 15px 0",
-  },
-  dishActions: {
-    display: "flex",
-    gap: "10px",
-  },
-  viewMenuButton: {
-    flex: 1,
-    padding: "8px",
-    backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "13px",
-    color: "#1f2937",
-    fontWeight: 600,
-  },
-  reorderButtonOrange: {
-    flex: 1,
-    padding: "8px",
-    backgroundColor: "#ff6b35",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 600,
-  },
-  reservationsContainer: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "20px",
-  },
-  reservationColumn: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  reservationTitle: {
-    fontSize: "14px",
-    fontWeight: "600",
-    marginBottom: "5px",
-  },
-  reservationItem: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "flex-start",
-    padding: "12px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "8px",
-  },
-  restaurantIcon: {
-    fontSize: "20px",
-  },
-  reservationName: {
-    fontSize: "14px",
-    fontWeight: "600",
-    margin: "0 0 5px 0",
-  },
-  reservationDetails: {
-    fontSize: "12px",
-    color: "#6b7280",
-    margin: 0,
-  },
-  emptyState: {
-    textAlign: "center",
-    padding: "28px 16px",
-    color: "#6b7280",
-    fontSize: "13px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "10px",
-    border: "1px dashed #d1d5db",
-  },
-  satisfactionContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  satisfactionText: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    fill: "#111827",
-  },
-  satisfactionLabel: {
-    fontSize: "12px",
-    color: "#6b7280",
-    marginTop: "10px",
-  },
-  reviewsSection: {
-    marginTop: "20px",
-  },
-  reviewItem: {
-    padding: "12px 0",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  reviewHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "12px",
-  },
-  reviewRestaurant: {
-    fontSize: "14px",
-    fontWeight: "600",
-    margin: "0 0 5px 0",
-  },
-  reviewRating: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-  },
-  reviewStars: {
-    color: "#fbbf24",
-    fontSize: "14px",
-  },
-  reviewRatingValue: {
-    fontSize: "12px",
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-  reviewText: {
-    fontSize: "13px",
-    color: "#6b7280",
-    margin: 0,
-    fontStyle: "italic",
-  },
-  reviewLovedItems: {
-    fontSize: "12px",
-    color: "#f97316",
-    margin: "8px 0 0 0",
-  },
-  reviewTimestamp: {
-    fontSize: "11px",
-    color: "#9ca3af",
-    marginTop: "6px",
-  },
-  notificationItem: {
-    display: "flex",
-    gap: "12px",
-    padding: "12px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "8px",
-    marginBottom: "12px",
-  },
-  notificationIcon: {
-    width: "24px",
-    height: "24px",
-    backgroundColor: "#10b981",
-    color: "#fff",
-    borderRadius: "6px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    flexShrink: 0,
-  },
-  notificationIconBlue: {
-    width: "24px",
-    height: "24px",
-    backgroundColor: "#3b82f6",
-    color: "#fff",
-    borderRadius: "6px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    flexShrink: 0,
-  },
-  notificationIconNeutral: {
-    width: "24px",
-    height: "24px",
-    backgroundColor: "#6b7280",
-    color: "#fff",
-    borderRadius: "6px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    flexShrink: 0,
-  },
-  notificationText: {
-    fontSize: "13px",
-    margin: "0 0 5px 0",
-  },
-  notificationTime: {
-    fontSize: "12px",
-    color: "#9ca3af",
-    margin: 0,
-  },
-  notificationToggle: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "15px",
-    paddingTop: "15px",
-    borderTop: "1px solid #e5e7eb",
-  },
-  switch: {
-    position: "relative",
-    display: "inline-block",
-    width: "52px",
-    height: "24px",
-  },
-  switchInput: {
-    position: "absolute",
-    opacity: 0,
-    width: 0,
-    height: 0,
-    margin: 0,
-    padding: 0,
-    left: 0,
-    top: 0,
-  },
-  slider: {
-    position: "absolute",
-    cursor: "pointer",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#e5e7eb",
-    borderRadius: "24px",
-    transition: "background-color 0.25s",
-  },
-  sliderKnob: {
-    position: "absolute",
-    top: "3px",
-    left: "3px",
-    width: "18px",
-    height: "18px",
-    borderRadius: "50%",
-    backgroundColor: "#fff",
-    transition: "left 0.25s, box-shadow 0.25s",
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    width: "90%",
-    maxWidth: "500px",
-    maxHeight: "90vh",
-    overflowY: "auto",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "20px 24px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  modalTitle: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    margin: 0,
-  },
-  modalCloseButton: {
-    background: "none",
-    border: "none",
-    fontSize: "28px",
-    cursor: "pointer",
-    color: "#6b7280",
-    padding: 0,
-    width: "32px",
-    height: "32px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "4px",
-  },
-  modalForm: {
-    padding: "24px",
-  },
-  formGroup: {
-    marginBottom: "20px",
-  },
-  formLabel: {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: "600",
-    marginBottom: "8px",
-    color: "#374151",
-  },
-  formInput: {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    fontSize: "14px",
-    boxSizing: "border-box",
-  },
-  profilePicContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "12px",
-  },
-  profilePicPreview: {
-    width: "120px",
-    height: "120px",
-    borderRadius: "50%",
-    border: "3px solid #2ecc71",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    fontSize: "40px",
-  },
-  changePicButton: {
-    padding: "8px 16px",
-    backgroundColor: "#2ecc71",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-  },
-  formDivider: {
-    margin: "24px 0",
-    borderTop: "1px solid #e5e7eb",
-    paddingTop: "20px",
-  },
-  formDividerText: {
-    fontSize: "14px",
-    color: "#6b7280",
-    margin: 0,
-    fontWeight: "600",
-  },
-  errorMessage: {
-    backgroundColor: "#fee2e2",
-    color: "#dc2626",
-    padding: "12px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-    fontSize: "14px",
-  },
-  successMessage: {
-    backgroundColor: "#dcfce7",
-    color: "#16a34a",
-    padding: "14px 16px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-    fontSize: "15px",
-    fontWeight: "500",
-    border: "1px solid #86efac",
-    animation: "slideInDown 0.3s ease-out",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    boxShadow: "0 2px 8px rgba(22, 163, 74, 0.1)",
-  },
-  modalActions: {
-    display: "flex",
-    gap: "12px",
-    justifyContent: "flex-end",
-    marginTop: "24px",
-    paddingTop: "20px",
-    borderTop: "1px solid #e5e7eb",
-  },
-  cancelButton: {
-    padding: "10px 20px",
-    backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#374151",
-  },
-  saveButton: {
-    padding: "10px 20px",
-    backgroundColor: "#ff6b35",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-  },
-};
-
-// Add animation styles globally
-if (
-  typeof document !== "undefined" &&
-  !document.querySelector("#dashboard-animations")
-) {
-  const style = document.createElement("style");
-  style.id = "dashboard-animations";
-  style.textContent = `
-    @keyframes slideInDown {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    @keyframes slideOutUp {
-      from {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      to {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
