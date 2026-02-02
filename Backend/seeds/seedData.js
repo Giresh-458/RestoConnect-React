@@ -647,11 +647,14 @@ async function seed() {
     // Add tables and payments fields
     restaurantsData.forEach((rest, index) => {
       rest.tables = [
-        { number: "1", status: "available", seats: 2 },
-        { number: "2", status: "available", seats: 3 },
-        { number: "3", status: "available", seats: 4 },
-        { number: "4", status: "available", seats: 5 },
-        { number: "5", status: "available", seats: 6 },
+        { number: 1, status: "Available", seats: 2 },
+        { number: 2, status: "Available", seats: 4 },
+        { number: 3, status: "Available", seats: 4 },
+        { number: 4, status: "Available", seats: 6 },
+        { number: 5, status: "Available", seats: 6 },
+        { number: 6, status: "Available", seats: 2 },
+        { number: 7, status: "Available", seats: 4 },
+        { number: 8, status: "Available", seats: 8 },
       ];
       rest.totalTables = rest.tables.length;
       rest.payments = [
@@ -1164,47 +1167,95 @@ async function seed() {
 
     //  6️ Seed Reservations for first restaurant
     // 6️ Reservations (linked to first restaurant)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     const tastyBitesReservations = [
+      // Confirmed reservations with allocated tables
       {
         customerName: customerA.name,
-        time: "7:30 PM",
-        table_id: "T1",
+        time: new Date(today.getTime() + 19 * 60 * 60 * 1000 + 30 * 60 * 1000), // 7:30 PM today
+        table_id: "1",
         guests: 4,
         status: "confirmed",
+        allocated: true,
+        tables: ["1"],
         rest_id: firstRestaurant._id,
-        date: new Date(), // ✅ optional
+        date: new Date(),
       },
       {
         customerName: customerB.name,
-        time: "8:00 PM",
-        table_id: "T2",
+        time: new Date(today.getTime() + 20 * 60 * 60 * 1000), // 8:00 PM today
+        table_id: "2",
         guests: 2,
-        status: "pending",
+        status: "confirmed",
+        allocated: true,
+        tables: ["2"],
         rest_id: firstRestaurant._id,
         date: new Date(),
       },
+      // Pending reservations without tables (need staff to assign)
       {
         customerName: createdCustomers[2].name,
-        time: "9:00 PM",
-        table_id: "T3",
+        time: new Date(today.getTime() + 21 * 60 * 60 * 1000), // 9:00 PM today
+        table_id: "",
         guests: 3,
-        status: "completed",
+        status: "pending",
+        allocated: false,
+        tables: [],
         rest_id: firstRestaurant._id,
         date: new Date(),
       },
-      // ✅ add more sample reservations if you want
       {
         customerName: customerA.name,
-        time: "6:45 PM",
-        table_id: "T4",
+        time: new Date(today.getTime() + 18 * 60 * 60 * 1000 + 45 * 60 * 1000), // 6:45 PM today
+        table_id: "",
         guests: 5,
         status: "pending",
+        allocated: false,
+        tables: [],
         rest_id: firstRestaurant._id,
         date: new Date(),
+      },
+      {
+        customerName: createdCustomers[3]?.name || "Guest User",
+        time: new Date(today.getTime() + 19 * 60 * 60 * 1000), // 7:00 PM today
+        table_id: "",
+        guests: 2,
+        status: "pending",
+        allocated: false,
+        tables: [],
+        rest_id: firstRestaurant._id,
+        date: new Date(),
+      },
+      // Completed reservation from yesterday
+      {
+        customerName: customerB.name,
+        time: new Date(today.getTime() - 24 * 60 * 60 * 1000 + 20 * 60 * 60 * 1000), // 8:00 PM yesterday
+        table_id: "3",
+        guests: 4,
+        status: "completed",
+        allocated: true,
+        tables: ["3"],
+        rest_id: firstRestaurant._id,
+        date: new Date(today.getTime() - 24 * 60 * 60 * 1000),
       },
     ];
     await Reservation.insertMany(tastyBitesReservations);
     console.log("✅ Reservations seeded successfully");
+
+    // Update table statuses based on allocated reservations
+    const allocatedTables = tastyBitesReservations
+      .filter(r => r.allocated && r.status === 'confirmed')
+      .flatMap(r => r.tables);
+    
+    firstRestaurant.tables.forEach(table => {
+      if (allocatedTables.includes(String(table.number))) {
+        table.status = "Allocated";
+      }
+    });
+    await firstRestaurant.save();
+    console.log("✅ Table statuses updated based on reservations");
 
     // Map orders by customer to avoid ParallelSaveError
     const customerOrdersMap = {};

@@ -1204,7 +1204,7 @@ export const DashBoardPage = () => {
 
             {notifications.map((notification) => (
               <div key={notification.id} className={styles.notificationItem}>
-                <div style={getNotificationIconStyle(notification.type)}>
+                <div className={getNotificationIconStyle(notification.type)}>
                   {notification.icon || "ℹ️"}
                 </div>
                 <div>
@@ -1226,8 +1226,8 @@ export const DashBoardPage = () => {
             <div className={styles.notificationToggle}>
               <span>Email Notifications</span>
               <label
+                className={styles.switch}
                 style={{
-                  ...styles.switch,
                   opacity: notificationSaving ? 0.6 : 1,
                   cursor: notificationSaving ? "not-allowed" : "pointer",
                 }}
@@ -1246,8 +1246,8 @@ export const DashBoardPage = () => {
                 />
 
                 <span
+                  className={styles.slider}
                   style={{
-                    ...styles.slider,
                     backgroundColor: emailNotificationsEnabled
                       ? "#22c55e"
                       : "#e5e7eb",
@@ -1259,8 +1259,8 @@ export const DashBoardPage = () => {
                   }}
                 >
                   <span
+                    className={styles.sliderKnob}
                     style={{
-                      ...styles.sliderKnob,
                       left: emailNotificationsEnabled ? "31px" : "3px",
                       boxShadow: emailNotificationsEnabled
                         ? "0 2px 6px rgba(34,197,94,0.4)"
@@ -1335,8 +1335,8 @@ export const DashBoardPage = () => {
                 <label className={styles.formLabel}>Profile Picture</label>
                 <div className={styles.profilePicContainer}>
                   <div
+                    className={styles.profilePicPreview}
                     style={{
-                      ...styles.profilePicPreview,
                       backgroundImage: profilePicPreview
                         ? `url('${profilePicPreview}')`
                         : "none",

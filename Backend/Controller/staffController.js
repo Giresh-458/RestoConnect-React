@@ -503,6 +503,16 @@ exports.getStaffHomepageData = async (req, res, next) => {
         priority: task.priority,
       }));
 
+    const supportMessages = (restaurant.supportMessages || [])
+      .filter((msg) => msg.from === staffMember.username)
+      .map((msg) => ({
+        id: msg._id,
+        message: msg.message,
+        timestamp: msg.timestamp,
+        status: msg.status,
+      }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
     const todaysOrders = await Order.find({
       rest_id: restaurant._id,
       date: {
@@ -553,6 +563,7 @@ exports.getStaffHomepageData = async (req, res, next) => {
       announcements: activeAnnouncements,
       shifts: todayShifts,
       tasks: staffTasks,
+      supportMessages,
       performance,
     };
 

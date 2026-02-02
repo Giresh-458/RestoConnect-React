@@ -6,9 +6,19 @@ import {
   FaUtensils,
   FaCog,
   FaSignOutAlt,
-  FaMapMarkerAlt,
-  FaSmile,
-  FaBoxes,
+  FaClock,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaUsers,
+  FaChair,
+  FaClipboardList,
+  FaBell,
+  FaPlay,
+  FaPause,
+  FaConciergeBell,
+  FaCalendarCheck,
+  FaTasks,
+  FaWarehouse
 } from "react-icons/fa";
 
 export function StaffDashBoardPage() {
@@ -27,10 +37,13 @@ export function StaffDashBoardPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
-  const [newTable, setNewTable] = useState({ number: "", capacity: "" });
-  const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
+  const [selectedTables, setSelectedTables] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [newTable, setNewTable] = useState({ number: '', capacity: '' });
   const [passwords, setPasswords] = useState({ old: '', new: '' });
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -286,7 +299,7 @@ export function StaffDashBoardPage() {
       await fetchData();
     } catch (err) {
       console.error("Error adding table:", err);
-      setError(err.message || "Failed to add table. Please try again.");
+      alert(err.message || "Failed to add table. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -294,13 +307,23 @@ export function StaffDashBoardPage() {
 
   // Render reservations function
   const renderReservations = () => {
-    // Filter for pending reservations (status: 'pending')
-    const pendingReservations = data.reservations?.filter(r => r.status === 'pending' || !r.status) || [];
+    // Filter for pending reservations (not yet allocated to a table)
+    const pendingReservations = data.reservations?.filter(r => {
+      // Show reservations that are NOT allocated (no table assigned yet)
+      return !r.allocated && (r.status === 'pending' || r.status === 'confirmed');
+    }) || [];
     
-    console.log('🔍 Rendering reservations:', {
+    console.log('🔍 Rendering pending reservations:', {
       total: data.reservations?.length || 0,
       pending: pendingReservations.length,
-      allReservations: data.reservations
+      allocated: data.reservations?.filter(r => r.allocated).length || 0,
+      pendingList: pendingReservations.map(r => ({
+        id: r._id,
+        customer: r.customerName,
+        status: r.status,
+        allocated: r.allocated,
+        table: r.table_id
+      }))
     });
     
     if (pendingReservations.length === 0) {
@@ -320,6 +343,7 @@ export function StaffDashBoardPage() {
           <tr>
             <th>Customer</th>
             <th>Reservation Time</th>
+            <th>Guests</th>
             <th>Status</th>
             <th>Assign Table</th>
             <th>Action</th>
@@ -329,8 +353,13 @@ export function StaffDashBoardPage() {
           {pendingReservations.map((reservation) => (
             <tr key={reservation._id}>
               <td>{reservation.customerName || 'N/A'}</td>
-              <td>{reservation.time || 'N/A'}</td>
-              <td>{reservation.status}</td>
+              <td>{new Date(reservation.time).toLocaleString() || reservation.time || 'N/A'}</td>
+              <td>{reservation.guests || 'N/A'}</td>
+              <td>
+                <span className="status-badge status-pending">
+                  {reservation.status || 'Pending'}
+                </span>
+              </td>
               <td>
                 {availableTables.length === 0 ? (
                   <span className="text-gray-500 text-sm">No tables available. Add tables in settings.</span>
@@ -421,24 +450,23 @@ export function StaffDashBoardPage() {
   return (
     <div className="staff-dashboard min-h-screen p-6 bg-blue-50">
       {/* -------------------- Navbar -------------------- */}
-
       <nav className="dashboard-navbar">
-      <div className="nav-left">
-         <FaUtensils className="nav-icon" />
-         <h1>RestoConnect Staff Dashboard</h1>
-      </div>
+        <div className="nav-left">
+          <FaUtensils className="nav-icon" />
+          <h1>RestoConnect Staff Dashboard</h1>
+        </div>
 
-      <div className="nav-right">
-         <button
+        <div className="nav-right">
+          <button
             onClick={() => setShowSettings(!showSettings)}
             className="settings-btn"
-         >
+          >
             <FaCog /> Settings
-         </button>
-         <button onClick={handleLogout} className="logout-btn">
+          </button>
+          <button onClick={handleLogout} className="logout-btn">
             <FaSignOutAlt /> Logout
-         </button>
-      </div>
+          </button>
+        </div>
       </nav>
 
       {/* -------------------- Settings Modal -------------------- */}
@@ -662,7 +690,7 @@ export function StaffDashBoardPage() {
 
           <section className="dashboard-section reserved-tables">
             <h2>🍽️ Reserved Tables</h2>
-            {!data.reservations || data.reservations.filter(r => r.allocated).length === 0 ? (
+            {!data.reservations || data.reservations.filter(r => r.allocated && r.status === 'confirmed').length === 0 ? (
               <div className="empty-state">
                 <span className="empty-icon">🪑</span>
                 <p>No reserved tables</p>
@@ -674,17 +702,19 @@ export function StaffDashBoardPage() {
                     <th>Table</th>
                     <th>Customer</th>
                     <th>Reservation Time</th>
+                    <th>Guests</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.reservations.filter(r => r.allocated).map((resv) => (
+                  {data.reservations.filter(r => r.allocated && r.status === 'confirmed').map((resv) => (
                     <tr key={resv._id}>
-                      <td>{resv.tables?.join(", ") || "N/A"}</td>
+                      <td>Table {resv.table_id || resv.tables?.join(", ") || "N/A"}</td>
                       <td>{resv.customerName || "N/A"}</td>
-                      <td>{resv.time || "N/A"}</td>
-                      <td><span className="status-badge status-reserved">Reserved</span></td>
+                      <td>{new Date(resv.time).toLocaleString() || resv.time || "N/A"}</td>
+                      <td>{resv.guests || "N/A"}</td>
+                      <td><span className="status-badge status-reserved">Confirmed</span></td>
                       <td>
                         <button 
                           className="action-btn-small danger"
@@ -703,20 +733,82 @@ export function StaffDashBoardPage() {
           <section className="dashboard-section add-table">
             <h2>➕ Add New Table</h2>
             <div className="add-table-form">
-              <input
-                type="number"
-                placeholder="Table Number"
-                value={newTable.number}
-                onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
-              />
-              <input
-                type="number"
-                placeholder="Capacity"
-                value={newTable.capacity}
-                onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
-              />
-              <button onClick={handleAddTable}>Add Table</button>
+              <div className="form-group">
+                <label>Table Number:</label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="e.g., 1, 2, 3..."
+                  value={newTable.number}
+                  onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
+                  disabled={isProcessing}
+                />
+              </div>
+              <div className="form-group">
+                <label>Capacity (seats):</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  placeholder="e.g., 4, 6, 8..."
+                  value={newTable.capacity}
+                  onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
+                  disabled={isProcessing}
+                />
+              </div>
+              <button
+                onClick={handleAddTable}
+                disabled={isProcessing || !newTable.number || !newTable.capacity}
+                className="add-table-btn"
+              >
+                {isProcessing ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Adding Table...
+                  </>
+                ) : (
+                  '➕ Add Table'
+                )}
+              </button>
             </div>
+          </section>
+
+          <section className="dashboard-section all-tables">
+            <h2>🪑 All Tables</h2>
+            {!data.allTables || data.allTables.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon">🪑</span>
+                <p>No tables found. Add tables using the form above.</p>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Table Number</th>
+                    <th>Capacity (seats)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.allTables.map((table) => (
+                    <tr key={table.number}>
+                      <td>Table {table.number}</td>
+                      <td>{table.seats || 4} seats</td>
+                      <td>
+                        <span className={`status-badge ${
+                          table.status === 'Available' ? 'status-available' : 'status-allocated'
+                        }`}>
+                          {table.status || 'Available'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
         </>
       )}

@@ -1,7 +1,6 @@
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import WelcomeHeader from "../components/WelcomeHeader";
 import Announcements from "../components/Announcements";
 import QuickSupport from "../components/QuickSupport";
 import ShiftSchedule from "../components/ShiftSchedule";
@@ -16,14 +15,22 @@ export function StaffHomePage() {
 
   useEffect(() => {
     fetchStaffData();
+    
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      fetchStaffData(true);
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchStaffData = async () => {
+  const fetchStaffData = async (isAutoRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isAutoRefresh) {
+        setLoading(true);
+      }
       setError(null);
 
-      // Always use /api/staff/homepage for JSON response
       const response = await fetch("http://localhost:3000/staff/homepage", {
         credentials: "include",
         headers: {
@@ -31,9 +38,8 @@ export function StaffHomePage() {
           "Content-Type": "application/json",
         },
       });
-      console.log(JSON.stringify(response))
+      
       if (!response.ok) {
-        // Try to read error body as text so we don't crash on non‑JSON (e.g. HTML)
         const text = await response.text().catch(() => "");
         throw new Error(
           text && text.startsWith("<")
@@ -48,7 +54,7 @@ Make sure the backend is running on port 3000 and you are logged in as a staff u
         const text = await response.text().catch(() => "");
         throw new Error(
           text && text.startsWith("<")
-            ? "Server returned HTML instead of JSON. Check that the backend /api/staff/homepage route is configured to send JSON and that you are authenticated as staff."
+            ? "Server returned HTML instead of JSON. Check that the backend /staff/homepage route is configured to send JSON and that you are authenticated as staff."
             : "Server response was not JSON. Please check the backend."
         );
       }
@@ -63,16 +69,28 @@ Make sure the backend is running on port 3000 and you are logged in as a staff u
     }
   };
 
+  const handleRefresh = () => {
+    fetchStaffData();
+  };
+
+
   if (loading) {
-    return <div className="loading-container">Loading your dashboard...</div>;
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading your dashboard...</p>
+      </div>
+    );
   }
 
   if (error) {
     return (
       <div className="error-container">
-        <div className="error">Error: {error}</div>
-        <button onClick={fetchStaffData} className="retry-button">
-          Retry
+        <div className="error-icon">⚠️</div>
+        <h2>Oops! Something went wrong</h2>
+        <div className="error-message">{error}</div>
+        <button onClick={handleRefresh} className="retry-button">
+          🔄 Try Again
         </button>
       </div>
     );
@@ -80,18 +98,35 @@ Make sure the backend is running on port 3000 and you are logged in as a staff u
 
   return (
     <div className="staff-homepage">
-      <WelcomeHeader staff={staffData?.staff} />
+      {/* Welcome Section */}
+      <section className="welcome-section">
+        <div className="welcome-card">
+          <h2>Welcome, <span className="staff-name">{staffData?.staff?.name || "Staff Member"}</span></h2>
+          <div className="staff-details">
+            <div className="detail-item">
+              <span className="label">Role:</span>
+              <span className="value">{staffData?.staff?.role || "Not assigned"}</span>
+            </div>
+            <div className="detail-item">
+              <span className="label">Branch:</span>
+              <span className="value">{staffData?.staff?.branch || "Not assigned"}</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
+      {/* Main Content Grid */}
       <div className="main-content">
-        <div className="left-column">
+        <div className="section-title">Today’s Overview</div>
+        <div className="content-grid">
           <Announcements announcements={staffData?.announcements || []} />
-          <QuickSupport />
+          <PerformanceSummary performance={staffData?.performance || {}} />
+          <ShiftSchedule shifts={staffData?.shifts || []} />
+          <TaskTracker tasks={staffData?.tasks || []} onUpdate={handleRefresh} />
         </div>
 
-        <div className="right-column">
-          <ShiftSchedule shifts={staffData?.shifts || []} />
-          <TaskTracker tasks={staffData?.tasks || []} />
-          <PerformanceSummary performance={staffData?.performance || {}} />
+        <div className="support-full">
+          <QuickSupport messages={staffData?.supportMessages || []} onUpdate={handleRefresh} />
         </div>
       </div>
     </div>

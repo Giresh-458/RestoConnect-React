@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const QuickSupport = ({ onUpdate }) => {
+const QuickSupport = ({ messages = [], onUpdate }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -13,7 +13,7 @@ const QuickSupport = ({ onUpdate }) => {
     setSending(true);
     try {
       const response = await fetch(
-        "http://localhost:3000/api/staff/support-message",
+        "http://localhost:3000/staff/support-message",
         {
           method: "POST",
           headers: {
@@ -25,15 +25,16 @@ const QuickSupport = ({ onUpdate }) => {
       );
 
       if (response.ok) {
-        alert("Message sent to manager!");
+        alert("Message sent to manager successfully!");
         setMessage("");
         onUpdate?.();
       } else {
-        throw new Error("Failed to send message");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to send message");
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
+      alert(error.message || "Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }
@@ -60,6 +61,27 @@ const QuickSupport = ({ onUpdate }) => {
       >
         {sending ? "Sending..." : "Send Message"}
       </button>
+
+      <div className="support-messages">
+        <h3>Sent Messages</h3>
+        {messages.length === 0 ? (
+          <p className="no-data">No support messages sent yet.</p>
+        ) : (
+          messages.map((msg) => (
+            <div key={msg.id} className="support-message-item">
+              <div className="support-message-header">
+                <span className="support-message-time">
+                  {msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ""}
+                </span>
+                <span className={`support-message-status status-${(msg.status || "pending").toLowerCase()}`}>
+                  {msg.status || "pending"}
+                </span>
+              </div>
+              <p className="support-message-text">{msg.message}</p>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };

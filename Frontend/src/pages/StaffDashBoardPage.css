@@ -551,6 +551,16 @@
   color: #ffffff;
 }
 
+.status-available {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  color: #ffffff;
+}
+
+.status-allocated {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #ffffff;
+}
+
 .priority-badge {
   padding: 4px 10px;
   border-radius: 999px;
