@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 let validate = async (req, res, next) => {
     let { username, email, password, fullName } = req.body;
-    console.log(fullName)
+    console.log(fullName+"---------------------------------")
     if (fullName) {
         let chk = await User.findOne({ $or: [ { username: username }, { email: email } ] });
         console.log(chk)
@@ -61,3 +61,4 @@ let validate = async (req, res, next) => {
 }
 
 module.exports = validate;
+
