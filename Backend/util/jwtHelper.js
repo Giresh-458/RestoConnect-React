@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'session';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '30d'; // match session maxAge (30 days)
+const JWT_EXPIRY = process.env.JWT_EXPIRY || '30d'; 
 const AUTH_TOKEN_COOKIE = 'authToken';
 
 function signToken(payload) {

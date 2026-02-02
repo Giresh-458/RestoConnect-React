@@ -1,34 +1,145 @@
 .ownerNav {
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background: #fff3cd;
-  border-bottom: 1px solid #ffeaa7;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navBrand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+.brandIcon {
+  font-size: 1.5rem;
+}
+
+.brandText {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.navLinks {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .ownerNav a {
-  padding: 0.5rem 1rem;
-  color: #856404;
-  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
   transition: all 0.2s ease;
   white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
 }
 
 .ownerNav a:hover {
-  background-color: #ffeaa7;
-  color: #6c520a;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .ownerNav a.active {
-  background-color: #ffc107;
-  color: #212529;
+  background: #ffffff;
+  color: #667eea;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-@media (max-width: 600px) {
+.navIcon {
+  font-size: 1.1rem;
+  display: inline-flex;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  background: rgba(239, 68, 68, 0.9);
+  border: none;
+  cursor: pointer;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.logoutButton:hover {
+  background: rgba(220, 38, 38, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 1024px) {
   .ownerNav {
+    padding: 1rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .navLinks {
+    gap: 0.25rem;
+  }
+
+  .ownerNav a {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .brandText {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .ownerNav {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .navLinks {
+    order: 3;
+    width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+  }
+
+  .logoutButton {
+    order: 2;
+  }
+
+  .ownerNav a span:not(.navIcon) {
+    display: none;
+  }
+
+  .ownerNav a {
+    padding: 0.5rem;
+    min-width: auto;
+  }
+
+  .navIcon {
+    font-size: 1.25rem;
   }
 }
 

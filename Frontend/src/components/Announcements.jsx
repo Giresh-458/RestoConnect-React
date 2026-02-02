@@ -8,11 +8,11 @@ const Announcements = ({ announcements = [] }) => {
         {announcements.length > 0 ? (
           announcements.map((announcement) => (
             <div key={announcement.id} className="announcement-item">
+              <div className="announcement-icon">
+                {announcement.priority === "high" ? "⚠️" : "📢"}
+              </div>
               <span className="announcement-text">
                 {announcement.text}
-                {announcement.priority === "high" && (
-                  <span className="priority-badge">!</span>
-                )}
               </span>
             </div>
           ))

@@ -50,6 +50,7 @@ router.get("/reports", ownerController.getReportsData);
 // API routes for owner homepage dashboard
 router.get("/info", ownerController.getOwnerInfo);
 router.get("/dashboard/stats", ownerController.getDashboardStats);
+router.get("/dashboard/summary", ownerController.getDashboardSummary);
 router.get("/dashboard/trend", ownerController.getRevenueOrdersTrend);
 router.get("/orders/recent", ownerController.getRecentOrders);
 router.get("/inventory", ownerController.getInventoryAPI);

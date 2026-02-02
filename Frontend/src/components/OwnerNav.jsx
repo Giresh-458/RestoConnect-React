@@ -16,32 +16,23 @@ export function OwnerNav() {
   return (
     <>
       <nav className={styles.ownerNav}>
-        <NavLink to={"/owner/"} className={({ isActive }) => (isActive ? "active" : "")} end>
-          Homepage
-        </NavLink>
-        <NavLink to={"/owner/dashboard"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Dashboard
-        </NavLink>
-        <NavLink to={"/owner/menumanagement"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Management
-        </NavLink>
-        <NavLink to="/owner/orders" className={({ isActive }) => (isActive ? "active" : "")}>
-          Orders
-        </NavLink>
-        <NavLink to={"/owner/reservations"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Reservations
-        </NavLink>
-        <NavLink to={"/owner/feedback"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Feedback
-        </NavLink>
-        <NavLink to={"/owner/inventory"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Inventory
-        </NavLink>
-        <NavLink to={"/owner/staffmanagement"} className={({ isActive }) => (isActive ? "active" : "")}>
-          Staff Management
-        </NavLink>
+        <div className={styles.navBrand}>
+          <span className={styles.brandText}>Owner Portal</span>
+        </div>
 
-        <button onClick={handleLogout} style={{ marginLeft: "auto", background: "#e50914", border: "none", cursor: "pointer", color: "white", padding: "8px 12px" }}>
+        <div className={styles.navLinks}>
+          <NavLink to={"/owner/"} className={({ isActive }) => (isActive ? styles.active : "")} end>
+            Home
+          </NavLink>
+          <NavLink to={"/owner/dashboard"} className={({ isActive }) => (isActive ? styles.active : "")}>
+            Dashboard
+          </NavLink>
+          <NavLink to={"/owner/staffmanagement"} className={({ isActive }) => (isActive ? styles.active : "")}>
+            Staff
+          </NavLink>
+        </div>
+
+        <button onClick={handleLogout} className={styles.logoutButton}>
           Logout
         </button>
       </nav>

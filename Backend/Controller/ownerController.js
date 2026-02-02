@@ -253,6 +253,266 @@ exports.getDashboardStats = async (req, res, next) => {
   }
 };
 
+// API endpoint for dashboard summary (KPIs + operational insights)
+exports.getDashboardSummary = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const rest = await Restaurant.findById(user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(startOfToday);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Revenue calculations
+    let totalRevenueThisMonth = 0;
+    let totalRevenueToday = 0;
+    let totalRevenueThisWeek = 0;
+    const payments = rest.payments || [];
+    payments.forEach((payment) => {
+      if (payment.date) {
+        if (payment.date >= startOfMonth && payment.date <= endOfMonth) {
+          totalRevenueThisMonth += payment.amount || 0;
+        }
+        if (payment.date >= startOfToday && payment.date < tomorrow) {
+          totalRevenueToday += payment.amount || 0;
+        }
+        if (payment.date >= startOfWeek) {
+          totalRevenueThisWeek += payment.amount || 0;
+        }
+      }
+    });
+
+    // Orders metrics
+    const ordersToday = await Order.countDocuments({
+      rest_id: user.rest_id,
+      date: { $gte: startOfToday, $lt: tomorrow }
+    });
+
+    const pendingOrders = await Order.countDocuments({
+      rest_id: user.rest_id,
+      status: "pending"
+    });
+
+    const completedOrdersToday = await Order.countDocuments({
+      rest_id: user.rest_id,
+      date: { $gte: startOfToday, $lt: tomorrow },
+      status: "completed"
+    });
+
+    const totalOrdersThisMonth = await Order.countDocuments({
+      rest_id: user.rest_id,
+      date: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+
+    // Average order value
+    const ordersThisMonth = await Order.find({
+      rest_id: user.rest_id,
+      date: { $gte: startOfMonth, $lte: endOfMonth }
+    }).select("totalAmount");
+
+    const avgOrderValue = ordersThisMonth.length > 0
+      ? ordersThisMonth.reduce((sum, order) => sum + (order.totalAmount || 0), 0) / ordersThisMonth.length
+      : 0;
+
+    // Staff metrics
+    const activeStaff = await User.countDocuments({
+      rest_id: user.rest_id,
+      role: "staff"
+    });
+
+    // Table occupancy
+    const totalTables = rest.tables ? rest.tables.length : 0;
+    const occupiedTables = rest.tables
+      ? rest.tables.filter((t) => t.status && t.status.toLowerCase() === "occupied").length
+      : 0;
+    const tableOccupancy = totalTables > 0 ? Math.round((occupiedTables / totalTables) * 100) : 0;
+
+    // Inventory status
+    let stockStatus = 100;
+    let lowStockItems = [];
+    let criticalStockCount = 0;
+    if (rest.inventoryData && rest.inventoryData.labels && rest.inventoryData.labels.length > 0) {
+      const itemsAboveMin = rest.inventoryData.values.filter((value, index) =>
+        value >= (rest.inventoryData.minStocks[index] || 0)
+      ).length;
+      stockStatus = Math.round((itemsAboveMin / rest.inventoryData.labels.length) * 100);
+
+      lowStockItems = rest.inventoryData.labels
+        .map((label, index) => ({
+          name: label,
+          quantity: rest.inventoryData.values[index] || 0,
+          unit: rest.inventoryData.units[index] || "units",
+          minStock: rest.inventoryData.minStocks[index] || 0
+        }))
+        .filter((item) => item.minStock > 0 && item.quantity <= item.minStock);
+
+      criticalStockCount = rest.inventoryData.values.filter((value, index) =>
+        value <= (rest.inventoryData.minStocks[index] || 0) * 0.5
+      ).length;
+    }
+
+    // Customer satisfaction (average rating from orders)
+    const ratedOrders = await Order.find({
+      rest_id: user.rest_id,
+      rating: { $exists: true, $ne: null }
+    }).select("rating");
+
+    const avgRating = ratedOrders.length > 0
+      ? ratedOrders.reduce((sum, order) => sum + (order.rating || 0), 0) / ratedOrders.length
+      : 0;
+
+    // Recent orders with more details
+    const recentOrders = await Order.find({ rest_id: user.rest_id })
+      .sort({ date: -1 })
+      .limit(8)
+      .select("_id customerName totalAmount status tableNumber date orderTime");
+
+    const formattedOrders = recentOrders.map((order) => {
+      let hash = 0;
+      for (let i = 0; i < order._id.length; i++) {
+        const char = order._id.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      const orderNumber = (Math.abs(hash) % 900 + 100).toString();
+      return {
+        id: order._id,
+        orderId: `OR${orderNumber}`,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || "N/A",
+        totalAmount: order.totalAmount,
+        status: order.status || "pending",
+        date: order.date,
+        orderTime: order.orderTime
+      };
+    });
+
+    // Upcoming reservations with better filtering
+    const upcomingReservations = await Reservation.find({
+      rest_id: String(user.rest_id),
+      date: { $gte: now },
+      status: { $nin: ["cancelled", "completed"] }
+    })
+      .sort({ date: 1 })
+      .limit(8)
+      .select("_id customerName time guests status date");
+
+    // Pending reservations count
+    const pendingReservations = await Reservation.countDocuments({
+      rest_id: String(user.rest_id),
+      status: "pending"
+    });
+
+    // Popular dishes (most ordered in last 30 days)
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const recentOrdersWithDishes = await Order.find({
+      rest_id: user.rest_id,
+      date: { $gte: thirtyDaysAgo }
+    }).populate("dishes");
+
+    const dishFrequency = {};
+    recentOrdersWithDishes.forEach((order) => {
+      if (order.dishes && Array.isArray(order.dishes)) {
+        order.dishes.forEach((dish) => {
+          if (dish && dish.name) {
+            dishFrequency[dish.name] = (dishFrequency[dish.name] || 0) + 1;
+          }
+        });
+      }
+    });
+
+    const popularDishes = Object.entries(dishFrequency)
+      .map(([name, count]) => ({ name, orderCount: count }))
+      .sort((a, b) => b.orderCount - a.orderCount)
+      .slice(0, 5);
+
+    // Recent feedback
+    const recentFeedback = await Feedback.find({ rest_id: user.rest_id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("customerName diningRating orderRating status createdAt");
+
+    const pendingFeedback = await Feedback.countDocuments({
+      rest_id: user.rest_id,
+      status: "Pending"
+    });
+
+    // Operational alerts
+    const alerts = [];
+    if (criticalStockCount > 0) {
+      alerts.push({
+        type: "critical",
+        message: `${criticalStockCount} items critically low on stock`,
+        action: "inventory"
+      });
+    }
+    if (pendingOrders > 5) {
+      alerts.push({
+        type: "warning",
+        message: `${pendingOrders} orders pending`,
+        action: "orders"
+      });
+    }
+    if (pendingReservations > 3) {
+      alerts.push({
+        type: "info",
+        message: `${pendingReservations} reservations awaiting confirmation`,
+        action: "reservations"
+      });
+    }
+    if (pendingFeedback > 0) {
+      alerts.push({
+        type: "info",
+        message: `${pendingFeedback} customer feedback needs review`,
+        action: "feedback"
+      });
+    }
+
+    res.json({
+      restaurantName: user.restaurantName || rest.name,
+      stats: {
+        totalRevenueThisMonth,
+        totalRevenueToday,
+        totalRevenueThisWeek,
+        ordersToday,
+        pendingOrders,
+        completedOrdersToday,
+        totalOrdersThisMonth,
+        avgOrderValue: Math.round(avgOrderValue * 100) / 100,
+        activeStaff,
+        stockStatus,
+        criticalStockCount,
+        tableOccupancy,
+        totalTables,
+        occupiedTables,
+        avgRating: Math.round(avgRating * 10) / 10,
+        pendingReservations
+      },
+      recentOrders: formattedOrders,
+      upcomingReservations,
+      lowStockItems,
+      popularDishes,
+      recentFeedback,
+      alerts
+    });
+  } catch (error) {
+    console.error("Error in getDashboardSummary:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 // API endpoint for revenue & orders trend (last 7 days)
 exports.getRevenueOrdersTrend = async (req, res, next) => {
   try {

@@ -15,6 +15,12 @@ const StaffManagement = () => {
     priority: 'medium'
   });
 
+  const [addStaffForm, setAddStaffForm] = useState({
+    username: '',
+    password: '',
+    email: ''
+  });
+
   const [announcementForm, setAnnouncementForm] = useState({
     message: '',
     priority: 'normal'
@@ -100,6 +106,58 @@ const StaffManagement = () => {
     } catch (error) {
       console.error('Error adding task:', error);
       alert('Failed to add task: ' + error.message);
+    }
+  };
+
+  const handleAddStaffSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('http://localhost:3000/api/owner/staffManagement/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(addStaffForm),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add staff');
+      }
+
+      alert('Staff added successfully');
+      setAddStaffForm({
+        username: '',
+        password: '',
+        email: ''
+      });
+      fetchInitialData();
+    } catch (error) {
+      console.error('Error adding staff:', error);
+      alert('Failed to add staff: ' + error.message);
+    }
+  };
+
+  const handleDeleteStaff = async (staffId) => {
+    if (!window.confirm('Are you sure you want to remove this staff member?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/delete/${staffId}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove staff');
+      }
+
+      alert('Staff removed successfully');
+      fetchInitialData();
+    } catch (error) {
+      console.error('Error removing staff:', error);
+      alert('Failed to remove staff: ' + error.message);
     }
   };
 
@@ -295,25 +353,75 @@ const StaffManagement = () => {
               <table className="staff-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
                     <th>Username</th>
                     <th>Status</th>
                     <th>Shifts</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {staffList.map((staff) => (
                     <tr key={staff._id}>
-                      <td>{staff.name || 'N/A'}</td>
                       <td>{staff.username}</td>
                       <td><span className="staff-status-badge">Active</span></td>
                       <td>{staff.shifts?.length || 0}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="table-action-btn danger"
+                          onClick={() => handleDeleteStaff(staff._id)}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+
+        {/* Add Staff Section */}
+        <div className="section">
+          <h2>Add Staff</h2>
+          <form onSubmit={handleAddStaffSubmit} className="management-form">
+            <div className="form-group">
+              <label>Username:</label>
+              <input
+                type="text"
+                value={addStaffForm.username}
+                onChange={(e) => setAddStaffForm(prev => ({ ...prev, username: e.target.value }))}
+                required
+                placeholder="e.g., staff.john"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Password:</label>
+              <input
+                type="password"
+                value={addStaffForm.password}
+                onChange={(e) => setAddStaffForm(prev => ({ ...prev, password: e.target.value }))}
+                required
+                placeholder="Create a password"
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Email (optional):</label>
+                <input
+                  type="email"
+                  value={addStaffForm.email}
+                  onChange={(e) => setAddStaffForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="staff@email.com"
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="submit-btn">Add Staff</button>
+          </form>
         </div>
         {/* Add Task Section */}
         <div className="section">
@@ -401,7 +509,10 @@ const StaffManagement = () => {
               <p>No announcements yet.</p>
             ) : (
               announcements.map((announcement, index) => (
-                <div key={announcement._id || index} className="announcement-item">
+                <div
+                  key={announcement._id || index}
+                  className={`announcement-item priority-${announcement.priority}`}
+                >
                   <div className="announcement-content">
                     <div className="announcement-header">
                       <span className={`priority-badge priority-${announcement.priority}`}>

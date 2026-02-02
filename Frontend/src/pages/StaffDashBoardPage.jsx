@@ -25,10 +25,12 @@ export function StaffDashBoardPage() {
     staffTasks: []
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const navigate = useNavigate();
   const [newTable, setNewTable] = useState({ number: "", capacity: "" });
   const [selectedTables, setSelectedTables] = useState({}); // Track selected table for each reservation
   const [isProcessing, setIsProcessing] = useState(false);
+  const [passwords, setPasswords] = useState({ old: '', new: '' });
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -92,6 +94,59 @@ export function StaffDashBoardPage() {
       }
       navigate('/login');
    };
+
+  const handlePasswordChange = async () => {
+    if (!passwords.old || !passwords.new) {
+      alert('Please fill in both password fields');
+      return;
+    }
+    
+    try {
+      const response = await fetch('http://localhost:3000/staff/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwords.old,
+          newPassword: passwords.new
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to change password');
+      }
+      
+      const result = await response.json();
+      alert(result.message || 'Password changed successfully!');
+      setPasswords({ old: '', new: '' });
+      setShowSettings(false);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleTaskComplete = async (taskId) => {
+    try {
+      const response = await fetch(`http://localhost:3000/staff/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'Done' })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update task');
+      }
+      
+      const result = await response.json();
+      await fetchData();
+      alert(result.message || 'Task marked as completed!');
+    } catch (err) {
+      alert(err.message || 'Failed to complete task');
+    }
+  };
 
   const handleOrderDone = async (orderId) => {
     if (!window.confirm("Mark this order as done?")) return;
@@ -388,73 +443,364 @@ export function StaffDashBoardPage() {
 
       {/* -------------------- Settings Modal -------------------- */}
       {showSettings && (
-        <div className="absolute top-20 right-10 bg-white shadow-lg rounded-xl p-4 w-80 z-50 border">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <FaCog className="text-blue-500" /> Settings
-          </h2>
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            Old Password
-          </label>
-          <input
-            type="password"
-            className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="Enter old password"
-          />
-          <label className="block mb-2 text-sm font-medium text-gray-700">
-            New Password
-          </label>
-          <input
-            type="password"
-            className="w-full border px-3 py-2 rounded-md mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="Enter new password"
-          />
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => setShowSettings(false)}
-              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
-            >
-              Close
-            </button>
-            <button 
-              onClick={handleAddTable} 
-              className={`px-4 py-2 rounded text-white ${isProcessing || !newTable.number || !newTable.capacity ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'}`}
-              disabled={isProcessing || !newTable.number || !newTable.capacity}
-            >
-              {isProcessing ? 'Adding...' : 'Add Table'}
-            </button>
+        <div className="settings-modal">
+          <div className="settings-content">
+            <h2>
+              <FaCog /> Change Password
+            </h2>
+            <label>Old Password</label>
+            <input
+              type="password"
+              value={passwords.old}
+              onChange={(e) => setPasswords({...passwords, old: e.target.value})}
+              placeholder="Enter old password"
+            />
+            <label>New Password</label>
+            <input
+              type="password"
+              value={passwords.new}
+              onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+              placeholder="Enter new password"
+            />
+            <div className="settings-actions">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="btn-cancel"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handlePasswordChange}
+                className="btn-save"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* -------------------- Welcome Line -------------------- */}
-      <div className="welcome-card">
-      <span className="welcome-text">
-         👋 Welcome, <strong>Staff Member!</strong>
-      </span>
-      <span className="branch-text">
-         📍 Branch: <strong>{data.rest_name || "Tasty Bites"}</strong>
-      </span>
+      {/* -------------------- Welcome & Tabs -------------------- */}
+      <div className="welcome-section">
+        <div className="welcome-card">
+          <span className="welcome-text">
+            👋 Welcome, <strong>Staff Member!</strong>
+          </span>
+          <span className="branch-text">
+            📍 Branch: <strong>{data.rest_name || "Tasty Bites"}</strong>
+          </span>
+        </div>
+        
+        <div className="dashboard-tabs">
+          <button 
+            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            📊 Overview
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders')}
+          >
+            🍽️ Orders
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'reservations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reservations')}
+          >
+            📅 Reservations
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'tasks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tasks')}
+          >
+            ✅ My Tasks
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`}
+            onClick={() => setActiveTab('inventory')}
+          >
+            📦 Inventory
+          </button>
+        </div>
       </div>
 
       {/* -------------------- Summary Blocks -------------------- */}
-      <div className="summary-grid">
-      <div className="summary-card blue">
-         <h3>Active Orders</h3>
-         <p>{activeOrders}</p>
-      </div>
-      <div className="summary-card green">
-         <h3>Tables Occupied</h3>
-         <p>{occupiedTables}</p>
-      </div>
-      <div className="summary-card yellow">
-         <h3>Low Stock</h3>
-         <p>{lowStockCount}</p>
-      </div>
-      <div className="summary-card red">
-         <h3>Pending Tasks</h3>
-         <p>{data.staffTasks.filter(task => task.status === "Pending").length}</p>
-      </div>
-      </div>
+      {activeTab === 'overview' && (
+        <>
+          <div className="summary-grid">
+            <div className="summary-card blue">
+              <div className="card-icon">🍽️</div>
+              <div className="card-content">
+                <h3>Active Orders</h3>
+                <p>{activeOrders}</p>
+              </div>
+            </div>
+            <div className="summary-card green">
+              <div className="card-icon">🪑</div>
+              <div className="card-content">
+                <h3>Tables Occupied</h3>
+                <p>{occupiedTables}</p>
+              </div>
+            </div>
+            <div className="summary-card yellow">
+              <div className="card-icon">⚠️</div>
+              <div className="card-content">
+                <h3>Low Stock Items</h3>
+                <p>{lowStockCount}</p>
+              </div>
+            </div>
+            <div className="summary-card red">
+              <div className="card-icon">✅</div>
+              <div className="card-content">
+                <h3>Pending Tasks</h3>
+                <p>{data.staffTasks.filter(task => task.status === "Pending").length}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <section className="dashboard-section quick-actions">
+            <h2>⚡ Quick Actions</h2>
+            <div className="action-grid">
+              <button className="action-btn" onClick={() => setActiveTab('orders')}>
+                <span className="action-icon">🍽️</span>
+                <span>View Active Orders</span>
+              </button>
+              <button className="action-btn" onClick={() => setActiveTab('reservations')}>
+                <span className="action-icon">📅</span>
+                <span>Manage Reservations</span>
+              </button>
+              <button className="action-btn" onClick={() => setActiveTab('tasks')}>
+                <span className="action-icon">✅</span>
+                <span>Check My Tasks</span>
+              </button>
+              <button className="action-btn" onClick={() => setActiveTab('inventory')}>
+                <span className="action-icon">📦</span>
+                <span>View Inventory</span>
+              </button>
+            </div>
+          </section>
+
+          {/* Recent Activity */}
+          <section className="dashboard-section recent-activity">
+            <h2>🕒 Recent Activity</h2>
+            <div className="activity-list">
+              {data.feedback && data.feedback.length > 0 ? (
+                data.feedback.slice(0, 3).map((f, idx) => (
+                  <div key={idx} className="activity-item">
+                    <span className="activity-icon">💬</span>
+                    <div className="activity-content">
+                      <p className="activity-text">"{f.additionalFeedback}"</p>
+                      <span className="activity-meta">— {f.customerName}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500">No recent feedback</p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+
+      {/* -------------------- Active Orders Tab -------------------- */}
+      {activeTab === 'orders' && (
+        <section className="dashboard-section active-orders">
+          <h2>🍽️ Active Orders</h2>
+          {activeOrdersList.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-icon">📋</span>
+              <p>No active orders at the moment</p>
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Table</th>
+                  <th>Items</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeOrdersList.map((order) => (
+                  <tr key={order._id}>
+                    <td>#{order._id.slice(-4)}</td>
+                    <td>{order.table_id || "N/A"}</td>
+                    <td>{order.dishes?.join(", ")}</td>
+                    <td>
+                      <span className={`status-badge status-${order.status?.toLowerCase()}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td>
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleOrderDone(order._id)}
+                      >
+                        ✓ Complete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
+
+      {/* -------------------- Reservations Tab -------------------- */}
+      {activeTab === 'reservations' && (
+        <>
+          <section className="dashboard-section table-assignments">
+            <h2>🍴 Pending Reservations</h2>
+            {renderReservations()}
+          </section>
+
+          <section className="dashboard-section reserved-tables">
+            <h2>🍽️ Reserved Tables</h2>
+            {!data.reservations || data.reservations.filter(r => r.allocated).length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-icon">🪑</span>
+                <p>No reserved tables</p>
+              </div>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Table</th>
+                    <th>Customer</th>
+                    <th>Reservation Time</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.reservations.filter(r => r.allocated).map((resv) => (
+                    <tr key={resv._id}>
+                      <td>{resv.tables?.join(", ") || "N/A"}</td>
+                      <td>{resv.customerName || "N/A"}</td>
+                      <td>{resv.time || "N/A"}</td>
+                      <td><span className="status-badge status-reserved">Reserved</span></td>
+                      <td>
+                        <button 
+                          className="action-btn-small danger"
+                          onClick={() => handleRemoveReservation(resv._id)}
+                        >
+                          ❌ Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <section className="dashboard-section add-table">
+            <h2>➕ Add New Table</h2>
+            <div className="add-table-form">
+              <input
+                type="number"
+                placeholder="Table Number"
+                value={newTable.number}
+                onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
+              />
+              <input
+                type="number"
+                placeholder="Capacity"
+                value={newTable.capacity}
+                onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
+              />
+              <button onClick={handleAddTable}>Add Table</button>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* -------------------- Tasks Tab -------------------- */}
+      {activeTab === 'tasks' && (
+        <section className="dashboard-section my-tasks">
+          <h2>✅ My Tasks</h2>
+          {!data.staffTasks || data.staffTasks.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-icon">✅</span>
+              <p>No tasks assigned yet</p>
+            </div>
+          ) : (
+            <div className="tasks-grid">
+              {data.staffTasks.map((task, idx) => (
+                <div key={idx} className={`task-card task-${task.priority?.toLowerCase()}`}>
+                  <div className="task-header">
+                    <span className={`priority-badge priority-${task.priority?.toLowerCase()}`}>
+                      {task.priority || 'Medium'}
+                    </span>
+                    <span className={`status-badge status-${task.status?.toLowerCase()}`}>
+                      {task.status || 'Pending'}
+                    </span>
+                  </div>
+                  <p className="task-description">{task.name}</p>
+                  {task.status === 'Pending' && (
+                    <button 
+                      className="task-complete-btn"
+                      onClick={() => handleTaskComplete(task.id)}
+                    >
+                      Mark Complete
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* -------------------- Inventory Tab -------------------- */}
+      {activeTab === 'inventory' && (
+        <section className="dashboard-section inventory-status">
+          <h2>📦 Inventory Status</h2>
+          {!inventoryItems || inventoryItems.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-icon">📦</span>
+              <p>No inventory data found</p>
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Quantity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryItems.map((inv, idx) => (
+                  <tr key={idx}>
+                    <td className="font-medium">{inv.item}</td>
+                    <td>{inv.quantity}</td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          inv.status === "Out of Stock"
+                            ? "badge-red"
+                            : inv.status === "Low Stock"
+                            ? "badge-yellow"
+                            : "badge-green"
+                        }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
 
 
       {/* -------------------- Active Orders -------------------- */}

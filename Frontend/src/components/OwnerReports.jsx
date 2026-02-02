@@ -4,11 +4,10 @@ import styles from "./Reports.module.css";
 export function Reports() {
   const [reportsData, setReportsData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('monthly'); // daily, weekly, monthly
 
   useEffect(() => {
     fetchReportsData();
-  }, [period]);
+  }, []);
 
   const fetchReportsData = async () => {
     try {
@@ -136,29 +135,7 @@ export function Reports() {
     <div className={styles.reportsContainer}>
       <h1 className={styles.title}>Reports</h1>
 
-      {/* Period Filter Buttons */}
-      <div className={styles.filterContainer}>
-        <div className={styles.filterButtonGroup}>
-          <button
-            className={`${styles.filterButton} ${period === 'daily' ? styles.filterButtonActive : ''}`}
-            onClick={() => setPeriod('daily')}
-          >
-            Daily
-          </button>
-          <button
-            className={`${styles.filterButton} ${period === 'weekly' ? styles.filterButtonActive : ''}`}
-            onClick={() => setPeriod('weekly')}
-          >
-            Weekly
-          </button>
-          <button
-            className={`${styles.filterButton} ${period === 'monthly' ? styles.filterButtonActive : ''}`}
-            onClick={() => setPeriod('monthly')}
-          >
-            Monthly
-          </button>
-        </div>
-      </div>
+
 
       {/* Revenue Overview Cards */}
       <div className={styles.overviewCards}>

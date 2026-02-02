@@ -142,6 +142,8 @@ const restaurantSchema = new mongoose.Schema({
       assignedTo: [String], // usernames
       priority: { type: String, default: "medium" },
       createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      completedBy: [String], // usernames who completed this task
     },
   ],
   supportMessages: [
