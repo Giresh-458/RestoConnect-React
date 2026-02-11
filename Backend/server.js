@@ -56,6 +56,9 @@ const ownerRouter = require("./routes/ownerRoutes.js");
 const staffRouter = require("./routes/staffRouter.js");
 
 const reservationRouter = require("./routes/reservationRoutes.js");
+const customerSupportRouter = require("./routes/customerSupportRoutes.js");
+const ownerSupportRouter = require("./routes/ownerSupportRoutes.js");
+const adminSupportRouter = require("./routes/adminSupportRoutes.js");
 
 const homepageController = require("./Controller/homePageController.js");
 const menuController = require("./Controller/menuController.js");
@@ -104,12 +107,16 @@ app.use("/loginPage", loginPage);
 app.use("/api/customer", customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
+// Support routes must be mounted BEFORE generic role routers to ensure proper matching
+app.use("/api/customer/support", authentication("customer"), customerSupportRouter);
 app.use("/customer", authentication("customer"), customerRouter);
 app.use("/api/customer", authentication("customer"), customerRouter);
 
+app.use("/api/admin/support", authentication("admin"), adminSupportRouter);
 app.use("/admin", authentication("admin"), adminRouter);
 app.use("/api/admin", authentication("admin"), adminRouter);
 
+app.use("/api/owner/support", authentication("owner"), ownerSupportRouter);
 app.use("/owner", authentication("owner"), ownerRouter);
 app.use("/api/owner", authentication("owner"), ownerRouter);
 

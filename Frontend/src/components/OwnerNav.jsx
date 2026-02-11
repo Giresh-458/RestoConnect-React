@@ -30,6 +30,9 @@ export function OwnerNav() {
           <NavLink to={"/owner/staffmanagement"} className={({ isActive }) => (isActive ? styles.active : "")}>
             Staff
           </NavLink>
+          <NavLink to={"/owner/support"} className={({ isActive }) => (isActive ? styles.active : "")}>
+            Support
+          </NavLink>
         </div>
 
         <button onClick={handleLogout} className={styles.logoutButton}>

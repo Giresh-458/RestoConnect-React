@@ -40,6 +40,9 @@ router.post("/add-task", ownerController.addTask);
 router.post("/add-announcement", ownerController.addAnnouncement);
 router.post("/add-shift", ownerController.addShift);
 router.get("/support-messages", ownerController.getSupportMessages);
+router.get("/support-threads", ownerController.getCustomerSupportThreads);
+router.post("/support-threads/:threadId/messages", ownerController.postCustomerSupportMessage);
+router.patch("/support-threads/:threadId/status", ownerController.updateCustomerSupportStatus);
 router.get("/announcements", ownerController.getAnnouncements);
 router.delete("/announcements/:id", ownerController.deleteAnnouncement);
 

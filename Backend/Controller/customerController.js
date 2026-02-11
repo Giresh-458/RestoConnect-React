@@ -889,6 +889,220 @@ exports.postOrderAndReservation = async (req, res, next) => {
   }
 };
 
+// Customer support chat threads
+exports.getCustomerSupportThreads = async (req, res, next) => {
+  try {
+    const customerName = req.session.username;
+    const { rest_id } = req.query;
+
+    if (!customerName) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!rest_id) {
+      return res.status(400).json({ error: "Restaurant ID is required" });
+    }
+
+    const restaurant = await Restaurant.findById(rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const threads = (restaurant.customerSupportThreads || [])
+      .filter((thread) => thread.customerName === customerName)
+      .map((thread) => ({
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status || "pending",
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages || [],
+      }))
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({
+      restaurant: { id: restaurant._id, name: restaurant.name },
+      threads,
+    });
+  } catch (error) {
+    console.error("Error in getCustomerSupportThreads:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
+exports.createCustomerSupportThread = async (req, res, next) => {
+  try {
+    const customerName = req.session.username;
+    const { rest_id, message } = req.body;
+
+    if (!customerName) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!rest_id) {
+      return res.status(400).json({ error: "Restaurant ID is required" });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const restaurant = await Restaurant.findById(rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!restaurant.customerSupportThreads) {
+      restaurant.customerSupportThreads = [];
+    }
+
+    const now = new Date();
+    const newThread = {
+      customerName,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      messages: [
+        {
+          senderRole: "customer",
+          senderName: customerName,
+          text: message.trim(),
+          timestamp: now,
+        },
+      ],
+    };
+
+    restaurant.customerSupportThreads.push(newThread);
+    await restaurant.save();
+
+    const createdThread = restaurant.customerSupportThreads[
+      restaurant.customerSupportThreads.length - 1
+    ];
+
+    res.json({
+      success: true,
+      thread: {
+        id: createdThread._id,
+        customerName: createdThread.customerName,
+        status: createdThread.status,
+        createdAt: createdThread.createdAt,
+        updatedAt: createdThread.updatedAt,
+        messages: createdThread.messages || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in createCustomerSupportThread:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
+exports.postCustomerSupportMessage = async (req, res, next) => {
+  try {
+    const customerName = req.session.username;
+    const { rest_id, message } = req.body;
+    const { threadId } = req.params;
+
+    if (!customerName) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!rest_id) {
+      return res.status(400).json({ error: "Restaurant ID is required" });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const restaurant = await Restaurant.findById(rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const thread = restaurant.customerSupportThreads?.id(threadId);
+    if (!thread || thread.customerName !== customerName) {
+      return res.status(404).json({ error: "Support thread not found" });
+    }
+
+    thread.messages = thread.messages || [];
+    thread.messages.push({
+      senderRole: "customer",
+      senderName: customerName,
+      text: message.trim(),
+      timestamp: new Date(),
+    });
+    thread.status = "pending";
+    thread.updatedAt = new Date();
+
+    await restaurant.save();
+
+    res.json({
+      success: true,
+      thread: {
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in postCustomerSupportMessage:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
+exports.updateCustomerSupportStatus = async (req, res, next) => {
+  try {
+    const customerName = req.session.username;
+    const { rest_id, status } = req.body;
+    const { threadId } = req.params;
+
+    if (!customerName) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    if (!rest_id) {
+      return res.status(400).json({ error: "Restaurant ID is required" });
+    }
+
+    if (!status || !["pending", "resolved"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const restaurant = await Restaurant.findById(rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const thread = restaurant.customerSupportThreads?.id(threadId);
+    if (!thread || thread.customerName !== customerName) {
+      return res.status(404).json({ error: "Support thread not found" });
+    }
+
+    thread.status = status;
+    thread.updatedAt = new Date();
+
+    await restaurant.save();
+
+    res.json({
+      success: true,
+      thread: {
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateCustomerSupportStatus:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
 exports.order = async (req, res, next) => {
   const { restaurant, specialRequests } = req.body;
   const newOrder = {

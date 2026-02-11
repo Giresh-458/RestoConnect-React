@@ -154,6 +154,22 @@ const restaurantSchema = new mongoose.Schema({
       status: { type: String, default: "pending" },
     },
   ],
+  customerSupportThreads: [
+    {
+      customerName: String,
+      status: { type: String, default: "pending" },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      messages: [
+        {
+          senderRole: String,
+          senderName: String,
+          text: String,
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+  ],
 });
 
 // Instance method to add restaurant

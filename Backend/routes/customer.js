@@ -14,6 +14,10 @@ router.get('/customerDashboard',customerController.getCustomerDashboard);
 router.get('/feedback', customerController.getFeedBack);
 // router.post('/submit-feedback', customerController.postSubmitFeedBack);
 router.post("/submit-feedback", customerController.submitFeedback);
+router.get("/support-threads", customerController.getCustomerSupportThreads);
+router.post("/support-threads", customerController.createCustomerSupportThread);
+router.post("/support-threads/:threadId/messages", customerController.postCustomerSupportMessage);
+router.patch("/support-threads/:threadId/status", customerController.updateCustomerSupportStatus);
 
 router.get('/edit', customerController.getEditProfile);
 router.post('/edit', uploadProfilePicture, handleUploadErrors, customerController.postEditProfile);

@@ -4,6 +4,7 @@ import User from '../components/admin_components/User';
 import { AdminDashBoard } from "../components/admin_components/AdminDashBoard";
 import { Settings } from "../components/admin_components/Settings";
 import { RestaurantSubPage } from "../components/admin_components/RestaurentSubPage";
+import { SupportChatPage } from "./SupportChatPage";
 import { useState } from "react";
 import "../styles/admin_page_styles.css"; // ✅ main CSS for dashboard + layout
 
@@ -19,6 +20,7 @@ export default function Sidebar({ setSubPage, subPage }) {
     <li className={subPage === "dashboard" ? "active" : ""} onClick={() => setSubPage("dashboard")}>Dashboard</li>
     <li className={subPage === "user" ? "active" : ""} onClick={() => setSubPage("user")}>User Management</li>
     <li className={subPage === "restaurant" ? "active" : ""} onClick={() => setSubPage("restaurant")}>Restaurant Management</li>
+    <li className={subPage === "support" ? "active" : ""} onClick={() => setSubPage("support")}>Support Tickets</li>
     <li className={subPage === "settings" ? "active" : ""} onClick={() => setSubPage("settings")}>Settings</li>
   </ul>
     <div style={{ marginTop: 20 }}>
@@ -52,6 +54,7 @@ export function AdminPage() {
         {subPage === "dashboard" && <AdminDashBoard totalusers={data.total_user_count} totalrestaurants={data.restaurants_list.length} />}
         {subPage === "user" && <User />}
         {subPage === "restaurant" && <RestaurantSubPage />}
+        {subPage === "support" && <SupportChatPage mode="admin" />}
         {subPage === "settings" && <Settings data={data.current_admin} />}
       </div>
     </div>

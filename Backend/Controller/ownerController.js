@@ -1494,6 +1494,124 @@ exports.getSupportMessages = async (req, res, next) => {
   }
 };
 
+// Customer support chat threads
+exports.getCustomerSupportThreads = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const threads = (restaurant.customerSupportThreads || [])
+      .map((thread) => ({
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status || "pending",
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages || [],
+      }))
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({ threads });
+  } catch (error) {
+    console.error("Error in getCustomerSupportThreads:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.postCustomerSupportMessage = async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    const { threadId } = req.params;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const thread = restaurant.customerSupportThreads?.id(threadId);
+    if (!thread) {
+      return res.status(404).json({ error: "Support thread not found" });
+    }
+
+    thread.messages = thread.messages || [];
+    thread.messages.push({
+      senderRole: "owner",
+      senderName: user.username,
+      text: message.trim(),
+      timestamp: new Date(),
+    });
+    thread.status = "pending";
+    thread.updatedAt = new Date();
+
+    await restaurant.save();
+
+    res.json({
+      success: true,
+      thread: {
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages,
+      },
+    });
+  } catch (error) {
+    console.error("Error in postCustomerSupportMessage:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.updateCustomerSupportStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const { threadId } = req.params;
+
+    if (!status || !["pending", "resolved"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const user = await User.findOne({ username: req.session.username });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const thread = restaurant.customerSupportThreads?.id(threadId);
+    if (!thread) {
+      return res.status(404).json({ error: "Support thread not found" });
+    }
+
+    thread.status = status;
+    thread.updatedAt = new Date();
+
+    await restaurant.save();
+
+    res.json({
+      success: true,
+      thread: {
+        id: thread._id,
+        customerName: thread.customerName,
+        status: thread.status,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        messages: thread.messages || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateCustomerSupportStatus:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.getAnnouncements = async (req, res, next) => {
   try {
     const user = req.user;
