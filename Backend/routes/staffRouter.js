@@ -50,19 +50,11 @@ if (!staffController.getStaffHomepageData) {
   console.log("✅ staffController.getStaffHomepageData is defined at module load");
 }
 
-// Register the route - handle async properly
-console.log("🔵 Registering /homepage route, controller type:", typeof staffController.getStaffHomepageData);
 router.get("/homepage", async (req, res, next) => {
-  console.log("✅✅✅✅✅✅ ROUTE HANDLER CALLED! /homepage matched!");
-  console.log("  Method:", req.method);
-  console.log("  Path:", req.path);
-  console.log("  URL:", req.url);
-  console.log("  Calling getStaffHomepageData now...");
+
   try {
-    // The controller is async and handles its own response
     await staffController.getStaffHomepageData(req, res);
   } catch (error) {
-    console.error("❌❌❌ ERROR calling getStaffHomepageData:", error);
     console.error("  Error stack:", error.stack);
     if (!res.headersSent) {
       return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -71,7 +63,6 @@ router.get("/homepage", async (req, res, next) => {
   }
 });
 
-// Also support /homepage/ for consistency
 router.get("/homepage", (req,res,next)=>{
   console.log("in correct route");
   next();

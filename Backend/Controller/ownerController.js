@@ -4,7 +4,6 @@ let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
-const { Inventory } = require("../Model/Inventory_model");
 const Feedback = require('../Model/feedback');
 exports.getOwnerHomepage = async (req, res, next) => {
   try {
@@ -705,10 +704,10 @@ exports.updateInventoryQuantity = async (req, res, next) => {
   }
 };
 
-// API endpoint to create inventory item
+// API endpoint to create inventory item (using restaurant inventoryData)
 exports.createInventoryItem = async (req, res, next) => {
   try {
-    const { name, unit, quantity, minStock } = req.body;
+    const { name, unit, quantity, minStock, supplier } = req.body;
 
     if (!name || !unit) {
       return res.status(400).json({ error: "Name and unit are required" });
@@ -717,19 +716,51 @@ exports.createInventoryItem = async (req, res, next) => {
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const inventoryItem = new Inventory({
-      name,
-      unit,
-      quantity: quantity || 0,
-      minStock: minStock || 0,
-      rest_id: user.rest_id
-    });
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
 
-    await inventoryItem.save();
+    if (!restaurant.inventoryData) {
+      restaurant.inventoryData = {
+        labels: [],
+        values: [],
+        units: [],
+        suppliers: [],
+        minStocks: []
+      };
+    }
 
+    const inventoryData = restaurant.inventoryData;
+    inventoryData.labels = Array.isArray(inventoryData.labels) ? inventoryData.labels : [];
+    inventoryData.values = Array.isArray(inventoryData.values) ? inventoryData.values : [];
+    inventoryData.units = Array.isArray(inventoryData.units) ? inventoryData.units : [];
+    inventoryData.suppliers = Array.isArray(inventoryData.suppliers) ? inventoryData.suppliers : [];
+    inventoryData.minStocks = Array.isArray(inventoryData.minStocks) ? inventoryData.minStocks : [];
+
+    const normalizedQuantity = Number.isFinite(Number(quantity)) ? Number(quantity) : 0;
+    const normalizedMinStock = Number.isFinite(Number(minStock)) ? Number(minStock) : 0;
+
+    inventoryData.labels.push(name);
+    inventoryData.values.push(normalizedQuantity);
+    inventoryData.units.push(unit);
+    inventoryData.suppliers.push(supplier || "");
+    inventoryData.minStocks.push(normalizedMinStock);
+
+    await restaurant.save();
+
+    const itemIndex = inventoryData.labels.length - 1;
     res.json({
       success: true,
-      inventory: inventoryItem
+      inventory: {
+        _id: `item_${itemIndex}`,
+        name,
+        quantity: inventoryData.values[itemIndex],
+        unit: inventoryData.units[itemIndex],
+        minStock: inventoryData.minStocks[itemIndex],
+        supplier: inventoryData.suppliers[itemIndex],
+        rest_id: user.rest_id
+      }
     });
   } catch (error) {
     console.error("Error in createInventoryItem:", error);

@@ -61,7 +61,10 @@ exports.getDashBoard = async (req, res, next) => {
     res.render("staffDashboard", {
       orders: orders,
       reservations: recentReservations,
-      inventory: inventoryItems.filter((item) => item.quantity < 10), // Show only low stock items
+      inventory: inventoryItems.filter((item) => {
+        const minStock = (rest.inventoryData.minStocks && rest.inventoryData.minStocks[inventoryItems.indexOf(item)]) || 0;
+        return minStock > 0 && item.quantity <= minStock;
+      }), // Show only low stock items
       ordersData,
       inventoryData: inventoryDataForChart, // For the chart
       inventoryDataForTable: inventoryDataForTable, // For the table

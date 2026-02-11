@@ -9,7 +9,7 @@ import {
 } from "../api/inventoryApi";
 import styles from "./InventoryManagement.module.css";
 
-export function InventoryManagement() {
+export function InventoryManagement({ onInventoryChange }) {
   console.log("InventoryManagement component mounted");
   const [inventory, setInventory] = useState(() => {
     try {
@@ -63,6 +63,9 @@ export function InventoryManagement() {
           item._id === itemId ? result.inventory : item
         );
       });
+      if (typeof onInventoryChange === "function") {
+        await onInventoryChange();
+      }
     } catch (error) {
       console.error("Error updating inventory:", error);
       alert(error.message || "Failed to update inventory. Please try again.");
@@ -93,6 +96,10 @@ export function InventoryManagement() {
             : [result.inventory]
       );
 
+      if (typeof onInventoryChange === "function") {
+        await onInventoryChange();
+      }
+
       
       setNewItem({ name: '', unit: 'kg', quantity: 0, minStock: 0 });
       setShowAddForm(false);
@@ -115,6 +122,10 @@ export function InventoryManagement() {
           ? prevInventory.filter(item => item?._id !== itemId)
           : []
       );
+
+      if (typeof onInventoryChange === "function") {
+        await onInventoryChange();
+      }
 
 
     } catch (error) {

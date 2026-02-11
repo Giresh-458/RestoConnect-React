@@ -16,9 +16,6 @@ const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
 const app = express();
 
-// Middleware
-// Note: bodyparser.urlencoded automatically skips multipart/form-data, 
-// and multer will handle it, so this should work fine
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());

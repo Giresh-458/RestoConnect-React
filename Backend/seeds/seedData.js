@@ -729,6 +729,20 @@ async function seed() {
           "Spice Traders",
           "Ocean Fresh",
         ],
+        minStocks: [
+          10, // Tomatoes
+          5, // Onions
+          5, // Chicken Breast
+          5, // Paneer
+          20, // Rice
+          3, // Cooking Oil
+          10, // Flour
+          5, // Cheese
+          5, // Milk
+          10, // Potatoes
+          2, // Spices Mix
+          5, // Fish
+        ],
       };
       rest.announcements = [
         {
@@ -844,7 +858,7 @@ async function seed() {
     users.push(
       {
         username: "customer1",
-        email: "customer1@example.com",
+        email: "gireshvelaga@gmail.com",
         role: "customer",
         password: bcrypt.hashSync("123456", 10),
       },

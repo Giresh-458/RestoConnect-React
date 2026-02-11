@@ -344,7 +344,9 @@ export function OwnerDashBoard() {
         {activeTab === "orders" && <OwnerOrders />}
         {activeTab === "reservations" && <OwnerReservations />}
         {activeTab === "feedback" && <FeedBackPage mode="owner" />}
-        {activeTab === "inventory" && <InventoryManagement />}
+        {activeTab === "inventory" && (
+          <InventoryManagement onInventoryChange={loadStats} />
+        )}
       </div>
     </div>
   );
