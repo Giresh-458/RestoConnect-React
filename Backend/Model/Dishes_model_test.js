@@ -24,6 +24,14 @@ const dishSchema = new mongoose.Schema({
     default: 1, // Default serves 1 person
     min: 1
   },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  },
+  category: {
+    type: String,
+    default: 'Main Course'
+  }
 });
 
 dishSchema.methods.addDish = async function(rest_id) {

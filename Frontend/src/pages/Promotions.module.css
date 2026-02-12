@@ -1,0 +1,65 @@
+.page { padding: 1.5rem 2rem; max-width: 1200px; margin: 0 auto; }
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; color: #6b7280; }
+.spinner { width: 36px; height: 36px; border: 3px solid #e5e7eb; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.75rem; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+.title { font-size: 1.5rem; font-weight: 700; color: #1f2937; margin: 0; }
+.subtitle { color: #6b7280; font-size: 0.85rem; margin-top: 0.15rem; }
+.addBtn { background: #6366f1; color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.addBtn:hover { background: #4f46e5; }
+
+/* Form */
+.form { background: #fff; border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e5e7eb; }
+.form h3 { margin: 0 0 1rem; font-size: 1.1rem; color: #1f2937; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.formGroup { display: flex; flex-direction: column; gap: 0.3rem; }
+.formGroup label { font-size: 0.8rem; font-weight: 600; color: #374151; }
+.formGroup input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+.formGroup input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.formActions { margin-top: 1rem; }
+.submitBtn { background: #10b981; color: #fff; border: none; padding: 0.5rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.submitBtn:hover { background: #059669; }
+
+/* Stats */
+.statsRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat { background: #fff; border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid #f3f4f6; }
+.statVal { display: block; font-size: 1.5rem; font-weight: 700; color: #1f2937; }
+.statLabel { font-size: 0.78rem; color: #6b7280; }
+
+/* Code Grid */
+.codeGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.codeCard { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; overflow: hidden; transition: all 0.15s; }
+.codeCard:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+.inactiveCard { opacity: 0.65; }
+
+.cardTop { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem 0; }
+.codeText { font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: 700; color: #6366f1; letter-spacing: 1px; }
+.badge { padding: 0.15rem 0.6rem; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+.badgeActive { background: #d1fae5; color: #059669; }
+.badgeInactive { background: #f3f4f6; color: #9ca3af; }
+
+.cardBody { padding: 0.75rem 1rem; }
+.discount { font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 0.5rem; }
+.meta { display: flex; gap: 1rem; font-size: 0.78rem; color: #6b7280; margin-bottom: 0.5rem; }
+.progressWrap { height: 6px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+.progressBar { height: 100%; background: linear-gradient(90deg, #6366f1, #a78bfa); border-radius: 3px; transition: width 0.3s; }
+
+.cardActions { display: flex; gap: 0.5rem; padding: 0 1rem 1rem; }
+.pauseBtn, .activateBtn, .deleteBtn { flex: 1; padding: 0.4rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1px solid; }
+.pauseBtn { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+.pauseBtn:hover { background: #fef3c7; }
+.activateBtn { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
+.activateBtn:hover { background: #a7f3d0; }
+.deleteBtn { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.deleteBtn:hover { background: #fee2e2; }
+
+.empty { text-align: center; color: #9ca3af; padding: 3rem; }
+.empty p:first-child { font-size: 1.1rem; font-weight: 600; }
+
+@media (max-width: 768px) {
+  .page { padding: 1rem; }
+  .statsRow { grid-template-columns: repeat(2, 1fr); }
+  .formGrid { grid-template-columns: 1fr; }
+  .codeGrid { grid-template-columns: 1fr; }
+}

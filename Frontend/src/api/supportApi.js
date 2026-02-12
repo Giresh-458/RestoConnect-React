@@ -12,10 +12,8 @@ const opts = (method, body) => ({
   ...(body ? { body: JSON.stringify(body) } : {}),
 });
 
-/* ── Customer ──────────────────────────────────────── */
 
 export const customerApi = {
-  /** Swiggy-style: get past dining orders to raise issues against */
   getOrders: () =>
     fetch(`${BASE}/api/customer/support/orders`, opts("GET")).then(json),
 
@@ -54,7 +52,6 @@ export const customerApi = {
     ).then(json),
 };
 
-/* ── Owner ─────────────────────────────────────────── */
 
 export const ownerApi = {
   getStats: () =>
@@ -95,8 +92,6 @@ export const ownerApi = {
       opts("POST", { text })
     ).then(json),
 };
-
-/* ── Admin ─────────────────────────────────────────── */
 
 export const adminApi = {
   getStats: () =>

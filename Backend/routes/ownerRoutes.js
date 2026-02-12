@@ -64,7 +64,25 @@ router.delete("/inventory/:id", ownerController.deleteInventoryItem);
 router.get("/feedback", ownerController.getFeedback);
 router.put("/feedback/:id/status", ownerController.updateFeedbackStatus);
 
-// API routes for owner dashboard
+// Enhanced API routes
+router.patch("/orders/:id/status", ownerController.updateOrderStatus);
+router.patch("/reservations/:id/status", ownerController.updateReservationStatus);
+router.patch("/tables/:number/status", ownerController.updateTableStatus);
+router.post("/tables/api/add", ownerController.addTableAPI);
+router.delete("/tables/api/:number", ownerController.deleteTableAPI);
+router.put("/menuManagement/api/edit/:id", uploadDishImage, handleUploadErrors, ownerController.editProductAPI);
+router.delete("/menuManagement/api/delete/:id", ownerController.deleteProductAPI);
+router.get("/settings", ownerController.getRestaurantSettings);
+router.put("/settings", ownerController.updateRestaurantSettings);
+router.get("/promo-codes", ownerController.getPromoCodes);
+router.post("/promo-codes", ownerController.createPromoCode);
+router.patch("/promo-codes/:id/toggle", ownerController.togglePromoCode);
+router.delete("/promo-codes/:id", ownerController.deletePromoCode);
+router.post("/staffManagement/api/add", ownerController.addStaffAPI);
+router.delete("/staffManagement/api/:id", ownerController.deleteStaffAPI);
+router.get("/live-floor", ownerController.getLiveFloor);
+
+// Legacy routes
 router.get("/owner/reports", ownerController.getReportsData);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const SupportTicket = require("../Model/SupportTicket_model");
 const { Restaurant } = require("../Model/Restaurents_model");
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
-const Dish = require("../Model/Dishes_model_test");
+const { Dish } = require("../Model/Dishes_model_test");
 
 const CATEGORY_LABELS = {
   wrong_order: "Wrong Order",

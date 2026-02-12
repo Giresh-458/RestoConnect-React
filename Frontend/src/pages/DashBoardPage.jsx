@@ -15,1406 +15,714 @@ export async function loader() {
   return null;
 }
 
+/* ─── tiny helpers ───────────────────────────────────── */
+const fmt = (n) => {
+  const v = typeof n === "number" ? n : Number(n);
+  return Number.isNaN(v) ? "₹0" : `₹${v.toFixed(0)}`;
+};
+const fmtDate = (v) => {
+  if (!v) return "";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime())
+    ? v
+    : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
+const fmtTime = (v) => {
+  if (!v) return "";
+  if (/am|pm/i.test(v)) return v;
+  const [h, m] = v.split(":").map(Number);
+  if (Number.isNaN(h)) return v;
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${ampm}`;
+};
+const stars = (r) => {
+  if (typeof r !== "number" || Number.isNaN(r)) return "☆☆☆☆☆";
+  const c = Math.max(0, Math.min(5, Math.round(r)));
+  return "★".repeat(c) + "☆".repeat(5 - c);
+};
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export const DashBoardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
+
+  /* sidebar / section */
+  const [activeSection, setActiveSection] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  /* data */
   const [userData, setUserData] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [pastOrders, setPastOrders] = useState([]);
   const [favoriteRestaurants, setFavoriteRestaurants] = useState([]);
   const [upcomingReservations, setUpcomingReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
   const [weeklySpending, setWeeklySpending] = useState(Array(7).fill(0));
   const [orderFrequency, setOrderFrequency] = useState([0, 0, 0, 0]);
-  const [feedbackStats, setFeedbackStats] = useState({
-    satisfactionRate: 0,
-    totalReviews: 0,
-    recentReviews: [],
-  });
+  const [feedbackStats, setFeedbackStats] = useState({ satisfactionRate: 0, totalReviews: 0, recentReviews: [] });
   const [notifications, setNotifications] = useState([]);
-  const [emailNotificationsEnabled, setEmailNotificationsEnabled] =
-    useState(true);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [switchFocused, setSwitchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+  const [favoriteDishes, setFavoriteDishes] = useState([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+
+  /* edit profile */
   const [showEditModal, setShowEditModal] = useState(false);
-  const [activeOrderTab, setActiveOrderTab] = useState("recent");
-  const [pastOrders, setPastOrders] = useState([]);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
   const [selectedProfileFile, setSelectedProfileFile] = useState(null);
-  const [editFormData, setEditFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    img_url: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
+  const [editFormData, setEditFormData] = useState({ name: "", email: "", phone: "", img_url: "", newPassword: "", confirmPassword: "" });
   const [updateError, setUpdateError] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [reorderingOrderId, setReorderingOrderId] = useState(null);
   const [notificationSaving, setNotificationSaving] = useState(false);
-  const [favoriteDishes, setFavoriteDishes] = useState([]);
-  const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [activeOrderTab, setActiveOrderTab] = useState("active");
 
-  const renderStars = (rating) => {
-    if (typeof rating !== "number" || Number.isNaN(rating)) {
-      return "☆☆☆☆☆";
-    }
-    const clamped = Math.max(0, Math.min(5, Math.round(rating)));
-    return "★".repeat(clamped) + "☆".repeat(5 - clamped);
-  };
-
-  const formatCurrency = (amount) => {
-    const numeric = typeof amount === "number" ? amount : Number(amount);
-    if (Number.isNaN(numeric)) {
-      return "₹0.00";
-    }
-    return `₹${numeric.toFixed(2)}`;
-  };
-
-  const formatReviewTimestamp = (value) => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    return date.toLocaleDateString();
-  };
-
-  const formatReservationDate = (value) => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    return date.toLocaleDateString();
-  };
-
-  const formatGuestCount = (value) => {
-    const guests = Number(value);
-    if (!Number.isFinite(guests) || guests <= 0) {
-      return "0 guests";
-    }
-    return `${guests} ${guests === 1 ? "guest" : "guests"}`;
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-    fetchFavoriteDishes();
-  }, []);
-
-  // Refetch favorites when navigating to dashboard (e.g., returning from MenuPage)
-  useEffect(() => {
-    // Check if we're on the dashboard route
-    if (location.pathname === "/customer/dashboard") {
-      console.log("Navigated to dashboard, refetching favorites...");
-      // Small delay to ensure navigation is complete
-      const timer = setTimeout(() => {
-        fetchFavoriteDishes();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [location.pathname]);
-
-  // Refetch favorites when page becomes visible (e.g., switching tabs)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log("Page became visible, refetching favorites...");
-        fetchFavoriteDishes();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  // Refetch favorites when window regains focus (e.g., returning from another tab/window)
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log("Window focused, refetching favorites...");
-      fetchFavoriteDishes();
-    };
-
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, []);
+  /* ─── fetch ──────────────────────────────────────── */
+  useEffect(() => { fetchDashboardData(); fetchFavoriteDishes(); }, []);
+  useEffect(() => { if (location.pathname === "/customer/dashboard") { const t = setTimeout(() => fetchFavoriteDishes(), 100); return () => clearTimeout(t); } }, [location.pathname]);
+  useEffect(() => { const h = () => { if (!document.hidden) fetchFavoriteDishes(); }; document.addEventListener("visibilitychange", h); return () => document.removeEventListener("visibilitychange", h); }, []);
 
   const fetchDashboardData = async () => {
     try {
       setFetchError("");
-      const response = await fetch(
-        "http://localhost:3000/api/customer/customerDashboard",
-        {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
-        },
-      );
-
-      if (response.status === 401) {
-        setLoading(false);
-        navigate("/login?message=Please login again");
-        return;
-      }
-
-      if (response.status === 403) {
-        setLoading(false);
-        navigate("/login?message=Access denied");
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch dashboard data (${response.status})`);
-      }
-
+      const response = await fetch("http://localhost:3000/api/customer/customerDashboard", { method: "GET", credentials: "include", headers: { Accept: "application/json" } });
+      if (response.status === 401) { navigate("/login?message=Please login again"); return; }
+      if (response.status === 403) { navigate("/login?message=Access denied"); return; }
+      if (!response.ok) throw new Error(`Failed (${response.status})`);
       const data = await response.json();
-
-      const dashboardUser = data.user || null;
-      setUserData(dashboardUser);
-
-      // Separate recent and past orders based on status
-      const allOrders = Array.isArray(data.recentOrders)
-        ? data.recentOrders
-        : [];
-
-      const recent = allOrders.filter((order) => {
-        const status = (order.status || "").toLowerCase();
-        return status === "pending" || status === "preparing";
-      });
-
-      const past = allOrders.filter((order) => {
-        const status = (order.status || "").toLowerCase();
-        return status === "completed" || status === "delivered";
-      });
-
-      setRecentOrders(recent);
-      setPastOrders(past);
-      setFavoriteRestaurants(
-        Array.isArray(data.favoriteRestaurants) ? data.favoriteRestaurants : [],
-      );
-      setUpcomingReservations(
-        Array.isArray(data.upcomingReservations)
-          ? data.upcomingReservations
-          : [],
-      );
-      setPastReservations(
-        Array.isArray(data.pastReservations) ? data.pastReservations : [],
-      );
-      setWeeklySpending(
-        Array.isArray(data.weeklySpending) && data.weeklySpending.length === 7
-          ? data.weeklySpending.map((value) =>
-              Number.isFinite(Number(value)) ? Number(value) : 0,
-            )
-          : Array(7).fill(0),
-      );
-      setOrderFrequency(
-        Array.isArray(data.orderFrequency) && data.orderFrequency.length === 4
-          ? data.orderFrequency.map((value) =>
-              Number.isFinite(Number(value)) ? Number(value) : 0,
-            )
-          : [0, 0, 0, 0],
-      );
-      setFeedbackStats({
-        satisfactionRate: data.feedbackStats?.satisfactionRate ?? 0,
-        totalReviews: data.feedbackStats?.totalReviews ?? 0,
-        recentReviews: Array.isArray(data.feedbackStats?.recentReviews)
-          ? data.feedbackStats.recentReviews
-          : [],
-      });
-      setNotifications(
-        Array.isArray(data.notifications) ? data.notifications : [],
-      );
-      setEmailNotificationsEnabled(
-        typeof data.emailNotificationsEnabled === "boolean"
-          ? data.emailNotificationsEnabled
-          : true,
-      );
+      setUserData(data.user || null);
+      const allOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+      setRecentOrders(allOrders.filter((o) => ["pending", "preparing"].includes((o.status || "").toLowerCase())));
+      setPastOrders(allOrders.filter((o) => ["completed", "delivered"].includes((o.status || "").toLowerCase())));
+      setFavoriteRestaurants(Array.isArray(data.favoriteRestaurants) ? data.favoriteRestaurants : []);
+      setUpcomingReservations(Array.isArray(data.upcomingReservations) ? data.upcomingReservations : []);
+      setPastReservations(Array.isArray(data.pastReservations) ? data.pastReservations : []);
+      setWeeklySpending(Array.isArray(data.weeklySpending) && data.weeklySpending.length === 7 ? data.weeklySpending.map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0)) : Array(7).fill(0));
+      setOrderFrequency(Array.isArray(data.orderFrequency) && data.orderFrequency.length === 4 ? data.orderFrequency.map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0)) : [0, 0, 0, 0]);
+      setFeedbackStats({ satisfactionRate: data.feedbackStats?.satisfactionRate ?? 0, totalReviews: data.feedbackStats?.totalReviews ?? 0, recentReviews: Array.isArray(data.feedbackStats?.recentReviews) ? data.feedbackStats.recentReviews : [] });
+      setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+      setEmailNotificationsEnabled(typeof data.emailNotificationsEnabled === "boolean" ? data.emailNotificationsEnabled : true);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-      setFetchError(
-        "We had trouble loading your dashboard. Please refresh to try again.",
-      );
+      console.error("Error fetching dashboard:", error);
+      setFetchError("We had trouble loading your dashboard. Please refresh to try again.");
       setLoading(false);
     }
   };
 
   const fetchFavoriteDishes = async () => {
-    try {
-      console.log("Starting to fetch favorite dishes...");
-      setLoadingFavorites(true);
-
-      // Backend now returns full dish details with restaurant info
-      const favoriteDishes = await getFavourites();
-      console.log("Received favorite dishes:", favoriteDishes);
-
-      if (!Array.isArray(favoriteDishes)) {
-        console.warn("Invalid favorites response format:", favoriteDishes);
-        setFavoriteDishes([]);
-        return;
-      }
-
-      // Backend already returns full dish details, so use them directly
-      const dishes = favoriteDishes.filter(
-        (dish) => dish !== null && dish !== undefined,
-      );
-      console.log("Processed favorite dishes:", dishes);
-      setFavoriteDishes(dishes);
-    } catch (error) {
-      console.error("Error fetching favorite dishes:", error);
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-      });
-      setFavoriteDishes([]);
-    } finally {
-      console.log("Finished loading favorite dishes");
-      setLoadingFavorites(false);
-    }
+    try { setLoadingFavorites(true); const f = await getFavourites(); setFavoriteDishes(Array.isArray(f) ? f.filter(Boolean) : []); }
+    catch { setFavoriteDishes([]); }
+    finally { setLoadingFavorites(false); }
   };
 
-  const getOrderStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "delivered":
-      case "completed":
-        return "#4ade80";
-      case "pending":
-      case "preparing":
-        return "#fbbf24";
-      default:
-        return "#94a3b8";
-    }
-  };
-
-  const formatOrderStatus = (status) => {
-    const statusMap = {
-      pending: "preparing",
-      delivered: "completed",
-      completed: "completed",
-      preparing: "preparing",
-    };
-    return (
-      statusMap[status?.toLowerCase()] || status?.toLowerCase() || "pending"
-    );
-  };
-
-  const getDayName = (index) => {
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    return days[index];
-  };
-
-  if (loading) {
-    return <div className={styles.loading}>Loading...</div>;
-  }
-
-  const weeklyAmounts = weeklySpending.map((value) => {
-    const numeric = Number(value);
-    return Number.isFinite(numeric) ? numeric : 0;
-  });
-  const maxWeeklySpending = weeklyAmounts.length
-    ? Math.max(...weeklyAmounts, 0)
-    : 0;
-  const monthlyOrders = orderFrequency.reduce((sum, count) => sum + count, 0);
-  const orderGoal = 12;
-  const donutCircumference = 314;
-  const orderProgress = Math.min(
-    orderGoal === 0 ? 0 : monthlyOrders / orderGoal,
-    1,
-  );
-  const orderDashOffset = donutCircumference * (1 - orderProgress);
-  const weekLabels = ["Week 1", "Week 2", "Week 3", "Week 4"];
-  const visitLegendColors = ["#10b981", "#fbbf24", "#f59e0b", "#e5e7eb"];
-
-  const satisfactionRate = feedbackStats?.satisfactionRate ?? 0;
-  const totalReviews = feedbackStats?.totalReviews ?? 0;
-  const recentReviewsList = Array.isArray(feedbackStats?.recentReviews)
-    ? feedbackStats.recentReviews
-    : [];
-  const satisfactionCircumference = 251;
-  const satisfactionOffset =
-    satisfactionCircumference * (1 - Math.min(satisfactionRate / 100, 1));
-  const reviewLabel = totalReviews === 1 ? "review" : "reviews";
-  const hasFavorites = favoriteRestaurants.length > 0;
-  const totalVisits = userData?.totalVisits ?? 0;
-  const averageSpend = formatCurrency(Number(userData?.avgSpend ?? 0));
-  const totalSpentDisplay = formatCurrency(Number(userData?.totalSpent ?? 0));
-  const topRestaurant =
-    userData?.topRestaurant && userData.topRestaurant !== "N/A"
-      ? userData.topRestaurant
-      : "Keep exploring";
-
-  const getNotificationIconStyle = (type) => {
-    if (type === "order") return styles.notificationIcon;
-    if (type === "reservation") return styles.notificationIconBlue;
-    return styles.notificationIconNeutral;
-  };
-
-  const handleNotificationToggle = async () => {
-    const nextValue = !emailNotificationsEnabled;
-    setEmailNotificationsEnabled(nextValue);
-    setNotificationSaving(true);
-    try {
-      const response = await fetch(
-        "http://localhost:3000/api/customer/preferences/email-notifications",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ enabled: nextValue }),
-        },
-      );
-      if (response.status === 401) {
-        navigate("/login?message=Please login again");
-        return;
-      }
-      if (!response.ok) {
-        throw new Error(`Failed to update preference (${response.status})`);
-      }
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to update preference");
-      }
-    } catch (error) {
-      console.error("Error updating email notifications:", error);
-      alert(
-        "Could not update email notification preference. Please try again.",
-      );
-      setEmailNotificationsEnabled((prev) => !prev);
-    } finally {
-      setNotificationSaving(false);
-    }
-  };
-
-  const handleRateOrder = (order) => {
-    console.log("Rating order:", order);
-    if (!order.recordId && !order.orderId) {
-      console.error("Order ID missing");
-      return;
-    }
-    navigate("/customer/feedback", {
-      state: {
-        restId: order?.restId,
-        orderId: order?.recordId || order?.orderId,
-        restaurant: order?.restaurant,
-        dishName: order?.dishName,
-      },
-    });
-  };
-
+  /* ─── actions ────────────────────────────────────── */
   const handleReorder = async (entity) => {
-    if (!entity) {
-      navigate("/customer/order");
-      return;
-    }
-
-    // Use recordId (which is the MongoDB _id) for the reorder request
+    if (!entity) { navigate("/customer/order"); return; }
     const recordId = entity.recordId || entity._id || entity.id;
-
-    if (!recordId) {
-      console.error("No valid order ID found:", entity);
-      alert("Could not identify order. Please try again.");
-      return;
-    }
-
+    if (!recordId) { alert("Could not identify order."); return; }
     try {
       setReorderingOrderId(recordId);
-      const response = await fetch(
-        `http://localhost:3000/api/customer/orders/${recordId}/reorder`,
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-          },
-          credentials: "include",
-        },
-      );
-
-      if (response.status === 401) {
-        navigate("/login?message=Please login again");
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Failed to reorder (${response.status})`,
-        );
-      }
-
+      const response = await fetch(`http://localhost:3000/api/customer/orders/${recordId}/reorder`, { method: "POST", headers: { Accept: "application/json" }, credentials: "include" });
+      if (response.status === 401) { navigate("/login?message=Please login again"); return; }
+      if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error || `Failed (${response.status})`); }
       const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || "Failed to reorder");
-      }
-
+      if (!data.success) throw new Error(data.error || "Failed to reorder");
       let items = Array.isArray(data.items) ? data.items : [];
-
-      let needsMenu = items.some((item) => !item.name || !item.price);
-      if (needsMenu && data.restaurant?.id) {
+      if (items.some((i) => !i.name || !i.price) && data.restaurant?.id) {
         try {
-          const menuResp = await fetch(
-            `http://localhost:3000/api/customer/menu/${data.restaurant.id}`,
-            { credentials: "include" },
-          );
+          const menuResp = await fetch(`http://localhost:3000/api/customer/menu/${data.restaurant.id}`, { credentials: "include" });
           if (menuResp.ok) {
             const menuData = await menuResp.json();
-            const menuDishes = Array.isArray(menuData.dishes)
-              ? menuData.dishes
-              : [];
-
+            const menuDishes = Array.isArray(menuData.dishes) ? menuData.dishes : [];
             const grouped = {};
             for (const item of items) {
-              let dish = menuDishes.find(
-                (d) =>
-                  d.id === item.id ||
-                  d._id === item.id ||
-                  d.id === item._id ||
-                  d._id === item._id ||
-                  String(d.id) === String(item.id) ||
-                  String(d._id) === String(item.id) ||
-                  String(d.id) === String(item._id) ||
-                  String(d._id) === String(item._id),
-              );
-              if (!dish) {
-                console.warn("Could not find menu dish for cart item", item);
-                dish = {};
-              }
-
-              const dishId =
-                dish.id || dish._id || item.id || item._id || "unknown";
+              let dish = menuDishes.find((d) => [d.id, d._id].some((did) => [item.id, item._id].some((iid) => String(did) === String(iid)))) || {};
+              const dishId = dish.id || dish._id || item.id || item._id || "unknown";
               const key = `${dishId}-${dish.price || item.price || 0}`;
-              if (!grouped[key]) {
-                grouped[key] = {
-                  ...dish,
-                  ...item,
-                  id: dish.id || item.id,
-                  _id: dish._id || item._id,
-                  name: dish.name || item.name || "Unknown",
-                  price: item.price || dish.price || 0,
-                  image: item.image || dish.image || "",
-                  quantity: item.quantity ?? 1,
-                };
-              } else {
-                grouped[key].quantity += item.quantity ?? 1;
-              }
+              if (!grouped[key]) { grouped[key] = { ...dish, ...item, id: dish.id || item.id, _id: dish._id || item._id, name: dish.name || item.name || "Unknown", price: item.price || dish.price || 0, image: item.image || dish.image || "", quantity: item.quantity ?? 1 }; }
+              else { grouped[key].quantity += item.quantity ?? 1; }
             }
             items = Object.values(grouped);
           }
-        } catch (e) {
-          // fallback: use items as-is
-        }
+        } catch { /* fallback */ }
       }
       dispatch(replaceCart(items));
-
-      if (data.restaurant?.id) {
-        dispatch(
-          setRestaurant({
-            restId: data.restaurant.id,
-            restName: data.restaurant.name || "Restaurant",
-          }),
-        );
-        navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`);
-      } else {
-        navigate("/customer/order");
-      }
-    } catch (error) {
-      console.error("Error during reorder:", error);
-      alert(`Could not reorder this order: ${error.message}`);
-    } finally {
-      setReorderingOrderId(null);
-    }
+      if (data.restaurant?.id) { dispatch(setRestaurant({ restId: data.restaurant.id, restName: data.restaurant.name || "Restaurant" })); navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`); }
+      else { navigate("/customer/order"); }
+    } catch (error) { alert(`Could not reorder: ${error.message}`); }
+    finally { setReorderingOrderId(null); }
   };
 
-  const handleViewMenu = async (restId, fallbackRestaurantName) => {
+  const handleRateOrder = (order) => {
+    if (!order.recordId && !order.orderId) return;
+    navigate("/customer/feedback", { state: { restId: order?.restId, orderId: order?.recordId || order?.orderId, restaurant: order?.restaurant, dishName: order?.dishName } });
+  };
+
+  const handleNotificationToggle = async () => {
+    const next = !emailNotificationsEnabled;
+    setEmailNotificationsEnabled(next);
+    setNotificationSaving(true);
     try {
-      if (restId) {
-        navigate(`/customer/restaurant/${restId}`);
-        return;
-      }
-      if (fallbackRestaurantName) {
-        const resp = await fetch("http://localhost:3000/api/restaurants", {
-          credentials: "include",
-        });
-        if (resp.ok) {
-          const list = await resp.json();
-          const match = Array.isArray(list)
-            ? list.find(
-                (r) =>
-                  (r.name || "").toLowerCase() ===
-                  fallbackRestaurantName.toLowerCase(),
-              )
-            : null;
-          if (match && match._id) {
-            navigate(`/customer/restaurant/${match._id}`);
-            return;
-          }
-        }
-      }
-      alert("Unable to open menu for this restaurant.");
-    } catch (e) {
-      console.error("View menu failed:", e);
-      alert("Unable to open menu right now.");
-    }
+      const r = await fetch("http://localhost:3000/api/customer/preferences/email-notifications", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, credentials: "include", body: JSON.stringify({ enabled: next }) });
+      if (r.status === 401) { navigate("/login?message=Please login again"); return; }
+      if (!r.ok) throw new Error();
+      const d = await r.json(); if (!d.success) throw new Error();
+    } catch { alert("Could not update preference."); setEmailNotificationsEnabled((p) => !p); }
+    finally { setNotificationSaving(false); }
   };
+
+  /* ─── edit profile ───────────────────────────────── */
   const handleEditProfileClick = () => {
-    // Populate form with current user data
-    if (userData) {
-      setEditFormData((prev) => ({
-        ...prev,
-        name: userData.name || "",
-        email: userData.email || "",
-        phone: userData.phone || "",
-        img_url: userData.img_url || "",
-      }));
-      setProfilePicPreview(userData.img_url);
-    }
-    setSelectedProfileFile(null);
-    setShowEditModal(true);
-    setUpdateError("");
+    if (userData) { setEditFormData((p) => ({ ...p, name: userData.name || "", email: userData.email || "", phone: userData.phone || "", img_url: userData.img_url || "" })); setProfilePicPreview(userData.img_url); }
+    setSelectedProfileFile(null); setShowEditModal(true); setUpdateError("");
   };
-
-  const handleCloseModal = () => {
-    setShowEditModal(false);
-    setUpdateError("");
-    setUpdateSuccess("");
-    // Reset password fields
-    setEditFormData((prev) => ({
-      ...prev,
-      newPassword: "",
-      confirmPassword: "",
-    }));
-  };
-
-  const handleProfilePicClick = () => {
-    fileInputRef.current?.click();
-  };
-
+  const handleCloseModal = () => { setShowEditModal(false); setUpdateError(""); setUpdateSuccess(""); setEditFormData((p) => ({ ...p, newPassword: "", confirmPassword: "" })); };
+  const handleProfilePicClick = () => fileInputRef.current?.click();
   const handleProfilePicChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
-        alert("Please select an image file");
-        return;
-      }
-      // Validate file size (2MB max)
-      if (file.size > 2 * 1024 * 1024) {
-        alert("File size must be less than 2MB");
-        return;
-      }
-
-      setSelectedProfileFile(file);
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePicPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    const file = e.target.files?.[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Please select an image"); return; }
+    if (file.size > 2 * 1024 * 1024) { alert("Max 2MB"); return; }
+    setSelectedProfileFile(file);
+    const reader = new FileReader(); reader.onloadend = () => setProfilePicPreview(reader.result); reader.readAsDataURL(file);
   };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    setUpdateError("");
-  };
-
+  const handleInputChange = (e) => { setEditFormData((p) => ({ ...p, [e.target.name]: e.target.value })); setUpdateError(""); };
   const handleUpdateProfile = async (e) => {
-    e.preventDefault();
-    setUpdateError("");
-    setUpdateSuccess("");
-    setIsUpdating(true);
-
-    // Validate passwords if provided
+    e.preventDefault(); setUpdateError(""); setUpdateSuccess(""); setIsUpdating(true);
     if (editFormData.newPassword || editFormData.confirmPassword) {
-      if (!editFormData.newPassword || !editFormData.confirmPassword) {
-        setUpdateError("Both password fields are required");
-        setIsUpdating(false);
-        return;
-      }
-      if (editFormData.newPassword !== editFormData.confirmPassword) {
-        setUpdateError("Passwords do not match");
-        setIsUpdating(false);
-        return;
-      }
-      if (editFormData.newPassword.length < 6) {
-        setUpdateError("Password must be at least 6 characters");
-        setIsUpdating(false);
-        return;
-      }
+      if (!editFormData.newPassword || !editFormData.confirmPassword) { setUpdateError("Both password fields required"); setIsUpdating(false); return; }
+      if (editFormData.newPassword !== editFormData.confirmPassword) { setUpdateError("Passwords don't match"); setIsUpdating(false); return; }
+      if (editFormData.newPassword.length < 6) { setUpdateError("Min 6 characters"); setIsUpdating(false); return; }
     }
-
     try {
-      // Create FormData to handle file upload
-      const formData = new FormData();
-      formData.append("name", editFormData.name);
-      formData.append("email", editFormData.email);
-      formData.append("phone", editFormData.phone);
-
-      // Add profile picture if selected
-      if (selectedProfileFile) {
-        formData.append("profilePicture", selectedProfileFile);
-      }
-
-      // Add passwords if provided
-      if (editFormData.newPassword) {
-        formData.append("newPassword", editFormData.newPassword);
-        formData.append("confirmPassword", editFormData.confirmPassword);
-      }
-
-      const response = await fetch("http://localhost:3000/api/customer/edit", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      if (response.status === 401) {
-        navigate("/login?message=Please login again");
-        return;
-      }
-
-      const data = await response.json();
-
+      const fd = new FormData(); fd.append("name", editFormData.name); fd.append("email", editFormData.email); fd.append("phone", editFormData.phone);
+      if (selectedProfileFile) fd.append("profilePicture", selectedProfileFile);
+      if (editFormData.newPassword) { fd.append("newPassword", editFormData.newPassword); fd.append("confirmPassword", editFormData.confirmPassword); }
+      const r = await fetch("http://localhost:3000/api/customer/edit", { method: "POST", credentials: "include", body: fd });
+      if (r.status === 401) { navigate("/login?message=Please login again"); return; }
+      const data = await r.json();
       if (data.success) {
-        // Update userData with new profile info without full refresh
-        setUserData((prev) => ({
-          ...prev,
-          name: data.data.name || prev.name,
-          email: data.data.email || prev.email,
-          phone: data.data.phone || prev.phone,
-          img_url: data.data.img_url || prev.img_url,
-        }));
-        setUpdateSuccess("✓ Profile updated successfully!");
-        setTimeout(() => {
-          handleCloseModal();
-          setUpdateSuccess("");
-        }, 2000);
-      } else {
-        setUpdateError(data.error || "Failed to update profile");
-      }
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      setUpdateError("An error occurred while updating profile");
-    } finally {
-      setIsUpdating(false);
-    }
+        setUserData((p) => ({ ...p, name: data.data.name || p.name, email: data.data.email || p.email, phone: data.data.phone || p.phone, img_url: data.data.img_url || p.img_url }));
+        setUpdateSuccess("Profile updated!"); setTimeout(() => { handleCloseModal(); setUpdateSuccess(""); }, 2000);
+      } else { setUpdateError(data.error || "Update failed"); }
+    } catch { setUpdateError("An error occurred"); }
+    finally { setIsUpdating(false); }
   };
 
-  return (
-    <div className={styles.container}>
-      {/* Hero Header */}
-      <div className={styles.heroHeader}>
-        <div className={styles.heroContent}>
-          <div className={styles.heroLeft}>
-            <img
-              src={userData?.img_url || "/default-avatar.png"}
-              alt="User"
-              className={styles.avatar}
-            />
-            <div className={styles.userInfo}>
-              <h1 className={styles.welcomeText}>
-                Welcome back, {userData?.name} 👋
-              </h1>
-              <p className={styles.subtitle}>Your meal moments await!</p>
-              <p className={styles.orderCount}>
-                {userData?.totalOrders || 0} Total Orders
-              </p>
-            </div>
+  /* ─── derived ────────────────────────────────────── */
+  const weeklyAmounts = weeklySpending.map((v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; });
+  const maxWeekly = Math.max(...weeklyAmounts, 1);
+  const monthlyOrders = orderFrequency.reduce((s, c) => s + c, 0);
+  const totalVisits = userData?.totalVisits ?? 0;
+  const totalSpent = Number(userData?.totalSpent ?? 0);
+  const avgSpend = Number(userData?.avgSpend ?? 0);
+  const topRestaurant = userData?.topRestaurant && userData.topRestaurant !== "N/A" ? userData.topRestaurant : null;
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const satisfactionRate = feedbackStats?.satisfactionRate ?? 0;
+  const totalReviews = feedbackStats?.totalReviews ?? 0;
+  const recentReviewsList = Array.isArray(feedbackStats?.recentReviews) ? feedbackStats.recentReviews : [];
+  const unreadNotifications = notifications.length;
+
+  const sidebarItems = [
+    { id: "overview", icon: "📊", label: "Overview" },
+    { id: "reservations", icon: "🪑", label: "Reservations" },
+    { id: "orders", icon: "🧾", label: "Orders" },
+    { id: "favorites", icon: "❤️", label: "Favorites" },
+    { id: "analytics", icon: "📈", label: "Analytics" },
+    { id: "reviews", icon: "⭐", label: "Reviews" },
+    { id: "notifications", icon: "🔔", label: "Notifications", badge: unreadNotifications },
+    { id: "profile", icon: "👤", label: "Profile" },
+  ];
+
+  if (loading) return (
+    <div className={styles.loadingScreen}>
+      <div className={styles.loadingSpinner} />
+      <p className={styles.loadingText}>Loading your dashboard...</p>
+    </div>
+  );
+
+  /* ═══════ SECTION RENDERERS ════════════════════════ */
+
+  const renderOverview = () => (
+    <div className={styles.overviewGrid}>
+      {/* Quick Stats */}
+      <div className={styles.statsStrip}>
+        {[
+          { icon: "🧾", value: totalVisits, label: "Total Orders" },
+          { icon: "💰", value: fmt(totalSpent), label: "Total Spent" },
+          { icon: "📊", value: fmt(avgSpend), label: "Avg per Visit" },
+          { icon: "🪑", value: upcomingReservations.length, label: "Upcoming Tables" },
+        ].map((s, i) => (
+          <div key={i} className={styles.statCard}>
+            <div className={styles.statIcon}>{s.icon}</div>
+            <div><p className={styles.statNumber}>{s.value}</p><p className={styles.statLabel}>{s.label}</p></div>
           </div>
-          <div className={styles.heroRight}>
-            <button
-              className={styles.editButton}
-              onClick={handleEditProfileClick}
-            >
-              Edit Profile
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div className={styles.quickActions}>
+        <h3 className={styles.sectionHeading}>Quick Actions</h3>
+        <div className={styles.actionGrid}>
+          {[
+            { icon: "🍽️", text: "Browse Restaurants", action: () => navigate("/customer/") },
+            { icon: "📅", text: "My Reservations", action: () => setActiveSection("reservations") },
+            { icon: "🧾", text: "Order History", action: () => setActiveSection("orders") },
+            { icon: "💬", text: "Get Support", action: () => navigate("/customer/support") },
+          ].map((a, i) => (
+            <button key={i} className={styles.actionCard} onClick={a.action}>
+              <span className={styles.actionIcon}>{a.icon}</span>
+              <span className={styles.actionText}>{a.text}</span>
             </button>
-            <button
-              className={styles.logoutButton}
-              onClick={async () => {
-                try {
-                  await logout();
-                } catch (e) {
-                  console.error("Logout failed", e);
-                }
-                navigate("/login");
-              }}
-            >
-              Logout
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {fetchError && <div className={styles.dashboardError}>{fetchError}</div>}
-
-      {/* Main Content */}
-      <div className={styles.mainContent}>
-        {/* Left Section */}
-        <div className={styles.leftSection}>
-          {/* Dine-In Insights */}
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Dine-In Insights</h2>
-
-            <div className={styles.insightsRow}>
-              {/* Weekly Spending */}
-              <div className={styles.spendingSection}>
-                <h3 className={styles.sectionTitle}>Weekly Spending</h3>
-                <div className={styles.chartContainer}>
-                  {weeklyAmounts.map((amount, index) => (
-                    <div key={index} className={styles.barContainer}>
-                      <div
-                        className={styles.bar}
-                        style={{
-                          height: maxWeeklySpending
-                            ? `${(amount / maxWeeklySpending) * 100}%`
-                            : "0%",
-                          backgroundColor:
-                            index === 2
-                              ? "#667eea"
-                              : index % 2 === 0
-                                ? "#764ba2"
-                                : "#8b5cf6",
-                        }}
-                        title={formatCurrency(amount)}
-                      ></div>
-                      <span className={styles.barLabel}>{getDayName(index)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className={styles.statsRow}>
-                  <div className={styles.statItem}>
-                    <p className={styles.statLabel}>Total Orders</p>
-                    <p className={styles.statValue}>{totalVisits}</p>
-                  </div>
-                  <div className={styles.statItem}>
-                    <p className={styles.statLabel}>Avg Spend</p>
-                    <p className={styles.statValue}>{averageSpend}</p>
-                  </div>
-                  <div className={styles.statItem}>
-                    <p className={styles.statLabel}>Top Restaurant</p>
-                    <p className={styles.statValue}>{topRestaurant}</p>
-                  </div>
-                  <div className={styles.statItem}>
-                    <p className={styles.statLabel}>Total Spent</p>
-                    <p className={styles.statValue}>{totalSpentDisplay}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Order Frequency */}
-              <div className={styles.frequencySection}>
-                <h3 className={styles.sectionTitle}>Order Frequency</h3>
-                <div className={styles.donutContainer}>
-                  <svg width="120" height="120" viewBox="0 0 120 120">
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="50"
-                      fill="none"
-                      stroke="#e5e7eb"
-                      strokeWidth="20"
-                    />
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="50"
-                      fill="none"
-                      stroke="#667eea"
-                      strokeWidth="20"
-                      strokeDasharray={donutCircumference}
-                      strokeDashoffset={orderDashOffset}
-                      transform="rotate(-90 60 60)"
-                      strokeLinecap="round"
-                    />
-                    <text
-                      x="60"
-                      y="65"
-                      textAnchor="middle"
-                      className={styles.donutText}
-                    >
-                      {monthlyOrders}
-                    </text>
-                    <text
-                      x="60"
-                      y="80"
-                      textAnchor="middle"
-                      className={styles.donutSubtext}
-                    >
-                      Orders this month
-                    </text>
-                  </svg>
-                </div>
-                <div className={styles.legend}>
-                  {orderFrequency.map((count, idx) => (
-                    <div key={weekLabels[idx]} className={styles.legendItem}>
-                      <div className={styles.legendLabel}>
-                        <div
-                          className={styles.legendDot}
-                          style={{
-                            backgroundColor: visitLegendColors[idx],
-                          }}
-                        ></div>
-                        <span className={styles.legendText}>{weekLabels[idx]}</span>
-                      </div>
-                      <span className={styles.legendCount}>
-                        {count} {count === 1 ? "order" : "orders"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      {/* Active Orders */}
+      {recentOrders.length > 0 && (
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionHeading}><span className={styles.pulseGreen} /> Active Orders</h3>
+            <button className={styles.seeAll} onClick={() => setActiveSection("orders")}>See all →</button>
           </div>
-
-          {/* Order Overview */}
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Order Overview</h2>
-              <div className={styles.tabs}>
-                <button
-                  className={
-                    activeOrderTab === "recent" ? styles.tabActive : styles.tab
-                  }
-                  onClick={() => setActiveOrderTab("recent")}
-                >
-                  Ongoing Orders
-                </button>
-                <button
-                  className={
-                    activeOrderTab === "past" ? styles.tabActive : styles.tab
-                  }
-                  onClick={() => setActiveOrderTab("past")}
-                >
-                  Past Orders
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.ordersList}>
-              {(activeOrderTab === "recent" ? recentOrders : pastOrders).map(
-                (order, index) => {
-                  const formattedStatus = formatOrderStatus(order.status);
-                  return (
-                    <div key={order.recordId || index} className={styles.orderItem}>
-                      <img
-                        src={order.image || "/dish-placeholder.png"}
-                        alt={order.dishName}
-                        className={styles.orderImage}
-                      />
-                      <div className={styles.orderInfo}>
-                        <h4 className={styles.orderName}>
-                          {order.restaurant || "Restaurant"}
-                        </h4>
-                        <p className={styles.orderPrice}>
-                          {formatCurrency(order.price)}
-                        </p>
-                        <p className={styles.orderMeta}>
-                          {order.dishName || "Unknown Dish"}
-                        </p>
-                        <p
-                          className={styles.orderStatus}
-                          style={{
-                            color: getOrderStatusColor(formattedStatus),
-                          }}
-                        >
-                          {formattedStatus === "completed"
-                            ? "Completed order"
-                            : `Order is ${formattedStatus}`}
-                        </p>
-                      </div>
-                      <div className={styles.orderActions}>
-                        <button
-                          className={styles.rateButton}
-                          onClick={() => handleRateOrder(order)}
-                        >
-                          Rate
-                        </button>
-                        <button
-                          className={styles.reorderButton}
-                          style={{
-                            opacity:
-                              reorderingOrderId === order.recordId ? 0.7 : 1,
-                            cursor:
-                              reorderingOrderId === order.recordId
-                                ? "not-allowed"
-                                : "pointer",
-                          }}
-                          onClick={() => handleReorder(order)}
-                          disabled={reorderingOrderId === order.recordId}
-                        >
-                          {reorderingOrderId === order.recordId
-                            ? "Reordering..."
-                            : "Reorder"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                },
-              )}
-              {(activeOrderTab === "recent" ? recentOrders : pastOrders)
-                .length === 0 && (
-                <div className={styles.noOrdersMessage}>
-                  <p>
-                    No {activeOrderTab === "recent" ? "recent" : "past"} orders
-                    found
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Favorite Dishes */}
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Favorite Dishes</h2>
-            {loadingFavorites ? (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
-            ) : favoriteDishes.length > 0 ? (
-              <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                <div className={styles.favoriteDishesGrid}>
-                  {favoriteDishes.map((dish, index) => {
-                    console.log("Rendering favorite dish:", dish);
-                    return (
-                      <div
-                        key={dish._id || index}
-                        className={styles.dishCard}
-                        onClick={() =>
-                          (dish.restaurantId || dish.rest_id) &&
-                          navigate(
-                            `/customer/restaurant/${dish.restaurantId || dish.rest_id}`,
-                          )
-                        }
-                      >
-                        <div className={styles.dishImageContainer}>
-                          <img
-                            src={
-                              dish.image ||
-                              dish.imageUrl ||
-                              "https://via.placeholder.com/80"
-                            }
-                            alt={dish.name}
-                            className={styles.dishImage}
-                          />
-                        </div>
-                        <div className={styles.dishInfo}>
-                          <h4 className={styles.dishName}>{dish.name}</h4>
-                          {(dish.restaurantName || dish.restaurant) && (
-                            <p className={styles.restaurantName}>
-                              <i className="bi bi-shop"></i>{" "}
-                              {dish.restaurantName || dish.restaurant}
-                            </p>
-                          )}
-                          {dish.price && (
-                            <p className={styles.dishPrice}>
-                              ₹{Number(dish.price).toFixed(2)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>❤️</div>
-                <p className={styles.emptyText}>No favorite dishes yet</p>
-                <p className={styles.emptySubtext}>
-                  Save your favorite dishes to see them here
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Table Reservations */}
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Table Reservations</h2>
-            </div>
-
-            <div className={styles.reservationsContainer}>
-              <div className={styles.reservationColumn}>
-                <h3 className={styles.reservationTitle}>Upcoming</h3>
-                {upcomingReservations.length > 0 ? (
-                  upcomingReservations.map((res, index) => (
-                    <div
-                      key={res.id || res._id || index}
-                      className={styles.reservationItem}
-                    >
-                      <span className={styles.restaurantIcon}>🍽️</span>
-                      <div>
-                        <p className={styles.reservationName}>{res.restaurant}</p>
-                        <p className={styles.reservationDetails}>
-                          {formatReservationDate(res.date)}
-                          {res.time ? ` at ${res.time}` : ""} ·{" "}
-                          {formatGuestCount(res.guests)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className={styles.emptyState}>
-                    No upcoming reservations. Book your next table to see it
-                    here.
+          <div className={styles.activeOrdersStrip}>
+            {recentOrders.slice(0, 3).map((order, i) => (
+              <div key={order.recordId || i} className={styles.activeOrderCard}>
+                <div className={styles.activeOrderTop}>
+                  <img src={order.image || "/dish-placeholder.png"} alt="" className={styles.activeOrderImg} />
+                  <div className={styles.activeOrderInfo}>
+                    <h4>{order.restaurant || "Restaurant"}</h4>
+                    <p className={styles.activeOrderDish}>{order.dishName || "Order"}</p>
+                    <p className={styles.activeOrderPrice}>{fmt(order.price)}</p>
                   </div>
-                )}
-              </div>
-
-              <div className={styles.reservationColumn}>
-                <h3 className={styles.reservationTitle}>Past</h3>
-                {pastReservations.length > 0 ? (
-                  pastReservations.map((res, index) => (
-                    <div
-                      key={res.id || res._id || `past-${index}`}
-                      className={styles.reservationItem}
-                    >
-                      <span className={styles.restaurantIcon}>🍽️</span>
-                      <div>
-                        <p className={styles.reservationName}>{res.restaurant}</p>
-                        <p className={styles.reservationDetails}>
-                          {formatReservationDate(res.date)}
-                          {res.time ? ` at ${res.time}` : ""} ·{" "}
-                          {formatGuestCount(res.guests)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className={styles.emptyState}>
-                    Past reservations will appear once you complete a booking.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Section */}
-        <div className={styles.rightSection}>
-          {/* Feedback & Reviews */}
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Feedback & Reviews</h2>
-            <div className={styles.satisfactionContainer}>
-              <svg width="100" height="100" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#e5e7eb"
-                  strokeWidth="8"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="#ff6b35"
-                  strokeWidth="8"
-                  strokeDasharray={satisfactionCircumference}
-                  strokeDashoffset={Math.max(satisfactionOffset, 0)}
-                  transform="rotate(-90 50 50)"
-                  strokeLinecap="round"
-                />
-                <text
-                  x="50"
-                  y="55"
-                  textAnchor="middle"
-                  className={styles.satisfactionText}
-                >
-                  {`${Math.round(Math.max(0, satisfactionRate))}%`}
-                </text>
-              </svg>
-              <p className={styles.satisfactionLabel}>
-                {totalReviews > 0
-                  ? `Based on your ${totalReviews} ${reviewLabel}`
-                  : "Share feedback to see your satisfaction score"}
-              </p>
-            </div>
-
-            <div className={styles.reviewsSection}>
-              <h3 className={styles.sectionTitle}>Recent Feedback</h3>
-              {recentReviewsList.length > 0 ? (
-                recentReviewsList.map((review, index) => (
-                  <div
-                    key={review.createdAt || index}
-                    className={styles.reviewItem}
-                  >
-                    <div className={styles.reviewHeader}>
-                      <p className={styles.reviewRestaurant}>{review.restaurant}</p>
-                      {typeof review.rating === "number" &&
-                      !Number.isNaN(review.rating) ? (
-                        <div className={styles.reviewRating}>
-                          <span className={styles.reviewStars}>
-                            {renderStars(review.rating)}
-                          </span>
-                          <span className={styles.reviewRatingValue}>
-                            {review.rating.toFixed(1)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className={styles.reviewRatingValue}>
-                          No rating yet
-                        </span>
-                      )}
-                    </div>
-                    <p className={styles.reviewText}>
-                      {review.comment
-                        ? `"${review.comment}"`
-                        : "No written feedback provided."}
-                    </p>
-                    {review.lovedItems ? (
-                      <p className={styles.reviewLovedItems}>
-                        Loved: {review.lovedItems}
-                      </p>
-                    ) : null}
-                    {review.createdAt ? (
-                      <p className={styles.reviewTimestamp}>
-                        {formatReviewTimestamp(review.createdAt)}
-                      </p>
-                    ) : null}
-                  </div>
-                ))
-              ) : (
-                <div className={styles.emptyState}>
-                  Share your first review to see it highlighted here.
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div className={styles.card}>
-            <h2 className={styles.cardTitle}>Notifications</h2>
-
-            {notifications.map((notification) => (
-              <div key={notification.id} className={styles.notificationItem}>
-                <div className={getNotificationIconStyle(notification.type)}>
-                  {notification.icon || "ℹ️"}
-                </div>
-                <div>
-                  <p className={styles.notificationText}>{notification.message}</p>
-                  {notification.timeAgo ? (
-                    <p className={styles.notificationTime}>
-                      {notification.timeAgo}
-                    </p>
-                  ) : null}
+                <div className={styles.activeOrderStatus}>
+                  <div className={styles.statusBar}><div className={styles.statusFill} style={{ width: order.status?.toLowerCase() === "preparing" ? "60%" : "30%" }} /></div>
+                  <span className={styles.statusText}>{order.status?.toLowerCase() === "preparing" ? "🍳 Being Prepared" : "⏳ Order Placed"}</span>
                 </div>
               </div>
             ))}
-            {notifications.length === 0 && (
-              <div className={styles.emptyState}>
-                You're all caught up. Order or book to see updates here.
-              </div>
-            )}
-
-            <div className={styles.notificationToggle}>
-              <span>Email Notifications</span>
-              <label
-                className={styles.switch}
-                style={{
-                  opacity: notificationSaving ? 0.6 : 1,
-                  cursor: notificationSaving ? "not-allowed" : "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={emailNotificationsEnabled}
-                  onChange={handleNotificationToggle}
-                  disabled={notificationSaving}
-                  className={styles.switchInput}
-                  role="switch"
-                  aria-checked={emailNotificationsEnabled}
-                  aria-label="Email notifications"
-                  onFocus={() => setSwitchFocused(true)}
-                  onBlur={() => setSwitchFocused(false)}
-                />
-
-                <span
-                  className={styles.slider}
-                  style={{
-                    backgroundColor: emailNotificationsEnabled
-                      ? "#22c55e"
-                      : "#e5e7eb",
-                    boxShadow: switchFocused
-                      ? emailNotificationsEnabled
-                        ? "0 0 0 4px rgba(34,197,94,0.12)"
-                        : "0 0 0 4px rgba(0,0,0,0.08)"
-                      : undefined,
-                  }}
-                >
-                  <span
-                    className={styles.sliderKnob}
-                    style={{
-                      left: emailNotificationsEnabled ? "31px" : "3px",
-                      boxShadow: emailNotificationsEnabled
-                        ? "0 2px 6px rgba(34,197,94,0.4)"
-                        : "0 1px 3px rgba(0,0,0,0.15)",
-                    }}
-                  />
-                </span>
-              </label>
-            </div>
           </div>
         </div>
+      )}
+
+      {/* Upcoming Reservations */}
+      {upcomingReservations.length > 0 && (
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionHeading}>🪑 Upcoming Reservations</h3>
+            <button className={styles.seeAll} onClick={() => setActiveSection("reservations")}>See all →</button>
+          </div>
+          <div className={styles.reservationStrip}>
+            {upcomingReservations.slice(0, 3).map((res, i) => (
+              <div key={res.id || res._id || i} className={styles.reservationCard}>
+                <div className={styles.resDate}>
+                  <span className={styles.resDay}>{new Date(res.date).getDate()}</span>
+                  <span className={styles.resMonth}>{new Date(res.date).toLocaleString("en", { month: "short" })}</span>
+                </div>
+                <div className={styles.resInfo}>
+                  <h4>{res.restaurant}</h4>
+                  <p>{fmtTime(res.time)} · {res.guests} {res.guests === 1 ? "Guest" : "Guests"}</p>
+                </div>
+                <div className={`${styles.resStatus} ${styles[`res_${(res.status || "pending").toLowerCase()}`]}`}>
+                  {(res.status || "pending").charAt(0).toUpperCase() + (res.status || "pending").slice(1)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top Restaurant */}
+      {topRestaurant && (
+        <div className={styles.topRestaurantBanner}>
+          <span className={styles.trophyIcon}>🏆</span>
+          <div><p className={styles.topLabel}>Your Favorite Spot</p><p className={styles.topName}>{topRestaurant}</p></div>
+        </div>
+      )}
+
+      {/* Fav Dishes Preview */}
+      {favoriteDishes.length > 0 && (
+        <div className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionHeading}>❤️ Favorite Dishes</h3>
+            <button className={styles.seeAll} onClick={() => setActiveSection("favorites")}>See all →</button>
+          </div>
+          <div className={styles.favPreviewGrid}>
+            {favoriteDishes.slice(0, 4).map((dish, i) => (
+              <div key={dish._id || i} className={styles.favPreviewCard} onClick={() => (dish.restaurantId || dish.rest_id) && navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)}>
+                <img src={dish.image || dish.imageUrl || "https://via.placeholder.com/80"} alt={dish.name} className={styles.favPreviewImg} />
+                <div className={styles.favPreviewInfo}>
+                  <h4>{dish.name}</h4>
+                  {(dish.restaurantName || dish.restaurant) && <p className={styles.favPreviewRest}>{dish.restaurantName || dish.restaurant}</p>}
+                  {dish.price && <p className={styles.favPreviewPrice}>₹{Number(dish.price).toFixed(0)}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderReservations = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}>
+        <h2>🪑 My Reservations</h2>
+        <button className={styles.primaryBtn} onClick={() => navigate("/customer/")}>Book a New Table</button>
       </div>
+      {upcomingReservations.length > 0 && (
+        <div className={styles.subSection}>
+          <h3 className={styles.subHeading}>Upcoming</h3>
+          <div className={styles.reservationList}>
+            {upcomingReservations.map((res, i) => (
+              <div key={res.id || res._id || i} className={styles.reservationFullCard}>
+                <div className={styles.resFullDate}>
+                  <span className={styles.resFullDay}>{new Date(res.date).getDate()}</span>
+                  <span className={styles.resFullMonth}>{new Date(res.date).toLocaleString("en", { month: "short", year: "numeric" })}</span>
+                </div>
+                <div className={styles.resFullInfo}>
+                  <h4>{res.restaurant}</h4>
+                  <div className={styles.resFullMeta}>
+                    <span>🕐 {fmtTime(res.time)}</span>
+                    <span>👥 {res.guests} {res.guests === 1 ? "Guest" : "Guests"}</span>
+                    {res.table_id && <span>🪑 Table {res.table_id}</span>}
+                  </div>
+                </div>
+                <div className={`${styles.resStatusBadge} ${styles[`res_${(res.status || "pending").toLowerCase()}`]}`}>
+                  {(res.status || "pending").charAt(0).toUpperCase() + (res.status || "pending").slice(1)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {pastReservations.length > 0 && (
+        <div className={styles.subSection}>
+          <h3 className={styles.subHeading}>Past Reservations</h3>
+          <div className={styles.reservationList}>
+            {pastReservations.map((res, i) => (
+              <div key={res.id || res._id || `past-${i}`} className={`${styles.reservationFullCard} ${styles.pastCard}`}>
+                <div className={styles.resFullDate}>
+                  <span className={styles.resFullDay}>{new Date(res.date).getDate()}</span>
+                  <span className={styles.resFullMonth}>{new Date(res.date).toLocaleString("en", { month: "short" })}</span>
+                </div>
+                <div className={styles.resFullInfo}>
+                  <h4>{res.restaurant}</h4>
+                  <div className={styles.resFullMeta}>
+                    <span>🕐 {fmtTime(res.time)}</span>
+                    <span>👥 {res.guests} Guests</span>
+                  </div>
+                </div>
+                <div className={styles.resStatusBadge} style={{ background: "#f3f4f6", color: "#6b7280" }}>Completed</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {upcomingReservations.length === 0 && pastReservations.length === 0 && (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>🪑</div>
+          <h3>No Reservations Yet</h3>
+          <p>Book a table at your favorite restaurant to get started!</p>
+          <button className={styles.primaryBtn} onClick={() => navigate("/customer/")}>Browse Restaurants</button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderOrders = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}>
+        <h2>🧾 My Orders</h2>
+        <div className={styles.orderTabs}>
+          <button className={`${styles.tabBtn} ${activeOrderTab === "active" ? styles.tabBtnActive : ""}`} onClick={() => setActiveOrderTab("active")}>
+            Active {recentOrders.length > 0 && <span className={styles.tabBadge}>{recentOrders.length}</span>}
+          </button>
+          <button className={`${styles.tabBtn} ${activeOrderTab === "past" ? styles.tabBtnActive : ""}`} onClick={() => setActiveOrderTab("past")}>Past Orders</button>
+        </div>
+      </div>
+      <div className={styles.ordersList}>
+        {(activeOrderTab === "active" ? recentOrders : pastOrders).map((order, i) => {
+          const status = (order.status || "pending").toLowerCase();
+          const isActive = status === "pending" || status === "preparing";
+          return (
+            <div key={order.recordId || i} className={`${styles.orderCard} ${!isActive ? styles.pastCard : ""}`}>
+              <img src={order.image || "/dish-placeholder.png"} alt="" className={styles.orderImg} />
+              <div className={styles.orderDetails}>
+                <div className={styles.orderTop}><h4>{order.restaurant || "Restaurant"}</h4><span className={styles.orderAmount}>{fmt(order.price)}</span></div>
+                <p className={styles.orderDishName}>{order.dishName || "Order"}</p>
+                <div className={styles.orderMeta}>
+                  <span className={`${styles.orderStatusBadge} ${isActive ? styles.statusActive : styles.statusDone}`}>
+                    {isActive ? (status === "preparing" ? "🍳 Preparing" : "⏳ Pending") : "✓ Completed"}
+                  </span>
+                  {order.date && <span className={styles.orderDate}>{fmtDate(order.date)}</span>}
+                </div>
+              </div>
+              <div className={styles.orderActions}>
+                {!isActive && <button className={styles.rateBtn} onClick={() => handleRateOrder(order)}>⭐ Rate</button>}
+                <button className={styles.reorderBtn} onClick={() => handleReorder(order)} disabled={reorderingOrderId === order.recordId}>
+                  {reorderingOrderId === order.recordId ? "..." : "🔄 Reorder"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {(activeOrderTab === "active" ? recentOrders : pastOrders).length === 0 && (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>{activeOrderTab === "active" ? "🍽️" : "📋"}</div>
+            <h3>{activeOrderTab === "active" ? "No Active Orders" : "No Past Orders"}</h3>
+            <p>{activeOrderTab === "active" ? "Place an order to see it here!" : "Completed orders appear here."}</p>
+            <button className={styles.primaryBtn} onClick={() => navigate("/customer/")}>Order Now</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderFavorites = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}><h2>❤️ My Favorites</h2></div>
+      {loadingFavorites ? (
+        <div className={styles.loadingInline}><div className={styles.loadingSpinner} /><p>Loading favorites...</p></div>
+      ) : favoriteDishes.length > 0 ? (
+        <div className={styles.favoritesGrid}>
+          {favoriteDishes.map((dish, i) => (
+            <div key={dish._id || i} className={styles.favoriteCard} onClick={() => (dish.restaurantId || dish.rest_id) && navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)}>
+              <div className={styles.favImgWrap}>
+                <img src={dish.image || dish.imageUrl || "https://via.placeholder.com/180"} alt={dish.name} className={styles.favImg} />
+                <div className={styles.favHeart}>❤️</div>
+              </div>
+              <div className={styles.favInfo}>
+                <h4 className={styles.favName}>{dish.name}</h4>
+                {(dish.restaurantName || dish.restaurant) && <p className={styles.favRest}>🍽️ {dish.restaurantName || dish.restaurant}</p>}
+                {dish.description && <p className={styles.favDesc}>{dish.description}</p>}
+                {dish.price && <p className={styles.favPrice}>₹{Number(dish.price).toFixed(0)}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>❤️</div>
+          <h3>No Favorites Yet</h3>
+          <p>Heart dishes from restaurant menus to save them here!</p>
+          <button className={styles.primaryBtn} onClick={() => navigate("/customer/")}>Explore Restaurants</button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAnalytics = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}><h2>📈 Spending Analytics</h2></div>
+      <div className={styles.analyticsGrid}>
+        <div className={styles.analyticsCard}>
+          <h3>Weekly Spending</h3>
+          <div className={styles.barChart}>
+            {weeklyAmounts.map((amount, i) => (
+              <div key={i} className={styles.barCol}>
+                <div className={styles.barTooltip}>{fmt(amount)}</div>
+                <div className={styles.barTrack}><div className={styles.barFill} style={{ height: `${(amount / maxWeekly) * 100}%` }} /></div>
+                <span className={styles.barDayLabel}>{dayNames[i]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={styles.analyticsCard}>
+          <h3>Monthly Order Frequency</h3>
+          <div className={styles.freqCenter}><div className={styles.bigNumber}>{monthlyOrders}</div><p className={styles.bigLabel}>orders this month</p></div>
+          <div className={styles.weekBreakdown}>
+            {["Week 1", "Week 2", "Week 3", "Week 4"].map((w, i) => (
+              <div key={w} className={styles.weekRow}>
+                <span className={styles.weekLabel}>{w}</span>
+                <div className={styles.weekBarTrack}><div className={styles.weekBarFill} style={{ width: `${Math.max((orderFrequency[i] / (Math.max(...orderFrequency) || 1)) * 100, 4)}%` }} /></div>
+                <span className={styles.weekCount}>{orderFrequency[i]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={styles.analyticsSummary}>
+          {[
+            { icon: "🧾", val: totalVisits, label: "Total Orders" },
+            { icon: "💳", val: fmt(totalSpent), label: "Total Spent" },
+            { icon: "📊", val: fmt(avgSpend), label: "Avg Spend" },
+            ...(topRestaurant ? [{ icon: "🏆", val: topRestaurant, label: "Top Restaurant", small: true }] : []),
+          ].map((s, i) => (
+            <div key={i} className={styles.summaryCard}>
+              <span className={styles.summaryIcon}>{s.icon}</span>
+              <div><p className={styles.summaryNum} style={s.small ? { fontSize: "1rem" } : {}}>{s.val}</p><p className={styles.summaryLabel}>{s.label}</p></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderReviews = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}><h2>⭐ My Reviews</h2></div>
+      <div className={styles.satisfactionBanner}>
+        <div className={styles.satisfactionRing}>
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" strokeWidth="10" strokeDasharray="314" strokeDashoffset={314 * (1 - Math.min(satisfactionRate / 100, 1))} transform="rotate(-90 60 60)" strokeLinecap="round" />
+          </svg>
+          <div className={styles.satisfactionValue}>{Math.round(satisfactionRate)}%</div>
+        </div>
+        <div className={styles.satisfactionInfo}>
+          <h3>Satisfaction Score</h3>
+          <p>{totalReviews > 0 ? `Based on ${totalReviews} review${totalReviews === 1 ? "" : "s"}` : "Leave your first review to see your score"}</p>
+        </div>
+      </div>
+      {recentReviewsList.length > 0 ? (
+        <div className={styles.reviewsList}>
+          {recentReviewsList.map((review, i) => (
+            <div key={review.createdAt || i} className={styles.reviewCard}>
+              <div className={styles.reviewTop}><h4>{review.restaurant}</h4>
+                <div className={styles.reviewRating}><span className={styles.reviewStars}>{stars(review.rating)}</span>{typeof review.rating === "number" && <span>{review.rating.toFixed(1)}</span>}</div>
+              </div>
+              {review.comment && <p className={styles.reviewComment}>"{review.comment}"</p>}
+              {review.lovedItems && <p className={styles.reviewLoved}>Loved: {review.lovedItems}</p>}
+              {review.createdAt && <p className={styles.reviewDate}>{fmtDate(review.createdAt)}</p>}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.emptyState}><div className={styles.emptyIcon}>⭐</div><h3>No Reviews Yet</h3><p>Rate your orders to build your review history!</p></div>
+      )}
+    </div>
+  );
+
+  const renderNotifications = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}>
+        <h2>🔔 Notifications</h2>
+        <div className={styles.notifToggle}>
+          <span>Email Notifications</span>
+          <label className={styles.switch} style={{ opacity: notificationSaving ? 0.6 : 1 }}>
+            <input type="checkbox" checked={emailNotificationsEnabled} onChange={handleNotificationToggle} disabled={notificationSaving} role="switch" aria-label="Email notifications" onFocus={() => setSwitchFocused(true)} onBlur={() => setSwitchFocused(false)} />
+            <span className={styles.slider} style={{ backgroundColor: emailNotificationsEnabled ? "#22c55e" : "#d1d5db", boxShadow: switchFocused ? (emailNotificationsEnabled ? "0 0 0 4px rgba(34,197,94,0.15)" : "0 0 0 4px rgba(0,0,0,0.08)") : undefined }}>
+              <span className={styles.sliderKnob} style={{ left: emailNotificationsEnabled ? "28px" : "3px" }} />
+            </span>
+          </label>
+        </div>
+      </div>
+      {notifications.length > 0 ? (
+        <div className={styles.notifList}>
+          {notifications.map((n) => (
+            <div key={n.id} className={styles.notifCard}>
+              <div className={`${styles.notifIcon} ${n.type === "order" ? styles.notifGreen : n.type === "reservation" ? styles.notifBlue : styles.notifGray}`}>{n.icon || "ℹ️"}</div>
+              <div className={styles.notifContent}><p className={styles.notifMsg}>{n.message}</p>{n.timeAgo && <p className={styles.notifTime}>{n.timeAgo}</p>}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.emptyState}><div className={styles.emptyIcon}>🔔</div><h3>All Caught Up!</h3><p>No new notifications.</p></div>
+      )}
+    </div>
+  );
+
+  const renderProfile = () => (
+    <div className={styles.fullSection}>
+      <div className={styles.sectionPageHeader}><h2>👤 My Profile</h2></div>
+      <div className={styles.profileCard}>
+        <div className={styles.profileTop}>
+          <img src={userData?.img_url || "/default-avatar.png"} alt="Profile" className={styles.profileAvatar} />
+          <div className={styles.profileInfo}><h3>{userData?.name || "User"}</h3><p>{userData?.email}</p>{userData?.phone && <p>📱 {userData.phone}</p>}</div>
+        </div>
+        <div className={styles.profileStats}>
+          {[
+            { val: totalVisits, label: "Orders" },
+            { val: fmt(totalSpent), label: "Spent" },
+            { val: upcomingReservations.length + pastReservations.length, label: "Reservations" },
+            { val: totalReviews, label: "Reviews" },
+          ].map((s, i) => (
+            <div key={i} className={styles.profileStat}><span className={styles.profileStatNum}>{s.val}</span><span className={styles.profileStatLabel}>{s.label}</span></div>
+          ))}
+        </div>
+        <button className={styles.primaryBtn} onClick={handleEditProfileClick} style={{ width: "100%", marginTop: "1.5rem" }}>Edit Profile</button>
+      </div>
+    </div>
+  );
+
+  const sectionMap = { overview: renderOverview, reservations: renderReservations, orders: renderOrders, favorites: renderFavorites, analytics: renderAnalytics, reviews: renderReviews, notifications: renderNotifications, profile: renderProfile };
+
+  /* ═══════ MAIN RENDER ══════════════════════════════ */
+  return (
+    <div className={styles.dashboard}>
+      {/* Mobile hamburger */}
+      <button className={styles.hamburger} onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle menu">
+        <span /><span /><span />
+      </button>
+      {sidebarOpen && <div className={styles.sidebarOverlay} onClick={() => setSidebarOpen(false)} />}
+
+      {/* Sidebar */}
+      <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
+        <div className={styles.sidebarProfile}>
+          <img src={userData?.img_url || "/default-avatar.png"} alt="" className={styles.sidebarAvatar} />
+          <div className={styles.sidebarUser}><h4>{userData?.name || "User"}</h4><p>{userData?.email || ""}</p></div>
+        </div>
+        <nav className={styles.sidebarNav}>
+          {sidebarItems.map((item) => (
+            <button key={item.id} className={`${styles.sidebarItem} ${activeSection === item.id ? styles.sidebarItemActive : ""}`} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}>
+              <span className={styles.sidebarItemIcon}>{item.icon}</span>
+              <span className={styles.sidebarItemLabel}>{item.label}</span>
+              {item.badge > 0 && <span className={styles.sidebarBadge}>{item.badge}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className={styles.sidebarFooter}>
+          <button className={styles.sidebarLogout} onClick={async () => { try { await logout(); } catch {} navigate("/login"); }}>🚪 Logout</button>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className={styles.mainArea}>
+        <div className={styles.topBar}>
+          <div className={styles.topBarLeft}>
+            <h1 className={styles.pageTitle}>{sidebarItems.find((s) => s.id === activeSection)?.icon} {sidebarItems.find((s) => s.id === activeSection)?.label}</h1>
+          </div>
+          <div className={styles.topBarRight}>
+            <button className={styles.topBarBtn} onClick={() => navigate("/customer/")} title="Browse Restaurants">🍽️ Restaurants</button>
+            <button className={styles.topBarBtn} onClick={() => setActiveSection("notifications")} title="Notifications" style={{ position: "relative" }}>
+              🔔{unreadNotifications > 0 && <span className={styles.topBadge}>{unreadNotifications}</span>}
+            </button>
+          </div>
+        </div>
+        {fetchError && <div className={styles.errorBanner}>{fetchError}</div>}
+        <div className={styles.content}>{sectionMap[activeSection]?.()}</div>
+      </main>
 
       {/* Edit Profile Modal */}
       {showEditModal && (
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Edit Profile</h2>
-              <button
-                className={styles.modalCloseButton}
-                onClick={handleCloseModal}
-              >
-                ×
-              </button>
-            </div>
-
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}><h2>Edit Profile</h2><button className={styles.modalClose} onClick={handleCloseModal}>×</button></div>
             <form onSubmit={handleUpdateProfile} className={styles.modalForm}>
-              {updateError && (
-                <div className={styles.errorMessage}>{updateError}</div>
-              )}
-              {updateSuccess && (
-                <div className={styles.successMessage}>{updateSuccess}</div>
-              )}
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={editFormData.name}
-                  onChange={handleInputChange}
-                  className={styles.formInput}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={editFormData.email}
-                  onChange={handleInputChange}
-                  className={styles.formInput}
-                  required
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Phone</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={editFormData.phone}
-                  onChange={handleInputChange}
-                  className={styles.formInput}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Profile Picture</label>
-                <div className={styles.profilePicContainer}>
-                  <div
-                    className={styles.profilePicPreview}
-                    style={{
-                      backgroundImage: profilePicPreview
-                        ? `url('${profilePicPreview}')`
-                        : "none",
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: profilePicPreview ? "transparent" : "#999",
-                    }}
-                    onClick={handleProfilePicClick}
-                  >
-                    {!profilePicPreview && "📷"}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={handleProfilePicChange}
-                    style={{ display: "none" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleProfilePicClick}
-                    className={styles.changePicButton}
-                  >
-                    {selectedProfileFile
-                      ? "✓ Image Selected"
-                      : "Change Picture"}
-                  </button>
+              {updateError && <div className={styles.formError}>{updateError}</div>}
+              {updateSuccess && <div className={styles.formSuccess}>{updateSuccess}</div>}
+              <div className={styles.modalAvatarSection}>
+                <div className={styles.modalAvatarWrap} onClick={handleProfilePicClick} style={{ backgroundImage: profilePicPreview ? `url('${profilePicPreview}')` : "none", backgroundSize: "cover", backgroundPosition: "center" }}>
+                  {!profilePicPreview && "📷"}
                 </div>
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleProfilePicChange} style={{ display: "none" }} />
+                <button type="button" onClick={handleProfilePicClick} className={styles.changePicBtn}>{selectedProfileFile ? "✓ Selected" : "Change Photo"}</button>
               </div>
-
-              <div className={styles.formDivider}>
-                <p className={styles.formDividerText}>Change Password (optional)</p>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>New Password</label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={editFormData.newPassword}
-                  onChange={handleInputChange}
-                  className={styles.formInput}
-                  placeholder="Leave empty to keep current password"
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Confirm Password</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={editFormData.confirmPassword}
-                  onChange={handleInputChange}
-                  className={styles.formInput}
-                  placeholder="Leave empty to keep current password"
-                />
-              </div>
-
+              <label className={styles.formLabel}>Name<input type="text" name="name" value={editFormData.name} onChange={handleInputChange} required className={styles.formInput} /></label>
+              <label className={styles.formLabel}>Email<input type="email" name="email" value={editFormData.email} onChange={handleInputChange} required className={styles.formInput} /></label>
+              <label className={styles.formLabel}>Phone<input type="text" name="phone" value={editFormData.phone} onChange={handleInputChange} className={styles.formInput} /></label>
+              <div className={styles.formDivider}>Change Password (optional)</div>
+              <label className={styles.formLabel}>New Password<input type="password" name="newPassword" value={editFormData.newPassword} onChange={handleInputChange} placeholder="Leave empty to keep current" className={styles.formInput} /></label>
+              <label className={styles.formLabel}>Confirm Password<input type="password" name="confirmPassword" value={editFormData.confirmPassword} onChange={handleInputChange} placeholder="Leave empty to keep current" className={styles.formInput} /></label>
               <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className={styles.cancelButton}
-                  disabled={isUpdating}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={styles.saveButton}
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? "Updating..." : "Save Changes"}
-                </button>
+                <button type="button" onClick={handleCloseModal} className={styles.cancelBtn} disabled={isUpdating}>Cancel</button>
+                <button type="submit" className={styles.saveBtn} disabled={isUpdating}>{isUpdating ? "Saving..." : "Save Changes"}</button>
               </div>
             </form>
           </div>

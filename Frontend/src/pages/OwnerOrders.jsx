@@ -1,222 +1,211 @@
 import { useEffect, useState } from "react";
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
-import "./OwnerOrders.css";
+import * as api from "../api/ownerApi";
+import styles from "./OwnerOrders.module.css";
+
+const STATUS_FLOW = {
+  pending: ["preparing", "cancelled"],
+  preparing: ["served", "cancelled"],
+  served: ["completed"],
+  completed: [],
+  cancelled: [],
+};
+
+const STATUS_COLORS = {
+  pending: "#f59e0b",
+  preparing: "#3b82f6",
+  served: "#8b5cf6",
+  completed: "#10b981",
+  cancelled: "#ef4444",
+};
 
 export function OwnerOrders() {
   const [orders, setOrders] = useState([]);
+  const [filter, setFilter] = useState("all");
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(null);
+  const [restInfo, setRestInfo] = useState({ name: "", cuisine: [], isOpen: true, operatingHours: {} });
+  const [time] = useState(new Date());
 
-  // ⭐ 1. ADD THIS FUNCTION
-  const getReadableOrderId = (order) => {
-    const date = new Date(
-      order.createdAt || order.orderTime || order.date
-    );
+  useEffect(() => { load(); }, []);
 
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = date
-      .toLocaleString("en-IN", { month: "short" })
-      .toUpperCase();
-
-    // time-based unique part (stable)
-    const uniquePart = date.getTime().toString().slice(-4);
-
-    return `ORD-${day}${month}-${uniquePart}`;
+  const load = async () => {
+    try {
+      const [data, settings] = await Promise.all([api.fetchOrders(), api.fetchSettings()]);
+      setOrders(Array.isArray(data) ? data : []);
+      if (settings) setRestInfo({ name: settings.name || "", cuisine: settings.cuisine || [], isOpen: settings.isOpen !== undefined ? settings.isOpen : true, operatingHours: settings.operatingHours || {} });
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  const [statusFilter, setStatusFilter] = useState("all");
+  const handleStatusChange = async (orderId, newStatus) => {
+    setUpdating(orderId);
+    try {
+      await api.updateOrderStatus(orderId, newStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
+      );
+    } catch (e) {
+      alert("Failed: " + (e.message || "Unknown error"));
+    } finally {
+      setUpdating(null);
+    }
+  };
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/api/owner/orders", {
-          method: "GET",
-          credentials: "include",
-        });
+  const fmt = (n) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
 
-        if (!response.ok) throw new Error("Failed to fetch orders");
+  const filtered = filter === "all" ? orders : orders.filter((o) => o.status === filter);
+  const statusCounts = orders.reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {});
 
-        const data = await response.json();
-        console.log("Fetched orders:", data);
-        setOrders(data);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-      }
-    };
-
-    fetchOrders();
-  }, []);
-
-
-
-  const filteredOrders = orders.filter((order) => {
-  if (statusFilter === "all") return true;
-
-  // Paid is based on paymentStatus
-  if (statusFilter === "paid") {
-    return order.paymentStatus === "paid";
+  if (loading) {
+    return <div className={styles.loader}><div className={styles.spinner} /><p>Loading orders...</p></div>;
   }
 
-  // Other statuses come from order.status
-  return order.status?.toLowerCase() === statusFilter;
-});
-
-
   return (
-    <div className="orders-container">
-      <h2 className="orders-heading">Orders</h2>
+    <div className={styles.page}>
+      <header className={styles.hero}>
+        <div className={styles.heroLeft}>
+          <h1 className={styles.heroTitle}>🧁 Orders</h1>
+          {restInfo.name && <p className={styles.heroRestName}>{restInfo.name}</p>}
+          <p className={styles.heroDate}>
+            {time.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            <span className={styles.heroTime}>{time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+          </p>
+        </div>
+        <div className={styles.heroRight}>
+          <div className={`${styles.statusPill} ${restInfo.isOpen ? styles.statusOpen : styles.statusClosed}`}>
+            <span className={styles.statusDot} />
+            <span>{restInfo.isOpen ? "OPEN" : "CLOSED"}</span>
+            <span className={styles.statusHours}>{restInfo.operatingHours?.open || "09:00"} - {restInfo.operatingHours?.close || "22:00"}</span>
+          </div>
+          <button className={styles.refreshBtnHero} onClick={load}>↻ Refresh</button>
+        </div>
+      </header>
 
+      {/* Filter Tabs */}
+      <div className={styles.filterBar}>
+        <button className={`${styles.filterBtn} ${filter === "all" ? styles.active : ""}`} onClick={() => setFilter("all")}>
+          All ({orders.length})
+        </button>
+        {Object.keys(STATUS_FLOW).map((s) => (
+          <button
+            key={s}
+            className={`${styles.filterBtn} ${filter === s ? styles.active : ""}`}
+            style={{ "--filter-color": STATUS_COLORS[s] }}
+            onClick={() => setFilter(s)}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)} ({statusCounts[s] || 0})
+          </button>
+        ))}
+      </div>
 
-    <div className="orders-filter">
-      <label htmlFor="statusFilter">Filter by status: </label>
+      {/* Orders List */}
+      <div className={styles.ordersList}>
+        {filtered.length === 0 && <p className={styles.empty}>No orders found</p>}
+        {filtered.map((order) => {
+          const isExpanded = expandedOrder === order._id;
+          const nextStatuses = STATUS_FLOW[order.status] || [];
+          const dishes = order.dishDetails || order.dishes || [];
+          const subtotal = dishes.reduce((sum, d) => sum + (d.price || 0) * (d.quantity || 1), 0);
+          const taxRate = order.taxRate || 10;
+          const tax = order.taxAmount || subtotal * (taxRate / 100);
+          const total = order.totalAmount || subtotal + tax;
 
-      <select
-        id="statusFilter"
-        value={statusFilter}
-        onChange={(e) => setStatusFilter(e.target.value)}
-      >
-        <option value="all">All</option>
-        <option value="completed">Completed</option>
-        <option value="preparing">Preparing</option>
-        <option value="pending">Pending</option>
-        <option value="paid">Paid</option>
-      </select>
-    </div>
+          return (
+            <div key={order._id} className={styles.orderCard}>
+              <div className={styles.orderRow} onClick={() => setExpandedOrder(isExpanded ? null : order._id)}>
+                <div className={styles.orderMain}>
+                  <span className={styles.orderCustomer}>{order.customerName}</span>
+                  <span className={styles.orderMeta}>Table {order.tableNumber || "N/A"}</span>
+                  <span className={styles.orderMeta}>{new Date(order.date || order.createdAt).toLocaleString()}</span>
+                </div>
+                <div className={styles.orderRight}>
+                  <span className={styles.orderTotal}>{fmt(total)}</span>
+                  <span className={styles.badge} style={{ background: STATUS_COLORS[order.status] + "20", color: STATUS_COLORS[order.status] }}>
+                    {order.status}
+                  </span>
+                  <span className={styles.expandIcon}>{isExpanded ? "▲" : "▼"}</span>
+                </div>
+              </div>
 
-
-      <table className="orders-table">
-        <thead>
-          <tr>
-            <th>Order ID</th>
-            <th>Table</th>
-            <th>Items</th>
-            <th>Amount (₹)</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredOrders.length > 0 ? (
-            // ⭐ 2. ADD index HERE
-            // filteredOrders.map((order, index) => (
-            filteredOrders.map((order) => (
-
-              <>
-                <tr key={order._id} className="order-row">
-                  
-                  {/* ⭐ 3. REPLACE ORDER ID */}
-                  {/* <td>{getReadableOrderId(order, index)}</td> */}
-                  <td>{getReadableOrderId(order)}</td>
-
-
-                  <td>{order.table_id || "N/A"}</td>
-                  <td>{order.dishes?.length || 0} items</td>
-                  <td>₹{order.totalAmount?.toFixed(2) || "0.00"}</td>
-                  <td>
-                    <span
-                      className={`status-badge status-${order.status?.toLowerCase()}`}
-                    >
-                      {order.status || "PENDING"}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="view-items-btn"
-                      onClick={() =>
-                        setExpandedOrder(
-                          expandedOrder === order._id ? null : order._id
-                        )
-                      }
-                    >
-                      {expandedOrder === order._id
-                        ? "Hide Items"
-                        : "View Items"}
-                    </button>
-                  </td>
-                </tr>
-
-                {expandedOrder === order._id && (
-                  <tr className="order-details">
-                    <td colSpan="6">
-                      <div className="order-items">
-                        <h4>Order Items:</h4>
-                        <table className="items-table">
-                          <thead>
-                            <tr>
-                              <th>Item</th>
-                              <th>Quantity</th>
-                              <th>Price</th>
-                              <th>Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {order.dishes?.map((item, index) => (
-                              <tr key={index}>
-                                <td>{item.name || `Item ${index + 1}`}</td>
-                                <td>{item.quantity || 1}</td>
-                                <td>
-                                  ₹
-                                  {item.price
-                                    ? item.price.toFixed(2)
-                                    : "0.00"}
-                                </td>
-                                <td>
-                                  ₹
-                                  {(
-                                    (item.quantity || 1) *
-                                    (item.price || 0)
-                                  ).toFixed(2)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-
-                        <div className="order-summary">
-                          <div className="summary-row">
-                            <span>Subtotal:</span>
-                            <span>
-                              ₹{order.subtotal?.toFixed(2) || "0.00"}
-                            </span>
-                          </div>
-                          <div className="summary-row">
-                            <span>Tax ({order.taxRate || 0}%):</span>
-                            <span>
-                              ₹{order.taxAmount?.toFixed(2) || "0.00"}
-                            </span>
-                          </div>
-                          <div className="summary-row total">
-                            <span>Total:</span>
-                            <span>
-                              ₹{order.totalAmount?.toFixed(2) || "0.00"}
-                            </span>
-                          </div>
+              {isExpanded && (
+                <div className={styles.expandedContent}>
+                  {/* Dish Items */}
+                  {dishes.length > 0 && (
+                    <div className={styles.dishList}>
+                      <h4>Items</h4>
+                      {dishes.map((d, i) => (
+                        <div key={i} className={styles.dishRow}>
+                          <span>{d.name || "Unknown Dish"}{(d.quantity || 1) > 1 ? ` × ${d.quantity}` : ""}</span>
+                          <span>{fmt((d.price || 0) * (d.quantity || 1))}</span>
                         </div>
+                      ))}
+                      <div className={styles.totalRow}>
+                        <span>Subtotal</span><span>{fmt(subtotal)}</span>
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" style={{ textAlign: "center" }}>
-                No orders found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                      <div className={styles.totalRow}>
+                        <span>Tax ({taxRate}%)</span><span>{fmt(tax)}</span>
+                      </div>
+                      <div className={`${styles.totalRow} ${styles.grandTotal}`}>
+                        <span>Total</span><span>{fmt(total)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order Details */}
+                  <div className={styles.detailsGrid}>
+                    {order.paymentStatus && (
+                      <div className={styles.detail}>
+                        <span className={styles.detailLabel}>Payment</span>
+                        <span className={`${styles.payBadge} ${styles["pay_" + order.paymentStatus]}`}>{order.paymentStatus}</span>
+                      </div>
+                    )}
+                    {order.estimatedTime && (
+                      <div className={styles.detail}>
+                        <span className={styles.detailLabel}>Est. Time</span>
+                        <span>{order.estimatedTime} min</span>
+                      </div>
+                    )}
+                    {order.promoCode && (
+                      <div className={styles.detail}>
+                        <span className={styles.detailLabel}>Promo</span>
+                        <span>{order.promoCode} (-{fmt(order.promoDiscount)})</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status Actions */}
+                  {nextStatuses.length > 0 && (
+                    <div className={styles.statusActions}>
+                      <span className={styles.actionLabel}>Update Status:</span>
+                      {nextStatuses.map((ns) => (
+                        <button
+                          key={ns}
+                          className={styles.statusAction}
+                          style={{ "--action-color": STATUS_COLORS[ns] }}
+                          onClick={() => handleStatusChange(order._id, ns)}
+                          disabled={updating === order._id}
+                        >
+                          {updating === order._id ? "..." : ns === "cancelled" ? "✕ Cancel" : `→ ${ns.charAt(0).toUpperCase() + ns.slice(1)}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ✅ Loader for route protection
 export async function loader() {
-  let role = await isLogin();
-  if (role !== "owner") {
-    return redirect("/login");
-  }
+  const role = await isLogin();
+  if (role !== "owner") return redirect("/login");
   return null;
 }

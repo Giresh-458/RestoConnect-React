@@ -30,6 +30,10 @@ export function CustomerNav() {
     }
   };
 
+  if (isDashboard) {
+    return <Outlet />;
+  }
+
   return (
     <>
       <nav className={styles.customerNav}>

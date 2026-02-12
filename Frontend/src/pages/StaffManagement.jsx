@@ -112,7 +112,7 @@ const StaffManagement = () => {
   const handleAddStaffSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/owner/staffManagement/add', {
+      const response = await fetch('http://localhost:3000/api/owner/staffManagement/api/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

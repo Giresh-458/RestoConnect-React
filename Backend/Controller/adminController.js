@@ -708,6 +708,210 @@ exports.getPublicRestaurants = async (req, res, next) => {
   }
 };
 
+// ── Admin: Get all orders across all restaurants ──
+exports.getAllOrders = async (req, res, next) => {
+  try {
+    const Order = require("../Model/Order_model");
+    const { status, restaurant, date, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    if (date) {
+      const d = new Date(date);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      filter.date = { $gte: d, $lt: next };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [orders, total] = await Promise.all([
+      Order.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
+      Order.countDocuments(filter),
+    ]);
+    // stats
+    const allOrders = await Order.find({});
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayOrders = allOrders.filter(o => new Date(o.date) >= todayStart);
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const todayRevenue = todayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const avgOrderValue = allOrders.length ? (totalRevenue / allOrders.length).toFixed(2) : 0;
+    const statusBreakdown = {};
+    allOrders.forEach(o => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
+    res.json({
+      orders,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalOrders: allOrders.length, todayOrders: todayOrders.length, totalRevenue, todayRevenue, avgOrderValue: parseFloat(avgOrderValue), statusBreakdown },
+    });
+  } catch (error) {
+    console.error("Error in getAllOrders:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Get all reservations across all restaurants ──
+exports.getAllReservations = async (req, res, next) => {
+  try {
+    const Reservation = require("../Model/Reservation_model");
+    const { status, restaurant, date, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    if (date) {
+      const d = new Date(date);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      filter.date = { $gte: d, $lt: next };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [reservations, total] = await Promise.all([
+      Reservation.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
+      Reservation.countDocuments(filter),
+    ]);
+    // stats
+    const allRes = await Reservation.find({});
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayRes = allRes.filter(r => new Date(r.date) >= todayStart);
+    const statusBreakdown = {};
+    allRes.forEach(r => { statusBreakdown[r.status] = (statusBreakdown[r.status] || 0) + 1; });
+    const totalGuests = allRes.reduce((s, r) => s + (r.guests || 0), 0);
+    res.json({
+      reservations,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalReservations: allRes.length, todayReservations: todayRes.length, totalGuests, statusBreakdown },
+    });
+  } catch (error) {
+    console.error("Error in getAllReservations:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Get all feedback across all restaurants ──
+exports.getAllFeedback = async (req, res, next) => {
+  try {
+    const Feedback = require("../Model/feedback");
+    const { status, restaurant, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [feedback, total] = await Promise.all([
+      Feedback.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Feedback.countDocuments(filter),
+    ]);
+    const allFb = await Feedback.find({});
+    const avgDining = allFb.length ? (allFb.reduce((s, f) => s + (f.diningRating || 0), 0) / allFb.filter(f => f.diningRating).length).toFixed(1) : 0;
+    const avgOrder = allFb.length ? (allFb.reduce((s, f) => s + (f.orderRating || 0), 0) / allFb.filter(f => f.orderRating).length).toFixed(1) : 0;
+    const pending = allFb.filter(f => f.status === "Pending").length;
+    const resolved = allFb.filter(f => f.status === "Resolved").length;
+    res.json({
+      feedback,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalFeedback: allFb.length, avgDiningRating: parseFloat(avgDining), avgOrderRating: parseFloat(avgOrder), pending, resolved },
+    });
+  } catch (error) {
+    console.error("Error in getAllFeedback:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Analytics endpoint ──
+exports.getAnalytics = async (req, res, next) => {
+  try {
+    const Order = require("../Model/Order_model");
+    const Reservation = require("../Model/Reservation_model");
+    const Feedback = require("../Model/feedback");
+
+    const restaurants = await Restaurant.findAll();
+    const allOrders = await Order.find({});
+    const allReservations = await Reservation.find({});
+    const allFeedback = await Feedback.find({});
+    const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
+
+    // Top restaurants by order count
+    const restOrderCount = {};
+    const restRevenue = {};
+    allOrders.forEach(o => {
+      const rid = o.rest_id?.toString() || "unknown";
+      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
+      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
+    });
+
+    const topRestaurants = restaurants
+      .map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        orders: restOrderCount[r._id.toString()] || 0,
+        revenue: restRevenue[r._id.toString()] || 0,
+        rating: r.rating || 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Peak hours
+    const hourCounts = Array(24).fill(0);
+    allOrders.forEach(o => {
+      if (o.orderTime) {
+        const h = new Date(o.orderTime).getHours();
+        hourCounts[h]++;
+      } else if (o.date) {
+        const h = new Date(o.date).getHours();
+        hourCounts[h]++;
+      }
+    });
+    const peakHours = hourCounts.map((count, hour) => ({ hour: `${hour}:00`, count }));
+
+    // Monthly revenue trend (last 12 months)
+    const monthlyRevenue = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const monthOrders = allOrders.filter(o => {
+        const od = new Date(o.date);
+        return od >= d && od <= monthEnd;
+      });
+      const revenue = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      monthlyRevenue.push({ month: months[d.getMonth()] + " " + d.getFullYear(), revenue, orders: monthOrders.length });
+    }
+
+    // Customer activity - reservations per restaurant
+    const restReservationCount = {};
+    allReservations.forEach(r => {
+      const rid = r.rest_id?.toString() || "unknown";
+      restReservationCount[rid] = (restReservationCount[rid] || 0) + 1;
+    });
+
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const avgRating = allFeedback.length
+      ? (allFeedback.reduce((s, f) => s + (f.diningRating || f.orderRating || 0), 0) / allFeedback.length).toFixed(1)
+      : 0;
+
+    res.json({
+      overview: {
+        totalRestaurants: restaurants.length,
+        totalUsers,
+        totalOrders: allOrders.length,
+        totalReservations: allReservations.length,
+        totalRevenue,
+        avgRating: parseFloat(avgRating),
+        totalFeedback: allFeedback.length,
+      },
+      topRestaurants,
+      peakHours,
+      monthlyRevenue,
+    });
+  } catch (error) {
+    console.error("Error in getAnalytics:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.getRecentActivities = async (req, res, next) => {
   try {
     const activities = [];

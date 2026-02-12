@@ -22,6 +22,9 @@ import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePa
 import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
 import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
 import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
+import { LiveFloor, loader as LiveFloorLoader } from "./pages/LiveFloor";
+import Promotions from "./pages/Promotions";
+import OwnerSettings from "./pages/OwnerSettings";
 import StaffManagement from "./pages/StaffManagement";
 import { SupportChatPage } from "./pages/SupportChatPage";
 
@@ -74,6 +77,9 @@ const router = createBrowserRouter([
       { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
       { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
       { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
+      { path: "floor", element: <LiveFloor />, loader: LiveFloorLoader },
+      { path: "promotions", element: <Promotions /> },
+      { path: "settings", element: <OwnerSettings /> },
       { path: "feedback", element: <FeedBackPage></FeedBackPage> },
       { path: "support", element: <SupportChatPage mode="owner" /> },
       { path: "staffmanagement", element: <StaffManagement></StaffManagement> },

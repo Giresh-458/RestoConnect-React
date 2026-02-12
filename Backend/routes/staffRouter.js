@@ -71,6 +71,8 @@ router.post("/support-message", staffController.postSupportMessage);
 router.put("/tasks/:id", staffController.updateTaskStatus);
 router.post("/add-table", staffController.postAddTable);
 router.post('/tables', staffController.postAddTable);
+router.put('/tables/status', staffController.postUpdateTableStatus);
+router.delete('/tables/:tableNumber', staffController.postDeleteTable);
 router.post('/change-password', staffController.changePassword);
 
 

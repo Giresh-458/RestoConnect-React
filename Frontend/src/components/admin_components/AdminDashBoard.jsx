@@ -1,259 +1,253 @@
 import { useEffect, useState } from "react";
-import { logout } from "../../util/auth";
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend } from "recharts";
-import "./AdminDashboard.css"; // ✅ Styling
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip,
+  CartesianGrid, ResponsiveContainer, AreaChart, Area,
+} from "recharts";
+import { fetchStatistics, fetchChartStats, fetchActivities, fetchAnalytics } from "../../api/adminApi";
 
-export function AdminDashBoard(props) {
+export function AdminDashBoard({ totalusers, totalrestaurants, restaurants }) {
   const [chartData, setChartData] = useState([]);
-  const [period, setPeriod] = useState('monthly'); // daily, monthly, yearly
+  const [period, setPeriod] = useState("monthly");
   const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalRestaurants: 0,
-    newUsers: 0,
-    activeRestaurants: 0,
-    userGrowth: 0,
+    totalUsers: 0, totalRestaurants: 0, totalRevenue: 0,
+    newUsers: 0, activeRestaurants: 0,
   });
   const [activities, setActivities] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Helper: generate months from Jan to current month
   const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-  // Process data based on period
   const processChartData = (rawData, periodType) => {
-    if (periodType === 'daily') {
-      // Process daily data - last 30 days
-      const daysData = [];
+    if (periodType === "daily") {
+      const days = [];
       const today = new Date();
-      
       for (let i = 29; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        
-        const dayData = rawData.find(d => 
-          d.year === year && d.month === month && d.day === day
-        );
-        
-        daysData.push({
-          label: `${month}/${day}`,
-          totalPayments: dayData ? dayData.totalPayments : 0,
-          countPayments: dayData ? dayData.countPayments : 0,
-          restaurantFee: dayData ? dayData.restaurantFee : 0
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        const yr = d.getFullYear(), mo = d.getMonth() + 1, dy = d.getDate();
+        const found = rawData.find((r) => r.year === yr && r.month === mo && r.day === dy);
+        days.push({
+          label: `${mo}/${dy}`,
+          totalPayments: found?.totalPayments || 0,
+          countPayments: found?.countPayments || 0,
         });
       }
-      return daysData;
-    } else if (periodType === 'yearly') {
-      // Process yearly data - last 5 years
-      const yearsData = [];
-      const currentYear = new Date().getFullYear();
-      
+      return days;
+    } else if (periodType === "yearly") {
+      const years = []; const curYear = new Date().getFullYear();
       for (let i = 4; i >= 0; i--) {
-        const year = currentYear - i;
-        const yearData = rawData.find(d => d.year === year);
-        
-        yearsData.push({
-          label: year.toString(),
-          totalPayments: yearData ? yearData.totalPayments : 0,
-          countPayments: yearData ? yearData.countPayments : 0,
-          restaurantFee: yearData ? yearData.restaurantFee : 0
-        });
+        const yr = curYear - i;
+        const found = rawData.find((r) => r.year === yr);
+        years.push({ label: String(yr), totalPayments: found?.totalPayments || 0, countPayments: found?.countPayments || 0 });
       }
-      return yearsData;
+      return years;
     } else {
-      // Process monthly data - current year
-      const currentMonth = new Date().getMonth(); // 0-based
-      let monthsData = [];
-
-      for(let i = 0; i <= currentMonth; i++){
-        const monthNumber = i + 1; // backend month is 1-based
-        const monthData = rawData.find(d => d.month === monthNumber);
-        monthsData.push({
-          label: monthNames[i],
-          totalPayments: monthData ? monthData.totalPayments : 0,
-          countPayments: monthData ? monthData.countPayments : 0,
-          restaurantFee: monthData ? monthData.restaurantFee : 0
-        });
-      }
-      return monthsData;
+      const curMonth = new Date().getMonth();
+      return Array.from({ length: curMonth + 1 }, (_, i) => {
+        const found = rawData.find((r) => r.month === i + 1);
+        return { label: monthNames[i], totalPayments: found?.totalPayments || 0, countPayments: found?.countPayments || 0 };
+      });
     }
   };
 
   useEffect(() => {
-    // Fetch chart data based on selected period
-    fetch(`http://localhost:3000/api/admin/chartstats?period=${period}`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setChartData(processChartData(data, period)))
-      .catch((err) => console.error(err));
+    fetchChartStats(period).then((d) => setChartData(processChartData(d, period))).catch(console.error);
   }, [period]);
 
   useEffect(() => {
-    // Fetch statistics
-    fetch("http://localhost:3000/api/admin/statistics", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        setStats((prev) => ({
-          ...prev,
-          totalUsers: data.totalUsers,
-          totalRestaurants: data.totalRestaurants,
-          newUsers: data.newUsers || 0,
-          activeRestaurants: data.activeRestaurants || 0,
-          userGrowth: data.userGrowth || 12,
-        }));
-      })
-      .catch((err) => console.error(err));
-
-    // Fetch recent activities
-    fetch("http://localhost:3000/api/admin/activities", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setActivities(data))
-      .catch((err) => console.error(err));
+    setLoading(true);
+    Promise.all([
+      fetchStatistics().catch(() => ({})),
+      fetchActivities().catch(() => []),
+      fetchAnalytics().catch(() => null),
+    ]).then(([s, a, an]) => {
+      setStats({
+        totalUsers: s.totalUsers || totalusers || 0,
+        totalRestaurants: s.totalRestaurants || totalrestaurants || 0,
+        totalRevenue: s.totalRevenue || 0,
+        newUsers: s.newUsers || 0,
+        activeRestaurants: s.activeRestaurants || 0,
+      });
+      setActivities(a);
+      setAnalytics(an);
+      setLoading(false);
+    });
   }, []);
 
+  if (loading) {
+    return <div className="admin-loading"><div className="spinner"></div> Loading dashboard...</div>;
+  }
+
+  const totalOrders = analytics?.overview?.totalOrders || 0;
+  const totalReservations = analytics?.overview?.totalReservations || 0;
+  const avgRating = analytics?.overview?.avgRating || 0;
+  const topRestaurants = analytics?.topRestaurants || [];
+
   return (
-    <div className="admin-dashboard">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <button
-          onClick={async () => {
-            try {
-              await logout();
-              window.location.href = '/login';
-            } catch (e) {
-              console.error('Logout failed', e);
-              window.location.href = '/login';
-            }
-          }}
-          style={{ background: 'transparent', border: '1px solid #e5e7eb', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
-        >
-          Logout
-        </button>
-      </div>
-      <h2 className="dashboard-heading">Admin Dashboard</h2>
-
-      {/* Top Summary Blocks */}
-      <div className="dashboard-cards">
-        <div className="card">
-          <p className="card-title">Total Users</p>
-          <h1 className="card-value">{stats.totalUsers}</h1>
-          <p className="card-sub">↑ {stats.userGrowth}% increase this month</p>
-        </div>
-
-        <div className="card">
-          <p className="card-title">Total Restaurants</p>
-          <h1 className="card-value">{stats.totalRestaurants}</h1>
-          <p className="card-sub">{stats.activeRestaurants} currently online</p>
-        </div>
-
-        <div className="card">
-          <p className="card-title">New Users</p>
-          <h1 className="card-value">{stats.newUsers}</h1>
-          <p className="card-sub">Joined last month</p>
-        </div>
-      </div>
-
-      {/* Performance Overview */}
-      <div className="performance-block">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3>Performance Overview</h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => setPeriod('daily')}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                background: period === 'daily' ? '#007bff' : '#fff',
-                color: period === 'daily' ? '#fff' : '#333',
-                cursor: 'pointer',
-                fontWeight: period === 'daily' ? '600' : '400',
-                transition: 'all 0.2s'
-              }}
-            >
-              Daily
-            </button>
-            <button
-              onClick={() => setPeriod('monthly')}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                background: period === 'monthly' ? '#007bff' : '#fff',
-                color: period === 'monthly' ? '#fff' : '#333',
-                cursor: 'pointer',
-                fontWeight: period === 'monthly' ? '600' : '400',
-                transition: 'all 0.2s'
-              }}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setPeriod('yearly')}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                background: period === 'yearly' ? '#007bff' : '#fff',
-                color: period === 'yearly' ? '#fff' : '#333',
-                cursor: 'pointer',
-                fontWeight: period === 'yearly' ? '600' : '400',
-                transition: 'all 0.2s'
-              }}
-            >
-              Yearly
-            </button>
+    <>
+      {/* KPI Cards */}
+      <div className="admin-stats-grid">
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon blue">🍽️</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Total Restaurants</div>
+            <div className="admin-stat-value">{stats.totalRestaurants}</div>
+            <div className="admin-stat-change up">{stats.activeRestaurants || stats.totalRestaurants} active</div>
           </div>
         </div>
-        <div className="charts-row">
-          <div className="chart-container">
-            <p className="chart-title">
-              {period === 'daily' ? 'Daily Order Volume (Last 30 Days)' : 
-               period === 'yearly' ? 'Yearly Order Volume' : 
-               'Monthly Order Volume'}
-            </p>
-            <BarChart width={400} height={250} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="countPayments" fill="#007bff" name="Order Volume" />
-            </BarChart>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon green">💰</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Total Revenue</div>
+            <div className="admin-stat-value">₹{(stats.totalRevenue || 0).toLocaleString()}</div>
+            <div className="admin-stat-change up">Platform earnings</div>
           </div>
-
-          <div className="chart-container">
-            <p className="chart-title">
-              {period === 'daily' ? 'Daily Revenue Trends (Last 30 Days)' : 
-               period === 'yearly' ? 'Yearly Revenue Trends' : 
-               'Monthly Revenue Trends'}
-            </p>
-            <LineChart width={400} height={250} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="totalPayments" stroke="#28a745" name="Total Revenue" />
-            </LineChart>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon purple">👥</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Total Users</div>
+            <div className="admin-stat-value">{stats.totalUsers}</div>
+            <div className="admin-stat-change up">+{stats.newUsers || 0} this month</div>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon orange">🧾</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Total Orders</div>
+            <div className="admin-stat-value">{totalOrders.toLocaleString()}</div>
+            <div className="admin-stat-change up">All time</div>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon cyan">📅</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Reservations</div>
+            <div className="admin-stat-value">{totalReservations.toLocaleString()}</div>
+            <div className="admin-stat-change up">All time</div>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon red">⭐</div>
+          <div className="admin-stat-info">
+            <div className="admin-stat-label">Avg Rating</div>
+            <div className="admin-stat-value">{avgRating || "—"}</div>
+            <div className="admin-stat-change up">Across all restaurants</div>
           </div>
         </div>
       </div>
 
-      {/* Recent Activities */}
-      <div className="activities-block">
-        <h3>Recent Activities</h3>
-        <ul className="activities-list">
-          {activities.length === 0 ? (
-            <li>No recent activities</li>
-          ) : (
-            activities.map((act, i) => (
-              <li key={i}>
-                <span className="activity-time">{act.time}</span> — {act.description}
-              </li>
-            ))
-          )}
-        </ul>
+      {/* Charts */}
+      <div className="admin-card">
+        <div className="admin-card-header">
+          <h3>Revenue & Orders</h3>
+          <div className="admin-period-toggle">
+            {["daily", "monthly", "yearly"].map((p) => (
+              <button
+                key={p}
+                className={`admin-period-btn${period === p ? " active" : ""}`}
+                onClick={() => setPeriod(p)}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="admin-card-body">
+          <div className="admin-grid-2">
+            <div>
+              <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#334155", marginBottom: 12 }}>
+                {period === "daily" ? "Daily Revenue (Last 30 Days)" : period === "yearly" ? "Yearly Revenue" : "Monthly Revenue"}
+              </p>
+              <div className="admin-chart-wrap">
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="totalPayments" stroke="#2563eb" fill="url(#colorRevenue)" name="Revenue (₹)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#334155", marginBottom: 12 }}>
+                {period === "daily" ? "Daily Orders (Last 30 Days)" : period === "yearly" ? "Yearly Orders" : "Monthly Orders"}
+              </p>
+              <div className="admin-chart-wrap">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="countPayments" fill="#16a34a" radius={[4, 4, 0, 0]} name="Orders" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Bottom Row: Top Restaurants + Activity */}
+      <div className="admin-grid-2">
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3>Top Performing Restaurants</h3>
+            <span className="admin-badge primary">{topRestaurants.length} restaurants</span>
+          </div>
+          <div className="admin-card-body" style={{ padding: "8px 22px" }}>
+            {topRestaurants.length === 0 ? (
+              <div className="admin-empty-state"><div className="icon">🍽️</div><p>No data yet</p></div>
+            ) : (
+              topRestaurants.slice(0, 6).map((r, i) => (
+                <div key={r._id} className="admin-top-restaurant">
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <div className="rank">{i + 1}</div>
+                    <div className="info">
+                      <div className="name">{r.name}</div>
+                      <div className="meta">{r.orders} orders · ⭐ {r.rating || "—"}</div>
+                    </div>
+                  </div>
+                  <div className="revenue">₹{(r.revenue || 0).toLocaleString()}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3>Recent Activity</h3>
+            <span className="admin-badge neutral">{activities.length} events</span>
+          </div>
+          <div className="admin-card-body" style={{ padding: "8px 22px", maxHeight: 380, overflowY: "auto" }}>
+            {activities.length === 0 ? (
+              <div className="admin-empty-state"><div className="icon">📋</div><p>No recent activity</p></div>
+            ) : (
+              <ul className="admin-activity-list">
+                {activities.map((act, i) => (
+                  <li key={i} className="admin-activity-item">
+                    <div className={`admin-activity-dot ${act.description?.includes("Restaurant") ? "green" : "blue"}`}></div>
+                    <div>
+                      <div className="admin-activity-text">{act.description}</div>
+                      <div className="admin-activity-time">{act.time}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
