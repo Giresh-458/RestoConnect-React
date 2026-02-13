@@ -1,5 +1,5 @@
 
-import "./PaymentPage.css";
+import styles from "./PaymentPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -232,150 +232,111 @@ export function PaymentPage() {
   };
 
   return (
-    <div className="payment-page">
-      <div className="payment-container">
-        <div className="steps-row">
-          <CheckoutSteps current="payment" />
-        </div>
-        <div className="payment-card">
-          <header className="payment-header">
-            <div className="header-row">
-              <button type="button" className="back-btn" onClick={() => navigate(-1)}>← Back</button>
-              <h1>Secure payment</h1>
+    <div className={styles.paymentPage}>
+      <CheckoutSteps current="payment" />
+
+      <div className={styles.paymentContainer}>
+        <div className={styles.paymentCard}>
+          <header className={styles.paymentHeader}>
+            <div className={styles.headerRow}>
+              <button type="button" className={styles.backBtn} onClick={() => navigate(-1)}>← Back</button>
+              <h1>Secure Payment</h1>
             </div>
-            <p>Choose your preferred payment method to complete your order.</p>
-            <div className="due-total">Total due: <strong>₹ {grandTotal.toFixed(2)}</strong></div>
+            <p className={styles.headerDescription}>Choose your preferred payment method to complete your order.</p>
+            <div className={styles.dueTotal}>
+              <span>Total due</span>
+              <strong>₹ {grandTotal.toFixed(2)}</strong>
+            </div>
           </header>
 
-        {error && <div className="payment-error">{error}</div>}
+          {error && <div className={styles.paymentError}>{error}</div>}
 
-        <section className="payment-methods">
-          <div className="method-group">
-            <h2>Pay with card</h2>
-            <div className="field-row">
-              <label>
-                Card number
-                <input type="text" placeholder="1234 5678 9012 3456" onFocus={() => setMethod('card')} />
-              </label>
-            </div>
-            <div className="field-row two-cols">
-              <label>
-                Expiry
-                <input type="text" placeholder="MM/YY" onFocus={() => setMethod('card')} />
-              </label>
-              <label>
-                CVV
-                <input type="password" placeholder="***" onFocus={() => setMethod('card')} />
-              </label>
-            </div>
-          </div>
-
-          <div className="method-group">
-            <h2>Or UPI / Wallet</h2>
-            <div className="pill-row">
-              <button type="button" className={method === 'upi' ? 'selected' : ''} onClick={() => setMethod('upi')}>UPI</button>
-              <button type="button" className={method === 'gpay' ? 'selected' : ''} onClick={() => setMethod('gpay')}>Google Pay</button>
-              <button type="button" className={method === 'phonepe' ? 'selected' : ''} onClick={() => setMethod('phonepe')}>PhonePe</button>
-              <button type="button" className={method === 'paytm' ? 'selected' : ''} onClick={() => setMethod('paytm')}>Paytm</button>
-            </div>
-          </div>
-        </section>
-
-        <section className="promo-section" style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
-          <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Promo Code</h3>
-          {promoCode ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#e8f5e9', borderRadius: '6px', marginBottom: '8px' }}>
-              <div>
-                <strong style={{ color: '#2e7d32' }}>{promoCode}</strong>
-                <span style={{ marginLeft: '8px', color: '#666', fontSize: '14px' }}>Applied</span>
+          <section className={styles.paymentMethods}>
+            <div className={styles.methodGroup}>
+              <h2>💳 Pay with Card</h2>
+              <div className={styles.fieldRow}>
+                <label>
+                  Card number
+                  <input type="text" placeholder="1234 5678 9012 3456" onFocus={() => setMethod('card')} />
+                </label>
               </div>
-              <button
-                type="button"
-                onClick={handlePromoCodeRemove}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #c62828',
-                  color: '#c62828',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                }}
-              >
-                Remove
-              </button>
+              <div className={styles.fieldRowTwoCols}>
+                <label>
+                  Expiry
+                  <input type="text" placeholder="MM/YY" onFocus={() => setMethod('card')} />
+                </label>
+                <label>
+                  CVV
+                  <input type="password" placeholder="***" onFocus={() => setMethod('card')} />
+                </label>
+              </div>
             </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Enter promo code"
-                value={promoCodeInput}
-                onChange={(e) => {
-                  setPromoCodeInput(e.target.value.toUpperCase());
-                  setPromoCodeError(null);
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handlePromoCodeApply();
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  border: promoCodeError ? '2px solid #d32f2f' : '2px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handlePromoCodeApply}
-                disabled={promoCodeLoading || !promoCodeInput.trim()}
-                style={{
-                  padding: '10px 20px',
-                  background: promoCodeLoading || !promoCodeInput.trim() ? '#ccc' : '#ff6b6b',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: promoCodeLoading || !promoCodeInput.trim() ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                {promoCodeLoading ? 'Applying...' : 'Apply'}
-              </button>
-            </div>
-          )}
-          {promoCodeError && (
-            <div style={{ marginTop: '8px', color: '#d32f2f', fontSize: '13px' }}>
-              {promoCodeError}
-            </div>
-          )}
-        </section>
 
-        <section className="charge-summary">
-          <div className="row"><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
-          <div className="row"><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
-          <div className="row"><span>Taxes (8%)</span><span>₹ {taxes.toFixed(2)}</span></div>
-          {promoCode && finalDiscount > 0 && (
-            <div className="row" style={{ color: '#2e7d32', fontWeight: '600' }}>
-              <span>Promo Code Discount ({promoCode})</span>
-              <span>-₹ {finalDiscount.toFixed(2)}</span>
+            <div className={styles.methodGroup}>
+              <h2>📱 UPI / Wallet</h2>
+              <div className={styles.pillRow}>
+                <button type="button" className={`${styles.pillBtn} ${method === 'upi' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('upi')}>UPI</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'gpay' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('gpay')}>Google Pay</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'phonepe' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('phonepe')}>PhonePe</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'paytm' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('paytm')}>Paytm</button>
+              </div>
             </div>
-          )}
-        </section>
+          </section>
 
-        <footer className="payment-footer">
-          <div className="summary">
-            <span>Total</span>
-            <strong>₹ {grandTotal.toFixed(2)}</strong>
-          </div>
-          <button className="pay-btn" type="button" onClick={handlePay} disabled={processing || !method}>
-            {processing ? 'Processing...' : 'Pay & place order'}
-          </button>
-        </footer>
+          <section className={styles.promoSection}>
+            <h3>Promo Code</h3>
+            {promoCode ? (
+              <div className={styles.promoApplied}>
+                <div>
+                  <span className={styles.promoAppliedCode}>{promoCode}</span>
+                  <span className={styles.promoAppliedBadge}>Applied ✓</span>
+                </div>
+                <button type="button" onClick={handlePromoCodeRemove} className={styles.promoRemoveBtn}>Remove</button>
+              </div>
+            ) : (
+              <div className={styles.promoInputRow}>
+                <input
+                  type="text"
+                  placeholder="Enter promo code"
+                  value={promoCodeInput}
+                  onChange={(e) => { setPromoCodeInput(e.target.value.toUpperCase()); setPromoCodeError(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePromoCodeApply(); } }}
+                  className={`${styles.promoInput} ${promoCodeError ? styles.promoInputError : ''}`}
+                />
+                <button
+                  type="button"
+                  onClick={handlePromoCodeApply}
+                  disabled={promoCodeLoading || !promoCodeInput.trim()}
+                  className={styles.promoApplyBtn}
+                >
+                  {promoCodeLoading ? 'Applying...' : 'Apply'}
+                </button>
+              </div>
+            )}
+            {promoCodeError && <div className={styles.promoError}>{promoCodeError}</div>}
+          </section>
+
+          <section className={styles.chargeSummary}>
+            <div className={styles.chargeRow}><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
+            <div className={styles.chargeRow}><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
+            <div className={styles.chargeRow}><span>Taxes (8%)</span><span>₹ {taxes.toFixed(2)}</span></div>
+            {promoCode && finalDiscount > 0 && (
+              <div className={`${styles.chargeRow} ${styles.chargeRowDiscount}`}>
+                <span>Promo Discount ({promoCode})</span>
+                <span>-₹ {finalDiscount.toFixed(2)}</span>
+              </div>
+            )}
+          </section>
+
+          <footer className={styles.paymentFooter}>
+            <div className={styles.footerSummary}>
+              <span>Total</span>
+              <strong>₹ {grandTotal.toFixed(2)}</strong>
+            </div>
+            <button className={styles.payBtn} type="button" onClick={handlePay} disabled={processing || !method}>
+              {processing ? 'Processing...' : 'Pay & Place Order'}
+            </button>
+          </footer>
         </div>
       </div>
     </div>

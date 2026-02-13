@@ -1,7 +1,13 @@
 .stepsNav {
-  padding: 12px 16px;
-  background: #f7f7f9;
-  border-bottom: 1px solid #eee;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .stepsList {
@@ -10,40 +16,122 @@
   padding: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .stepItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
+  flex: 1;
+  position: relative;
 }
 
-.chip {
-  padding: 6px 10px;
-  border-radius: 16px;
+.stepItem:last-child {
+  flex: 0;
+}
+
+.stepCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #e5e7eb;
-  color: #111;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.chipActive {
-  background: #2563eb;
-  color: #fff;
-}
-
-.divider {
   color: #9ca3af;
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 3px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 2;
 }
 
-@media (max-width: 600px) {
+.stepActive .stepCircle {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-color: #4facfe;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4), 0 0 0 4px rgba(79, 172, 254, 0.15);
+  transform: scale(1.1);
+}
+
+.stepCompleted .stepCircle {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.stepIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.stepLabel {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+  letter-spacing: 0.3px;
+}
+
+.stepActive .stepLabel {
+  color: #4facfe;
+  font-weight: 700;
+}
+
+.stepCompleted .stepLabel {
+  color: #10b981;
+}
+
+.connector {
+  flex: 1;
+  height: 3px;
+  background: #e5e7eb;
+  margin: 0 8px;
+  border-radius: 2px;
+  transition: background 0.4s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.connectorCompleted {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+@media (max-width: 640px) {
   .stepsNav {
-    padding: 8px 12px;
+    padding: 16px 12px;
   }
-  .chip {
-    font-size: 12px;
-    padding: 5px 8px;
+
+  .stepCircle {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    border-width: 2px;
+  }
+
+  .stepIcon {
+    font-size: 14px;
+  }
+
+  .stepLabel {
+    font-size: 9px;
+    top: 44px;
+  }
+
+  .connector {
+    margin: 0 4px;
+    height: 2px;
   }
 }
