@@ -923,8 +923,26 @@ async function seed() {
     const users = [
       {
         username: "admin1",
-        email: "admin1@example.com",
+        email: "admin1@restoconnect.com",
         role: "admin",
+        password: bcrypt.hashSync("123456", 10),
+        isSuspended: false,
+        suspensionEndDate: null,
+        suspensionReason: null,
+      },
+      {
+        username: "employee1",
+        email: "employee1@restoconnect.com",
+        role: "employee",
+        password: bcrypt.hashSync("123456", 10),
+        isSuspended: false,
+        suspensionEndDate: null,
+        suspensionReason: null,
+      },
+      {
+        username: "employee2",
+        email: "employee2@restoconnect.com",
+        role: "employee",
         password: bcrypt.hashSync("123456", 10),
         isSuspended: false,
         suspensionEndDate: null,
@@ -2767,8 +2785,11 @@ async function seed() {
     console.log("\n✅ Seed completed successfully!");
     console.log("\n📋 Demo Credentials:");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("Admin:");
+    console.log("Admin (Super Admin):");
     console.log("  Username: admin1");
+    console.log("  Password: 123456");
+    console.log("\nEmployee:");
+    console.log("  Username: employee1 / employee2");
     console.log("  Password: 123456");
     console.log("\nOwner (Tasty Bites):");
     console.log("  Username: owner1");

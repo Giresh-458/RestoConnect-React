@@ -52,6 +52,7 @@ const authRoutes = require("./routes/authRoutes.js");
 const loginPage = require("./routes/loginPage.js");
 const customerRouter = require("./routes/customer.js");
 const adminRouter = require("./routes/adminroutes.js");
+const superadminRouter = require("./routes/superadminRoutes.js");
 const ownerRouter = require("./routes/ownerRoutes.js");
 const staffRouter = require("./routes/staffRouter.js");
 
@@ -113,8 +114,13 @@ app.use("/customer", authentication("customer"), customerRouter);
 app.use("/api/customer", authentication("customer"), customerRouter);
 
 app.use("/api/admin/support", authentication("admin"), adminSupportRouter);
-app.use("/admin", authentication("admin"), adminRouter);
-app.use("/api/admin", authentication("admin"), adminRouter);
+app.use("/api/superadmin", authentication("admin"), superadminRouter);
+app.use("/admin", authentication(["admin", "employee"]), adminRouter);
+app.use("/api/admin", authentication(["admin", "employee"]), adminRouter);
+
+app.use("/api/employee/support", authentication("employee"), adminSupportRouter);
+app.use("/employee", authentication("employee"), adminRouter);
+app.use("/api/employee", authentication("employee"), adminRouter);
 
 app.use("/api/owner/support", authentication("owner"), ownerSupportRouter);
 app.use("/owner", authentication("owner"), ownerRouter);

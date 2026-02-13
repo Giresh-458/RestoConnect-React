@@ -35,8 +35,8 @@ import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePa
 import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/StaffDashBoardPage";
 
 
-import { AdminPage } from "./pages/AdminPage";
-import {loader as adminLoader} from "./pages/AdminPage";
+import { EmployeePage, loader as employeeLoader } from "./pages/EmployeePage";
+import { SuperAdminPage, loader as superAdminLoader } from "./pages/SuperAdminPage";
 
 import { AuthPage } from "./pages/AuthPage";
 import {action as authAction} from './pages/AuthPage';
@@ -97,8 +97,13 @@ const router = createBrowserRouter([
   },
   {
     path: "/admin",
-    element: <AdminPage></AdminPage>,
-    loader:adminLoader
+    element: <SuperAdminPage />,
+    loader: superAdminLoader
+  },
+  {
+    path: "/employee",
+    element: <EmployeePage />,
+    loader: employeeLoader
   },
   {
     path: "/login",

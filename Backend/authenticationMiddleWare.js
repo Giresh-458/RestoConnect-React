@@ -2,6 +2,7 @@ const { User } = require('./Model/userRoleModel');
 const { verifyToken, AUTH_TOKEN_COOKIE } = require('./util/jwtHelper');
 
 const auth_middleware = (role) => {
+  const roles = Array.isArray(role) ? role : [role];
   return async (req, res, next) => {
     const wantsJSON =
       req.headers.accept?.includes("application/json") ||
@@ -37,7 +38,7 @@ const auth_middleware = (role) => {
 
     req.user = user;
 
-    if (user.role === role) {
+    if (roles.includes(user.role)) {
       return next();
     }
 

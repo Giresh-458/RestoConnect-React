@@ -1,20 +1,25 @@
+/* ─── Staff Top Navigation — Owner Indigo Theme ─── */
 .staffNav {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 24px;
-  height: 48px;
-  background: #0f1117;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  height: 52px;
+  background: linear-gradient(135deg, #1e1e2f 0%, #27293d 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.15);
   flex-wrap: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .brand {
   font-size: 15px;
   font-weight: 800;
-  color: #a5b4fc;
+  color: #fff;
   margin-right: 16px;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -26,7 +31,7 @@
 
 .link {
   padding: 6px 16px;
-  color: #94a3b8;
+  color: #8b8fa3;
   border-radius: 8px;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -34,35 +39,37 @@
   font-weight: 600;
   text-decoration: none;
   letter-spacing: 0.01em;
+  border: 1px solid transparent;
 }
 
 .link:hover {
-  background: rgba(255,255,255,0.06);
-  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+  color: #c3c7d4;
 }
 
 .active {
-  background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.1));
-  color: #a5b4fc;
-  border: 1px solid rgba(99,102,241,0.25);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
 .logoutBtn {
   margin-left: auto;
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.2);
+  background: none;
+  border: none;
   border-radius: 8px;
   padding: 5px 14px;
-  color: #fca5a5;
+  color: #8b8fa3;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .logoutBtn:hover {
-  background: rgba(239,68,68,0.2);
-  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
 }
 
 @media (max-width: 600px) {
