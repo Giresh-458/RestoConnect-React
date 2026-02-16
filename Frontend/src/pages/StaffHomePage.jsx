@@ -203,11 +203,16 @@ function ReservationRow({ res, availableTables, onAssign, isProcessing }) {
             disabled={isProcessing}
           >
             <option value="">Table...</option>
-            {availableTables.map((t) => (
+            {availableTables
+              .filter((t) => t.seats >= (res.guests || 1))
+              .map((t) => (
               <option key={t.number} value={t.number}>
                 T{t.number} ({t.seats})
               </option>
             ))}
+            {availableTables.filter((t) => t.seats >= (res.guests || 1)).length === 0 && (
+              <option disabled>No tables with enough seats</option>
+            )}
           </select>
           <button
             onClick={() => {
@@ -335,7 +340,7 @@ export function StaffHomePage() {
           credentials: "include",
           body: JSON.stringify({
             orderId,
-            status: newStatus === "served" ? "done" : newStatus,
+            status: newStatus,
           }),
         }
       );

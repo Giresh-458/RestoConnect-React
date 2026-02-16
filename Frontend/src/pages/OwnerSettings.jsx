@@ -17,8 +17,17 @@ export default function OwnerSettings() {
     (async () => {
       try {
         const data = await api.fetchSettings();
-        if (data.settings) {
-          setForm(prev => ({ ...prev, ...data.settings }));
+        if (data) {
+          setForm(prev => ({
+            ...prev,
+            name: data.name || "",
+            location: data.location || "",
+            cuisine: Array.isArray(data.cuisine) ? data.cuisine.join(", ") : (data.cuisine || ""),
+            isOpen: data.isOpen !== undefined ? data.isOpen : true,
+            openingTime: data.operatingHours?.open || "09:00",
+            closingTime: data.operatingHours?.close || "23:00",
+            city: data.city || "",
+          }));
         }
       } catch {}
       setLoading(false);
@@ -32,7 +41,22 @@ export default function OwnerSettings() {
     setSaving(true);
     setSaved(false);
     try {
-      await api.updateSettings(form);
+      const payload = {
+        name: form.name,
+        isOpen: form.isOpen,
+        operatingHours: { open: form.openingTime, close: form.closingTime },
+        location: form.location,
+        city: form.city || "",
+        cuisine: form.cuisine
+          ? form.cuisine.split(",").map(c => c.trim()).filter(Boolean)
+          : [],
+        description: form.description,
+        phone: form.phone,
+        email: form.email,
+        taxRate: form.taxRate,
+        serviceCharge: form.serviceCharge,
+      };
+      await api.updateSettings(payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch { alert("Failed to save settings"); }

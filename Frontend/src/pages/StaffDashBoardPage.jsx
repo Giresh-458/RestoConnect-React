@@ -209,7 +209,7 @@ export function StaffDashBoardPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ orderId, status: newStatus === 'served' ? 'done' : newStatus }),
+        body: JSON.stringify({ orderId, status: newStatus }),
       });
       if (!resp.ok) throw new Error("Failed to update order");
       await fetchData(true);
@@ -770,9 +770,14 @@ export function StaffDashBoardPage() {
                         disabled={isProc}
                       >
                         <option value="">Assign table...</option>
-                        {availTables.map(t => (
+                        {availTables
+                          .filter(t => t.seats >= (r.guests || 1))
+                          .map(t => (
                           <option key={t.number} value={t.number}>T{t.number} ({t.seats} seats)</option>
                         ))}
+                        {availTables.filter(t => t.seats >= (r.guests || 1)).length === 0 && (
+                          <option disabled>No tables with enough seats</option>
+                        )}
                       </select>
                       <button
                         className="sd-assign-btn"

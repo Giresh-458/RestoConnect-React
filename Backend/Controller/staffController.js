@@ -150,6 +150,13 @@ exports.postAllocateTable = async (req, res, next) => {
         .json({ error: "Table is not available. Please choose another table." });
     }
 
+    // Check if table has enough seats for the guests
+    if (table.seats && reservation.guests && table.seats < reservation.guests) {
+      return res.status(400).json({
+        error: `Table ${tableNumber} only has ${table.seats} seats but the reservation is for ${reservation.guests} guests. Please choose a larger table.`
+      });
+    }
+
     // Mark reservation as allocated / confirmed
     reservation.allocated = true;
     reservation.status = "confirmed";
@@ -571,7 +578,7 @@ exports.getStaffHomepageData = async (req, res, next) => {
     }
 
     const todayReservations = reservations.filter((r) => {
-      const rDate = new Date(r.time || r.date);
+      const rDate = new Date(r.date);
       return rDate >= startOfDay && rDate <= endOfDay;
     }).map((r) => ({
       _id: r._id,
@@ -1008,15 +1015,17 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log('📊 Available tables:', availableTables.length, availableTables);
     // console.log('🏢 All tables:', allTables.length, allTables);
 
-    // ✅ Get Staff Tasks
-    const staffTasks = (rest.staffTasks || []).map((task) => ({
-      id: task._id,
-      name: task.description,
-      status: task.status,
-      priority: task.priority,
-      assignedTo: task.assignedTo,
-    }));
-     console.log(staffTasks+"================================================")
+    // ✅ Get Staff Tasks — filter by logged-in staff username
+    const currentUsername = req.session.username;
+    const staffTasks = (rest.staffTasks || [])
+      .filter((task) => Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUsername))
+      .map((task) => ({
+        id: task._id,
+        name: task.description,
+        status: task.status,
+        priority: task.priority,
+        assignedTo: task.assignedTo,
+      }));
 
     // ✅ Calculate pending tasks count
     const pendingTasksCount = staffTasks.filter(task => task.status === "Pending").length;
@@ -1049,7 +1058,7 @@ exports.getDashBoardData = async (req, res, next) => {
     const todayRevenue = completedToday.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
     const todayReservations = reservations.filter(r => {
-      const d = new Date(r.time || r.date);
+      const d = new Date(r.date);
       return d >= startOfDay && d <= endOfDay;
     });
 

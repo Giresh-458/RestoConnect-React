@@ -6,18 +6,22 @@ import styles from "./OwnerOrders.module.css";
 
 const STATUS_FLOW = {
   pending: ["preparing", "cancelled"],
-  preparing: ["served", "cancelled"],
+  preparing: ["ready", "cancelled"],
+  ready: ["served", "cancelled"],
   served: ["completed"],
   completed: [],
   cancelled: [],
+  done: ["completed"],
 };
 
 const STATUS_COLORS = {
   pending: "#f59e0b",
   preparing: "#3b82f6",
+  ready: "#10b981",
   served: "#8b5cf6",
   completed: "#10b981",
   cancelled: "#ef4444",
+  done: "#8b5cf6",
 };
 
 export function OwnerOrders() {

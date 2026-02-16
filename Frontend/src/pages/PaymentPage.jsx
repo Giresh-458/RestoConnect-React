@@ -14,6 +14,9 @@ export function PaymentPage() {
   const [error, setError] = useState(null);
   const dispatch = useDispatch();
   const [method, setMethod] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoCodeError, setPromoCodeError] = useState(null);
   const [promoCodeLoading, setPromoCodeLoading] = useState(false);
@@ -92,6 +95,35 @@ export function PaymentPage() {
       setProcessing(false);
       setError('Please select a payment method.');
       return;
+    }
+
+    // Card validation
+    if (method === 'card') {
+      const digits = cardNumber.replace(/\s/g, '');
+      if (!/^\d{16}$/.test(digits)) {
+        setProcessing(false);
+        setError('Please enter a valid 16-digit card number.');
+        return;
+      }
+      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardExpiry)) {
+        setProcessing(false);
+        setError('Please enter a valid expiry date (MM/YY).');
+        return;
+      }
+      // Check expiry is not in the past
+      const [mm, yy] = cardExpiry.split('/').map(Number);
+      const now = new Date();
+      const expiryDate = new Date(2000 + yy, mm);
+      if (expiryDate <= now) {
+        setProcessing(false);
+        setError('Card has expired. Please use a different card.');
+        return;
+      }
+      if (!/^\d{3,4}$/.test(cardCvv)) {
+        setProcessing(false);
+        setError('Please enter a valid CVV (3 or 4 digits).');
+        return;
+      }
     }
 
     // Validate required data
@@ -257,17 +289,54 @@ export function PaymentPage() {
               <div className={styles.fieldRow}>
                 <label>
                   Card number
-                  <input type="text" placeholder="1234 5678 9012 3456" onFocus={() => setMethod('card')} />
+                  <input
+                    type="text"
+                    placeholder="1234 5678 9012 3456"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+                      setCardNumber(formatted);
+                      setMethod('card');
+                    }}
+                    onFocus={() => setMethod('card')}
+                    maxLength={19}
+                  />
+                  {method === 'card' && cardNumber && !/^\d{16}$/.test(cardNumber.replace(/\s/g, '')) && (
+                    <small style={{ color: '#d32f2f', fontSize: '0.75rem' }}>Must be 16 digits</small>
+                  )}
                 </label>
               </div>
               <div className={styles.fieldRowTwoCols}>
                 <label>
                   Expiry
-                  <input type="text" placeholder="MM/YY" onFocus={() => setMethod('card')} />
+                  <input
+                    type="text"
+                    placeholder="MM/YY"
+                    value={cardExpiry}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^\d/]/g, '');
+                      if (val.length === 2 && !val.includes('/') && cardExpiry.length < 3) val += '/';
+                      setCardExpiry(val.slice(0, 5));
+                      setMethod('card');
+                    }}
+                    onFocus={() => setMethod('card')}
+                    maxLength={5}
+                  />
                 </label>
                 <label>
                   CVV
-                  <input type="password" placeholder="***" onFocus={() => setMethod('card')} />
+                  <input
+                    type="password"
+                    placeholder="***"
+                    value={cardCvv}
+                    onChange={(e) => {
+                      setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4));
+                      setMethod('card');
+                    }}
+                    onFocus={() => setMethod('card')}
+                    maxLength={4}
+                  />
                 </label>
               </div>
             </div>

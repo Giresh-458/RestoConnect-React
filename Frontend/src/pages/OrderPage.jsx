@@ -126,6 +126,17 @@ export function OrderPage() {
       return;
     }
 
+    // Contact name validation: only letters and spaces, min 2 chars
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2) {
+      setReservationError('Contact name must be at least 2 characters.');
+      return;
+    }
+    if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+      setReservationError('Contact name must contain only letters and spaces.');
+      return;
+    }
+
     // Date within today..+3
     if (date < minDate || date > maxDate) {
       setReservationError('Please select a date within the next 3 days.');
@@ -361,8 +372,9 @@ export function OrderPage() {
                 type="text"
                 placeholder="Full name"
                 value={reservation.name}
-                onChange={(e) => setReservation({ ...reservation, name: e.target.value })}
+                onChange={(e) => setReservation({ ...reservation, name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                 required
+                minLength={2}
               />
             </label>
 

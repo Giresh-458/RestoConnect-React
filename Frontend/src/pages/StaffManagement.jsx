@@ -97,6 +97,11 @@ const StaffManagement = () => {
       const result = await response.json();
       alert(result.message);
 
+      // Refresh task list if a staff member is selected
+      if (selectedStaff) {
+        handleStaffSelectionForTasks(selectedStaff);
+      }
+
       // Reset form
       setTaskForm({
         description: '',
@@ -111,6 +116,14 @@ const StaffManagement = () => {
 
   const handleAddStaffSubmit = async (e) => {
     e.preventDefault();
+    if (!addStaffForm.username.trim() || !addStaffForm.password.trim()) {
+      alert('Username and password are required.');
+      return;
+    }
+    if (!addStaffForm.email.trim()) {
+      alert('Email is required for staff accounts.');
+      return;
+    }
     try {
       const response = await fetch('http://localhost:3000/api/owner/staffManagement/api/add', {
         method: 'POST',
@@ -121,8 +134,9 @@ const StaffManagement = () => {
         body: JSON.stringify(addStaffForm),
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error('Failed to add staff');
+        throw new Error(result.error || 'Failed to add staff');
       }
 
       alert('Staff added successfully');
@@ -196,6 +210,10 @@ const StaffManagement = () => {
 
   const handleShiftSubmit = async (e) => {
     e.preventDefault();
+    if (!shiftForm.assignedStaff || shiftForm.assignedStaff.length === 0) {
+      alert('Please select at least one staff member for the shift.');
+      return;
+    }
     try {
       const response = await fetch('http://localhost:3000/api/owner/add-shift', {
         method: 'POST',
@@ -410,12 +428,13 @@ const StaffManagement = () => {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Email (optional):</label>
+                <label>Email:</label>
                 <input
                   type="email"
                   value={addStaffForm.email}
                   onChange={(e) => setAddStaffForm(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="staff@email.com"
+                  required
                 />
               </div>
             </div>

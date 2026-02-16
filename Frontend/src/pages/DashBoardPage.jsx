@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { isLogin } from "../util/auth";
-import { getFavourites } from "../util/favourites";
+import { getFavourites, removeFromFavourites } from "../util/favourites";
 import { redirect, useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
@@ -65,6 +65,7 @@ export const DashBoardPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [switchFocused, setSwitchFocused] = useState(false);
+  const [notificationsViewed, setNotificationsViewed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [favoriteDishes, setFavoriteDishes] = useState([]);
@@ -226,7 +227,7 @@ export const DashBoardPage = () => {
   const satisfactionRate = feedbackStats?.satisfactionRate ?? 0;
   const totalReviews = feedbackStats?.totalReviews ?? 0;
   const recentReviewsList = Array.isArray(feedbackStats?.recentReviews) ? feedbackStats.recentReviews : [];
-  const unreadNotifications = notifications.length;
+  const unreadNotifications = notificationsViewed ? 0 : notifications.length;
 
   const sidebarItems = [
     { id: "overview", icon: "📊", label: "Overview" },
@@ -485,6 +486,15 @@ export const DashBoardPage = () => {
     </div>
   );
 
+  const handleRemoveFavourite = async (dishId) => {
+    try {
+      await removeFromFavourites(dishId);
+      setFavoriteDishes((prev) => prev.filter((d) => (d._id || d.id) !== dishId));
+    } catch (err) {
+      alert("Failed to remove from favourites: " + (err.message || "Unknown error"));
+    }
+  };
+
   const renderFavorites = () => (
     <div className={styles.fullSection}>
       <div className={styles.sectionPageHeader}><h2>❤️ My Favorites</h2></div>
@@ -496,7 +506,12 @@ export const DashBoardPage = () => {
             <div key={dish._id || i} className={styles.favoriteCard} onClick={() => (dish.restaurantId || dish.rest_id) && navigate(`/customer/restaurant/${dish.restaurantId || dish.rest_id}`)}>
               <div className={styles.favImgWrap}>
                 <img src={dish.image || dish.imageUrl || "https://via.placeholder.com/180"} alt={dish.name} className={styles.favImg} />
-                <div className={styles.favHeart}>❤️</div>
+                <button
+                  className={styles.favHeart}
+                  title="Remove from favourites"
+                  onClick={(e) => { e.stopPropagation(); handleRemoveFavourite(dish._id || dish.id); }}
+                  style={{ cursor: "pointer", background: "rgba(0,0,0,0.45)", border: "none", borderRadius: "50%", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.15rem", transition: "background 0.2s" }}
+                >❤️</button>
               </div>
               <div className={styles.favInfo}>
                 <h4 className={styles.favName}>{dish.name}</h4>
@@ -670,7 +685,7 @@ export const DashBoardPage = () => {
         </div>
         <nav className={styles.sidebarNav}>
           {sidebarItems.map((item) => (
-            <button key={item.id} className={`${styles.sidebarItem} ${activeSection === item.id ? styles.sidebarItemActive : ""}`} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}>
+            <button key={item.id} className={`${styles.sidebarItem} ${activeSection === item.id ? styles.sidebarItemActive : ""}`} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); if (item.id === "notifications") setNotificationsViewed(true); }}>
               <span className={styles.sidebarItemIcon}>{item.icon}</span>
               <span className={styles.sidebarItemLabel}>{item.label}</span>
               {item.badge > 0 && <span className={styles.sidebarBadge}>{item.badge}</span>}
@@ -690,7 +705,7 @@ export const DashBoardPage = () => {
           </div>
           <div className={styles.topBarRight}>
             <button className={styles.topBarBtn} onClick={() => navigate("/customer/")} title="Browse Restaurants">🍽️ Restaurants</button>
-            <button className={styles.topBarBtn} onClick={() => setActiveSection("notifications")} title="Notifications" style={{ position: "relative" }}>
+            <button className={styles.topBarBtn} onClick={() => { setActiveSection("notifications"); setNotificationsViewed(true); }} title="Notifications" style={{ position: "relative" }}>
               🔔{unreadNotifications > 0 && <span className={styles.topBadge}>{unreadNotifications}</span>}
             </button>
           </div>

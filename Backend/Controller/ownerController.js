@@ -450,7 +450,7 @@ exports.getDashboardSummary = async (req, res, next) => {
     // Upcoming reservations with better filtering
     const upcomingReservations = await Reservation.find({
       rest_id: String(user.rest_id),
-      date: { $gte: now },
+      date: { $gte: startOfToday },
       status: { $nin: ["cancelled", "completed"] }
     })
       .sort({ date: 1 })
@@ -476,8 +476,9 @@ exports.getDashboardSummary = async (req, res, next) => {
     recentOrdersWithDishes.forEach((order) => {
       if (order.dishes && Array.isArray(order.dishes)) {
         order.dishes.forEach((dish) => {
-          if (dish && dish.name) {
-            dishFrequency[dish.name] = (dishFrequency[dish.name] || 0) + 1;
+          const name = (typeof dish === 'string') ? dish : (dish && dish.name);
+          if (name) {
+            dishFrequency[name] = (dishFrequency[name] || 0) + 1;
           }
         });
       }
@@ -1803,7 +1804,7 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const validStatuses = ["pending", "preparing", "served", "completed", "cancelled"];
+    const validStatuses = ["pending", "preparing", "ready", "served", "done", "completed", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
@@ -1844,6 +1845,18 @@ exports.updateReservationStatus = async (req, res) => {
 
     // Assign tables if provided
     if (assignedTables && Array.isArray(assignedTables) && assignedTables.length > 0) {
+      // Validate total seats across assigned tables vs reservation guests
+      if (rest) {
+        const totalSeats = assignedTables.reduce((sum, tableNum) => {
+          const table = rest.tables.find(t => String(t.number) === String(tableNum));
+          return sum + (table ? (table.seats || 0) : 0);
+        }, 0);
+        if (totalSeats > 0 && reservation.guests && totalSeats < reservation.guests) {
+          return res.status(400).json({
+            error: `Selected tables have ${totalSeats} total seats but the reservation is for ${reservation.guests} guests. Please assign tables with enough seating.`
+          });
+        }
+      }
       reservation.tables = assignedTables;
       reservation.table_id = assignedTables[0];
       reservation.allocated = true;
@@ -2033,18 +2046,24 @@ exports.getRestaurantSettings = async (req, res) => {
 // Update restaurant settings
 exports.updateRestaurantSettings = async (req, res) => {
   try {
-    const { isOpen, operatingHours, location, city, cuisine } = req.body;
+    const { isOpen, operatingHours, location, city, cuisine, name, phone, email, description, taxRate, serviceCharge } = req.body;
     const user = await User.findOne({ username: req.session.username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
+    if (name !== undefined) rest.name = name;
     if (isOpen !== undefined) rest.isOpen = isOpen;
     if (operatingHours) rest.operatingHours = operatingHours;
     if (location !== undefined) rest.location = location;
     if (city !== undefined) rest.city = city;
     if (cuisine) rest.cuisine = cuisine;
+    if (phone !== undefined) rest.phone = phone;
+    if (email !== undefined) rest.email = email;
+    if (description !== undefined) rest.description = description;
+    if (taxRate !== undefined) rest.taxRate = taxRate;
+    if (serviceCharge !== undefined) rest.serviceCharge = serviceCharge;
 
     await rest.save();
     res.json({ success: true, message: "Settings updated" });
@@ -2135,9 +2154,15 @@ exports.addStaffAPI = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password are required" });
     }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: "Email is required for staff accounts" });
+    }
 
-    const existing = await User.findOne({ username });
-    if (existing) return res.status(400).json({ error: "Username already exists" });
+    const existingUser = await User.findOne({ username });
+    if (existingUser) return res.status(400).json({ error: "Username already exists" });
+
+    const existingEmail = await User.findOne({ email: email.trim() });
+    if (existingEmail) return res.status(400).json({ error: "Email already in use" });
 
     const newStaff = new User({
       username,
@@ -2145,7 +2170,7 @@ exports.addStaffAPI = async (req, res) => {
       role: "staff",
       rest_id: user.rest_id,
       restaurantName: user.restaurantName,
-      email: email || ""
+      email: email.trim()
     });
     await newStaff.save();
     res.json({ success: true, staff: { _id: newStaff._id, username: newStaff.username, email: newStaff.email, role: "staff" } });

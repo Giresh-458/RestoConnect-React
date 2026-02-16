@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isLogin } from "../util/auth";
 import { redirect, useNavigate } from "react-router-dom";
 
@@ -23,6 +23,20 @@ export function OwnerDashBoard() {
   const [inventory, setInventory] = useState([]);
   const [insightsError, setInsightsError] = useState("");
   const navigate = useNavigate();
+  const contentRef = useRef(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setShouldScroll(true);
+  };
+
+  useEffect(() => {
+    if (shouldScroll && contentRef.current) {
+      contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setShouldScroll(false);
+    }
+  }, [activeTab, shouldScroll]);
 
   const loadStats = async () => {
     try {
@@ -113,9 +127,10 @@ export function OwnerDashBoard() {
   const lowStockItems = useMemo(() => inventory, [inventory]);
 
   const upcomingReservations = useMemo(() => {
-    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     return reservations
-      .filter((r) => new Date(r.date) >= now)
+      .filter((r) => new Date(r.date) >= today)
       .slice(0, 6);
   }, [reservations]);
 
@@ -189,7 +204,7 @@ export function OwnerDashBoard() {
                     <span className={styles.alertMessage}>{alert.message}</span>
                     <button 
                       className={styles.alertAction} 
-                      onClick={() => setActiveTab(alert.action)}
+                      onClick={() => switchTab(alert.action)}
                     >
                       View →
                     </button>
@@ -202,7 +217,7 @@ export function OwnerDashBoard() {
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
                   <h3>Recent orders</h3>
-                  <button className={styles.linkButton} onClick={() => setActiveTab("orders")}>View all</button>
+                  <button className={styles.linkButton} onClick={() => switchTab("orders")}>View all</button>
                 </div>
                 <ul className={styles.list}>
                   {recentOrders.slice(0, 5).map((order) => (
@@ -221,7 +236,7 @@ export function OwnerDashBoard() {
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
                   <h3>Upcoming reservations</h3>
-                  <button className={styles.linkButton} onClick={() => setActiveTab("reservations")}>View all</button>
+                  <button className={styles.linkButton} onClick={() => switchTab("reservations")}>View all</button>
                 </div>
                 <ul className={styles.list}>
                   {reservations.map((reservation) => (
@@ -242,7 +257,7 @@ export function OwnerDashBoard() {
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
                   <h3>Low stock alerts</h3>
-                  <button className={styles.linkButton} onClick={() => setActiveTab("inventory")}>Manage</button>
+                  <button className={styles.linkButton} onClick={() => switchTab("inventory")}>Manage</button>
                 </div>
                 <ul className={styles.list}>
                   {lowStockItems.slice(0, 5).map((item, idx) => (
@@ -265,19 +280,19 @@ export function OwnerDashBoard() {
       <section className={styles.quickActions}>
         <h2 className={styles.sectionTitle}>Quick actions</h2>
         <div className={styles.actionsGrid}>
-          <button className={styles.actionCard} onClick={() => setActiveTab("orders")}>
+          <button className={styles.actionCard} onClick={() => switchTab("orders")}>
             <span>🧾 Orders</span>
             <p>Review incoming orders and status updates.</p>
           </button>
-          <button className={styles.actionCard} onClick={() => setActiveTab("reservations")}>
+          <button className={styles.actionCard} onClick={() => switchTab("reservations")}>
             <span>📅 Reservations</span>
             <p>Confirm bookings and adjust seating.</p>
           </button>
-          <button className={styles.actionCard} onClick={() => setActiveTab("inventory")}>
+          <button className={styles.actionCard} onClick={() => switchTab("inventory")}>
             <span>📦 Inventory</span>
             <p>Track stock levels and reorder needs.</p>
           </button>
-          <button className={styles.actionCard} onClick={() => setActiveTab("feedback")}>
+          <button className={styles.actionCard} onClick={() => switchTab("feedback")}>
             <span>⭐ Feedback</span>
             <p>Respond to recent guest feedback quickly.</p>
           </button>
@@ -340,7 +355,7 @@ export function OwnerDashBoard() {
         </button>
       </div>
 
-      <div className={styles.dashboardContent}>
+      <div ref={contentRef} className={styles.dashboardContent}>
         {activeTab === "reports" && <Reports />}
         {activeTab === "management" && <OwnerManagement />}
         {activeTab === "orders" && <OwnerOrders />}
