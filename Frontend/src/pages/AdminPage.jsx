@@ -7,9 +7,6 @@ import "../styles/admin.css";
 import { AdminDashBoard } from "../components/admin_components/AdminDashBoard";
 import User from "../components/admin_components/User";
 import { RestaurantSubPage } from "../components/admin_components/RestaurentSubPage";
-import { AdminOrders } from "../components/admin_components/AdminOrders";
-import { AdminReservations } from "../components/admin_components/AdminReservations";
-import { AdminAnalytics } from "../components/admin_components/AdminAnalytics";
 import { AdminFeedback } from "../components/admin_components/AdminFeedback";
 import { SupportChatPage } from "./SupportChatPage";
 import { Settings } from "../components/admin_components/Settings";
@@ -17,10 +14,7 @@ import { Settings } from "../components/admin_components/Settings";
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: "📊", section: "main" },
   { key: "restaurant", label: "Restaurants", icon: "🍽️", section: "main" },
-  { key: "orders", label: "Orders", icon: "🧾", section: "operations" },
-  { key: "reservations", label: "Reservations", icon: "📅", section: "operations" },
   { key: "user", label: "Users", icon: "👥", section: "management" },
-  { key: "analytics", label: "Analytics", icon: "📈", section: "management" },
   { key: "feedback", label: "Reviews", icon: "⭐", section: "management" },
   { key: "support", label: "Support", icon: "💬", section: "management" },
   { key: "settings", label: "Settings", icon: "⚙️", section: "system" },
@@ -28,7 +22,6 @@ const NAV_ITEMS = [
 
 const SECTION_LABELS = {
   main: "Overview",
-  operations: "Operations",
   management: "Management",
   system: "System",
 };
@@ -36,10 +29,7 @@ const SECTION_LABELS = {
 const PAGE_META = {
   dashboard: { title: "Dashboard", subtitle: "Platform overview and key metrics" },
   restaurant: { title: "Restaurant Management", subtitle: "Manage all restaurant listings" },
-  orders: { title: "Orders", subtitle: "Track orders across all restaurants" },
-  reservations: { title: "Reservations", subtitle: "Manage dining reservations" },
   user: { title: "User Management", subtitle: "Manage platform users" },
-  analytics: { title: "Analytics & Reports", subtitle: "Revenue, performance & insights" },
   feedback: { title: "Reviews & Feedback", subtitle: "Customer reviews and ratings" },
   support: { title: "Support Tickets", subtitle: "Handle customer & owner issues" },
   settings: { title: "Settings", subtitle: "Account and platform settings" },
@@ -144,9 +134,6 @@ export function AdminPage() {
           )}
           {subPage === "user" && <User />}
           {subPage === "restaurant" && <RestaurantSubPage />}
-          {subPage === "orders" && <AdminOrders />}
-          {subPage === "reservations" && <AdminReservations />}
-          {subPage === "analytics" && <AdminAnalytics />}
           {subPage === "feedback" && <AdminFeedback />}
           {subPage === "support" && <SupportChatPage mode="admin" />}
           {subPage === "settings" && <Settings data={data.current_admin} />}
@@ -158,11 +145,19 @@ export function AdminPage() {
 
 export async function loader() {
   let role = await isLogin();
-  if (role !== "admin") return redirect("/login");
+  if (role !== "admin" && role !== "employee") return redirect("/login");
 
+  // Both admin and employee use the same dashboard API
   const res = await fetch("http://localhost:3000/api/admin/dashboard", {
     credentials: "include",
   });
-  if (!res.ok) return redirect("/login");
+  if (!res.ok) {
+    // Fallback to employee endpoint
+    const fallback = await fetch("http://localhost:3000/api/employee/dashboard", {
+      credentials: "include",
+    });
+    if (!fallback.ok) return redirect("/login");
+    return fallback.json();
+  }
   return res.json();
 }

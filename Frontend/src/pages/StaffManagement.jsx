@@ -158,8 +158,8 @@ const StaffManagement = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/delete/${staffId}`, {
-        method: 'POST',
+      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/api/${staffId}`, {
+        method: 'DELETE',
         credentials: 'include'
       });
 

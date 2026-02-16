@@ -113,7 +113,7 @@ app.use("/api/customer/support", authentication("customer"), customerSupportRout
 app.use("/customer", authentication("customer"), customerRouter);
 app.use("/api/customer", authentication("customer"), customerRouter);
 
-app.use("/api/admin/support", authentication("admin"), adminSupportRouter);
+app.use("/api/admin/support", authentication(["admin", "employee"]), adminSupportRouter);
 app.use("/api/superadmin", authentication("admin"), superadminRouter);
 app.use("/admin", authentication(["admin", "employee"]), adminRouter);
 app.use("/api/admin", authentication(["admin", "employee"]), adminRouter);

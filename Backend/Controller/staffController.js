@@ -6,8 +6,8 @@ const bcrypt = require("bcrypt");
 // Dashboard Methods
 exports.getDashBoard = async (req, res, next) => {
   try {
-    let r_name = await Restaurant.findById(req.session.rest_id);
-    let rest = await Restaurant.findById(req.session.rest_id).populate(
+    let r_name = await Restaurant.findById(req.user.rest_id);
+    let rest = await Restaurant.findById(req.user.rest_id).populate(
       "orders"
     );
     if (!rest) {
@@ -96,7 +96,7 @@ exports.postUpdateOrder = async (req, res, next) => {
     }
 
     // Also update the order in the Restaurant's orders array
-    let rest = await Restaurant.findById(req.session.rest_id);
+    let rest = await Restaurant.findById(req.user.rest_id);
     if (rest && rest.orders) {
       // Find the order in the restaurant's orders array
       const orderIndex = rest.orders.findIndex((order) => {
@@ -128,7 +128,7 @@ exports.postAllocateTable = async (req, res, next) => {
     const { Reservation } = require("../Model/Reservation_model");
     const { reservationId, tableNumber } = req.body;
 
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
@@ -237,7 +237,7 @@ exports.getHomePage = async (req, res, next) => {
 };
 
 exports.postHomePageTask = async (req, res, next) => {
-  const restaurant = await Restaurant.findById(req.session.rest_id);
+  const restaurant = await Restaurant.findById(req.user.rest_id);
   if (!restaurant) {
     return res.status(404).send("Restaurant not found");
   }
@@ -254,7 +254,7 @@ exports.postHomePageTask = async (req, res, next) => {
 
 exports.deleteHomePageTasks = async (req, res, next) => {
   try {
-    const restaurant = await Restaurant.findById(req.session.rest_id);
+    const restaurant = await Restaurant.findById(req.user.rest_id);
     if (!restaurant) {
       console.error("Restaurant not found");
       return res.status(404).send("Restaurant not found");
@@ -284,7 +284,7 @@ exports.postRemoveReservation = async (req, res, next) => {
     const { Reservation } = require("../Model/Reservation_model");
     const reservationId = req.params.id;
 
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
@@ -328,16 +328,9 @@ exports.postAddTable = async (req, res, next) => {
   try {
     const { number, capacity } = req.body;
 
-    // Recover rest_id if missing - ensure it's always set for staff
-    if (!req.session.rest_id && req.session.username) {
-      const staffUser = await User.findOne({ username: req.session.username });
-      if (staffUser && staffUser.rest_id) {
-        req.session.rest_id = staffUser.rest_id;
-      }
-    }
-
-    if (!req.session.rest_id) {
-      return res.status(400).json({ error: "No restaurant ID in session" });
+    const rest_id = req.user.rest_id;
+    if (!rest_id) {
+      return res.status(400).json({ error: "No restaurant ID found" });
     }
 
     const tableNumber = Number(number);
@@ -351,7 +344,7 @@ exports.postAddTable = async (req, res, next) => {
       return res.status(400).json({ error: "Capacity must be a positive integer" });
     }
 
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
@@ -383,7 +376,7 @@ exports.postUpdateInventory = async (req, res, next) => {
   try {
     const { item, action } = req.body;
 
-    const restaurant = await Restaurant.findById(req.session.rest_id);
+    const restaurant = await Restaurant.findById(req.user.rest_id);
     if (!restaurant || !restaurant.inventoryData)
       return res.status(404).send("Restaurant not found");
 
@@ -416,14 +409,7 @@ exports.postUpdateTableStatus = async (req, res, next) => {
   try {
     const { tableNumber, status } = req.body;
 
-    if (!req.session.rest_id && req.session.username) {
-      const staffUser = await User.findOne({ username: req.session.username });
-      if (staffUser && staffUser.rest_id) {
-        req.session.rest_id = staffUser.rest_id;
-      }
-    }
-
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
     const table = rest.tables.find(t => String(t.number) === String(tableNumber));
@@ -450,14 +436,7 @@ exports.postDeleteTable = async (req, res, next) => {
   try {
     const { tableNumber } = req.params;
 
-    if (!req.session.rest_id && req.session.username) {
-      const staffUser = await User.findOne({ username: req.session.username });
-      if (staffUser && staffUser.rest_id) {
-        req.session.rest_id = staffUser.rest_id;
-      }
-    }
-
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
     const idx = rest.tables.findIndex(t => String(t.number) === String(tableNumber));
@@ -479,17 +458,9 @@ exports.getStaffHomepageData = async (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    if (!req.session.username) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-
-    const staffMember = await User.findOne({ username: req.session.username });
+    const staffMember = req.user;
     if (!staffMember) {
-      return res.status(404).json({ error: "Staff member not found" });
-    }
-
-    if (!req.session.rest_id && staffMember.rest_id) {
-      req.session.rest_id = String(staffMember.rest_id);
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     const { Reservation } = require("../Model/Reservation_model");
@@ -574,7 +545,7 @@ exports.getStaffHomepageData = async (req, res, next) => {
     const restIdStr = String(restaurant._id);
     let reservations = await Reservation.find({ rest_id: restIdStr }).lean();
     if (!reservations.length) {
-      reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+      reservations = await Reservation.find({ rest_id: String(staffMember.rest_id) }).lean();
     }
 
     const todayReservations = reservations.filter((r) => {
@@ -671,7 +642,7 @@ exports.getStaffHomepageData = async (req, res, next) => {
     });
 
     // Recent feedback
-    const recentFeedback = await Feedback.find({ rest_id: req.session.rest_id })
+    const recentFeedback = await Feedback.find({ rest_id: staffMember.rest_id })
       .sort({ createdAt: -1 }).limit(5).lean().catch(() => []);
 
     // --- Performance ---
@@ -722,7 +693,8 @@ exports.getStaffHomepageData = async (req, res, next) => {
 exports.postSupportMessage = async (req, res, next) => {
   try {
     const { message } = req.body;
-    const staffMember = await User.findOne({ username: req.session.username });
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
@@ -755,7 +727,7 @@ exports.postSupportMessage = async (req, res, next) => {
 };
 
 exports.changePassword = async (req, res, next) => {
-  const currentStaffUsername = req.session.username;
+  const currentStaffUsername = req.user?.username;
   if (!currentStaffUsername) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -797,7 +769,8 @@ exports.updateTaskStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const staffMember = await User.findOne({ username: req.session.username });
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
@@ -885,26 +858,20 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log("------ STAFF DASHBOARD DEBUG START ------");
     // console.log("Session data:", req.session);
 
-    // Recover rest_id if missing - ensure it's always set for staff
-    if (!req.session.rest_id && req.session.username) {
-      const staffUser = await User.findOne({ username: req.session.username });
-      if (staffUser && staffUser.rest_id) {
-        req.session.rest_id = staffUser.rest_id;
-        // console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
-      }
-    }
+    // Recover rest_id from req.user (set by auth middleware)
+    const rest_id = req.user?.rest_id;
 
-    if (!req.session.rest_id) {
-      return res.status(400).json({ error: "No restaurant ID in session" });
+    if (!rest_id) {
+      return res.status(400).json({ error: "No restaurant ID found" });
     }
 
     // ✅ Fetch restaurant
-    const rest = await Restaurant.findById(req.session.rest_id)
+    const rest = await Restaurant.findById(rest_id)
       .populate("orders")
       .lean();
 
     if (!rest) {
-      // console.log("❌ Restaurant not found for ID:", req.session.rest_id);
+      // console.log("❌ Restaurant not found for ID:", rest_id);
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
@@ -913,11 +880,11 @@ exports.getDashBoardData = async (req, res, next) => {
     // ✅ Get Orders
     let orders = rest.orders || [];
     if (!orders.length) {
-      orders = await Order.find({ rest_id: req.session.rest_id });
+      orders = await Order.find({ rest_id: rest_id });
     }
 
     // ✅ Get Reservations - ensure rest_id is string for query
-    const restIdString = String(req.session.rest_id);
+    const restIdString = String(rest_id);
     // console.log('🔍 Querying reservations for rest_id:', restIdString);
 
     // Try multiple query formats to ensure we find reservations
@@ -926,7 +893,7 @@ exports.getDashBoardData = async (req, res, next) => {
     // If no results, try querying without string conversion (in case rest_id is stored differently)
     if (reservations.length === 0) {
       // console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
-      reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+      reservations = await Reservation.find({ rest_id: rest_id }).lean();
     }
 
     // Also try querying all reservations to debug
@@ -969,7 +936,7 @@ exports.getDashBoardData = async (req, res, next) => {
     }
 
     // ✅ Get Feedback
-    const feedback = await Feedback.find({ rest_id: req.session.rest_id })
+    const feedback = await Feedback.find({ rest_id: rest_id })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -1016,7 +983,7 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log('🏢 All tables:', allTables.length, allTables);
 
     // ✅ Get Staff Tasks — filter by logged-in staff username
-    const currentUsername = req.session.username;
+    const currentUsername = req.user.username;
     const staffTasks = (rest.staffTasks || [])
       .filter((task) => Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUsername))
       .map((task) => ({
@@ -1031,10 +998,9 @@ exports.getDashBoardData = async (req, res, next) => {
     const pendingTasksCount = staffTasks.filter(task => task.status === "Pending").length;
 
     // ✅ Staff info
-    const staffUser = await User.findOne({ username: req.session.username });
-    const staffInfo = staffUser ? {
-      name: staffUser.username,
-      role: staffUser.role || 'staff',
+    const staffInfo = req.user ? {
+      name: req.user.username,
+      role: req.user.role || 'staff',
     } : { name: 'Staff', role: 'staff' };
 
     // ✅ Today's performance stats

@@ -63,10 +63,6 @@ router.get("/homepage", async (req, res, next) => {
   }
 });
 
-router.get("/homepage", (req,res,next)=>{
-  console.log("in correct route");
-  next();
-},staffController.getStaffHomepageData);
 router.post("/support-message", staffController.postSupportMessage);
 router.put("/tasks/:id", staffController.updateTaskStatus);
 router.post("/add-table", staffController.postAddTable);

@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+﻿const mongoose = require("mongoose");
 const { User } = require("../Model/userRoleModel");
 let Restaurant = require("../Model/Restaurents_model").Restaurant;
 let Dish = require("../Model/Dishes_model_test").Dish;
@@ -8,7 +8,7 @@ const Feedback = require('../Model/feedback');
 const { PromoCode } = require("../Model/PromoCode_model");
 exports.getOwnerHomepage = async (req, res, next) => {
   try {
-    let username = req.session.username;
+    let username = req.user.username;
     console.log("Looking for user with username:", username);
     let user = await User.findOne({ username });
     console.log("Found user:", user);
@@ -38,7 +38,7 @@ exports.getOwnerHomepage = async (req, res, next) => {
 
 exports.getTables = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).send("User not found");
 
     const restPopulated = await Restaurant.findById(user.rest_id)
@@ -60,7 +60,7 @@ exports.addTable = async (req, res, next) => {
         .status(400)
         .send("Table number and number of seats are required");
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).send("User not found");
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -83,7 +83,7 @@ exports.addTable = async (req, res, next) => {
 exports.deleteTable = async (req, res, next) => {
   try {
     const { number } = req.params;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).send("User not found");
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -102,7 +102,7 @@ exports.deleteTable = async (req, res, next) => {
 // Add this to ownerController.js
 exports.getFeedback = async (req, res, next) => {
   try {
-    const username = req.session.username;
+    const username = req.user.username;
     const user = await User.findOne({ username });
 
     if (!user || !user.rest_id) {
@@ -146,7 +146,7 @@ exports.updateFeedbackStatus = async (req, res, next) => {
         return res.status(400).json({ error: "Invalid status. Must be 'Resolved' or 'Pending'" });
     }
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user || !user.rest_id) {
         return res.status(404).json({ message: "User or Restaurant not found" });
     }
@@ -176,7 +176,7 @@ exports.updateFeedbackStatus = async (req, res, next) => {
 // API endpoint to get user and restaurant info
 exports.getOwnerInfo = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -195,7 +195,7 @@ exports.getOwnerInfo = async (req, res, next) => {
 // API endpoint for dashboard stats (KPIs)
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -256,7 +256,7 @@ exports.getDashboardStats = async (req, res, next) => {
 // API endpoint for dashboard summary (KPIs + operational insights)
 exports.getDashboardSummary = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -589,7 +589,7 @@ exports.getDashboardSummary = async (req, res, next) => {
 // API endpoint for revenue & orders trend (last 7 days)
 exports.getRevenueOrdersTrend = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -648,7 +648,7 @@ exports.getRevenueOrdersTrend = async (req, res, next) => {
 // API endpoint for recent orders
 exports.getRecentOrders = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const recentOrders = await Order.find({ rest_id: user.rest_id })
@@ -690,8 +690,8 @@ exports.getRecentOrders = async (req, res, next) => {
 // API endpoint to get inventory (using restaurant inventoryData)
 exports.getInventoryAPI = async (req, res, next) => {
   try {
-    console.log("getInventoryAPI called for user:", req.session.username);
-    const user = await User.findOne({ username: req.session.username });
+    console.log("getInventoryAPI called for user:", req.user.username);
+    const user = req.user;
     if (!user) {
       console.log("User not found");
       return res.status(404).json({ error: "User not found" });
@@ -737,7 +737,7 @@ exports.updateInventoryQuantity = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid change value. Must be 1 or -1" });
     }
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -787,7 +787,7 @@ exports.createInventoryItem = async (req, res, next) => {
       return res.status(400).json({ error: "Name and unit are required" });
     }
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -847,7 +847,7 @@ exports.deleteInventoryItem = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -884,7 +884,7 @@ exports.getownerDashboard_dashboard = async (req, res, next) => {
 
   try {
     // Get user from session
-    let username = req.session.username;
+    let username = req.user.username;
     if (!username) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -1029,7 +1029,7 @@ function getWeekNumber(date) {
 
 exports.getMenuManagement = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     let rest = await Restaurant.findById(user.rest_id)
@@ -1057,7 +1057,7 @@ exports.getMenuManagement = async (req, res, next) => {
 
 exports.addProduct = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const { name, price, description, serves } = req.body;
@@ -1118,7 +1118,7 @@ exports.editProduct = async (req, res, next) => {
 exports.deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await Dish.removeDish(req.session.rest_id, id);
+    await Dish.removeDish(req.user.rest_id, id);
     res.redirect("/owner/menuManagement");
   } catch (error) {
     console.error("Error in deleteProduct:", error);
@@ -1139,24 +1139,26 @@ exports.getStaffList = async (req, res, next) => {
 
 exports.addStaff = async (req, res, next) => {
   try {
-    const rest_id = req.session.rest_id;
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    const rest_id = user.rest_id;
     const { username, password, restaurantName, email } = req.body;
     if (!username || !password) {
-      return res.status(400).send("Missing required fields");
+      return res.status(400).json({ error: "Missing required fields" });
     }
     const newStaff = new User({
       username,
       password,
       role: "staff",
       rest_id,
-      restaurantName,
+      restaurantName: restaurantName || user.restaurantName,
       email,
     });
     await newStaff.save();
-    res.redirect("/owner/staffManagement");
+    res.json({ success: true, staff: { _id: newStaff._id, username: newStaff.username, email: newStaff.email, role: "staff" } });
   } catch (error) {
     console.error("Error in addStaff:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -1165,17 +1167,17 @@ exports.editStaff = async (req, res, next) => {
     const staffId = req.params.id;
     const { username, password } = req.body;
     if (!username) {
-      return res.status(400).send("Missing required fields");
+      return res.status(400).json({ error: "Missing required fields" });
     }
     const updateData = { username };
     if (password && password.trim() !== "") {
       updateData.password = password;
     }
     await User.updateOne({ _id: staffId }, { $set: updateData });
-    res.redirect("/owner/staffManagement");
+    res.json({ success: true, message: "Staff updated successfully" });
   } catch (error) {
     console.error("Error in editStaff:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -1183,10 +1185,10 @@ exports.deleteStaff = async (req, res, next) => {
   try {
     const staffId = req.params.id;
     await User.deleteOne({ _id: staffId });
-    res.redirect("/owner/staffManagement");
+    res.json({ success: true, message: "Staff removed successfully" });
   } catch (error) {
     console.error("Error in deleteStaff:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -1201,17 +1203,18 @@ exports.getTasks = async (req, res, next) => {
 exports.deleteTask = async (req, res, next) => {
   try {
     const taskId = req.params.id;
-    const rest_id = req.session.rest_id;
-    const rest = await Restaurant.find_by_id(rest_id);
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+    const rest = await Restaurant.findById(user.rest_id);
     if (!rest) {
-      return res.status(404).send("Restaurant not found");
+      return res.status(404).json({ error: "Restaurant not found" });
     }
     rest.tasks = rest.tasks.filter((task) => task.id !== parseInt(taskId));
     await rest.save();
-    res.redirect("/owner/staffManagement");
+    res.json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     console.error("Error in deleteTask:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -1232,13 +1235,13 @@ exports.deleteRestaurant = async (req, res, next) => {
 
 exports.getOrders = async (req, res, next) => {
   try {
-    const username = req.session.username;
+    const username = req.user.username;
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const rest_id = user.rest_id;
 
-    // ✅ Fetch only that restaurant's orders, excluding rest_id and __v
+    // âœ… Fetch only that restaurant's orders, excluding rest_id and __v
     const orders = await Order.find({ rest_id })
       .sort({ date: -1 })
       .select("-rest_id -__v"); // <-- Exclude internal fields
@@ -1292,20 +1295,20 @@ exports.getOrders = async (req, res, next) => {
 
 exports.getReservations = async (req, res, next) => {
   try {
-    const username = req.session.username;
+    const username = req.user.username;
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const rest_id = user.rest_id;
     // Ensure rest_id is a string for consistent querying
     const restIdString = String(rest_id);
-    console.log('🔍 Owner querying reservations for rest_id:', restIdString);
+    console.log('ðŸ” Owner querying reservations for rest_id:', restIdString);
     
     const reservations = await Reservation.find({ rest_id: restIdString })
       .sort({ date: -1 })
       .select("-rest_id -__v");
 
-    console.log(`✅ Owner found ${reservations.length} reservations for rest_id: ${restIdString}`);
+    console.log(`âœ… Owner found ${reservations.length} reservations for rest_id: ${restIdString}`);
     res.json(reservations);
   } catch (error) {
     console.error("Error in getReservations:", error);
@@ -1315,7 +1318,7 @@ exports.getReservations = async (req, res, next) => {
 
 exports.getInventory = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1340,7 +1343,7 @@ exports.getInventory = async (req, res, next) => {
 exports.updateInventory = async (req, res, next) => {
   try {
     const { item, action } = req.body;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1373,7 +1376,7 @@ exports.updateInventory = async (req, res, next) => {
 
 exports.getReportsData = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1527,8 +1530,8 @@ exports.addAnnouncement = async (req, res, next) => {
 exports.addShift = async (req, res, next) => {
   try {
     const { name, date, startTime, endTime, assignedStaff } = req.body;
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
     if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
@@ -1571,7 +1574,7 @@ exports.getSupportMessages = async (req, res, next) => {
 // Customer support chat threads
 exports.getCustomerSupportThreads = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1604,7 +1607,7 @@ exports.postCustomerSupportMessage = async (req, res, next) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1653,7 +1656,7 @@ exports.updateCustomerSupportStatus = async (req, res, next) => {
       return res.status(400).json({ error: "Invalid status" });
     }
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
@@ -1738,13 +1741,13 @@ exports.getStaffTasks = async (req, res, next) => {
   try {
     const { staffId } = req.params;
 
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
     if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
 
-    // 🔥 find staff to get username
+    // ðŸ”¥ find staff to get username
    const staff = await User.findById(staffId);
 
 
@@ -1771,8 +1774,8 @@ exports.getStaffTasks = async (req, res, next) => {
 exports.deleteStaffTask = async (req, res, next) => {
   try {
     const { taskId } = req.params;
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(user.rest_id);
     if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
@@ -1799,7 +1802,7 @@ exports.deleteStaffTask = async (req, res, next) => {
 
 // ========== NEW API ENDPOINTS FOR ENHANCED OWNER DASHBOARD ==========
 
-// Update order status (pending → preparing → served → completed)
+// Update order status (pending â†’ preparing â†’ served â†’ completed)
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1808,7 +1811,7 @@ exports.updateOrderStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const order = await Order.findOne({ _id: id, rest_id: user.rest_id });
@@ -1826,7 +1829,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
-// Update reservation status (pending → confirmed → seated → completed / cancelled)
+// Update reservation status (pending â†’ confirmed â†’ seated â†’ completed / cancelled)
 exports.updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1835,7 +1838,7 @@ exports.updateReservationStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const reservation = await Reservation.findOne({ _id: id, rest_id: String(user.rest_id) });
@@ -1910,7 +1913,7 @@ exports.updateTableStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid table status" });
     }
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -1934,7 +1937,7 @@ exports.addTableAPI = async (req, res) => {
     const { number, seats } = req.body;
     if (!number || !seats) return res.status(400).json({ error: "Table number and seats required" });
 
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -1958,7 +1961,7 @@ exports.addTableAPI = async (req, res) => {
 exports.deleteTableAPI = async (req, res) => {
   try {
     const { number } = req.params;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -2007,7 +2010,7 @@ exports.editProductAPI = async (req, res) => {
 exports.deleteProductAPI = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     await Dish.removeDish(user.rest_id, id);
@@ -2021,7 +2024,7 @@ exports.deleteProductAPI = async (req, res) => {
 // Get restaurant settings
 exports.getRestaurantSettings = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -2047,7 +2050,7 @@ exports.getRestaurantSettings = async (req, res) => {
 exports.updateRestaurantSettings = async (req, res) => {
   try {
     const { isOpen, operatingHours, location, city, cuisine, name, phone, email, description, taxRate, serviceCharge } = req.body;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);
@@ -2076,7 +2079,7 @@ exports.updateRestaurantSettings = async (req, res) => {
 // Promo code CRUD
 exports.getPromoCodes = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const promos = await PromoCode.find({ rest_id: user.rest_id }).sort({ createdAt: -1 });
@@ -2090,7 +2093,7 @@ exports.getPromoCodes = async (req, res) => {
 exports.createPromoCode = async (req, res) => {
   try {
     const { code, description, discountType, discountValue, minAmount, maxDiscount, validFrom, validUntil, usageLimit } = req.body;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const promo = new PromoCode({
@@ -2118,7 +2121,7 @@ exports.createPromoCode = async (req, res) => {
 exports.togglePromoCode = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const promo = await PromoCode.findById(id);
@@ -2147,8 +2150,8 @@ exports.deletePromoCode = async (req, res) => {
 // Add staff (JSON API version)
 exports.addStaffAPI = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
 
     const { username, password, email } = req.body;
     if (!username || !password) {
@@ -2184,8 +2187,8 @@ exports.addStaffAPI = async (req, res) => {
 exports.deleteStaffAPI = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findOne({ username: req.session.username });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
 
     const staff = await User.findOneAndDelete({ _id: id, rest_id: user.rest_id, role: "staff" });
     if (!staff) return res.status(404).json({ error: "Staff not found" });
@@ -2200,7 +2203,7 @@ exports.deleteStaffAPI = async (req, res) => {
 // Get live floor data (tables + active orders + current reservations)
 exports.getLiveFloor = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const rest = await Restaurant.findById(user.rest_id);

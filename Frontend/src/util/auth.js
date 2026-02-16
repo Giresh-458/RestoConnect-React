@@ -22,19 +22,10 @@ export async function isLogin() {
 
     if (!res.ok) {
       console.error("Auth check failed", res.status, res.statusText);
-      try {
-        const errBody = await res.json();
-        if (errBody && errBody.valid === false) {
-          throw redirect("/login?message=Please login first");
-        }
-      } catch (e) {
-        // ignore json parse errors
-      }
       throw redirect("/login?message=Authentication check failed");
     }
 
     const result = await res.json();
-    console.log(result);
 
     if (!result || !result.valid) {
       throw redirect("/login?message=Please login first");
@@ -42,6 +33,10 @@ export async function isLogin() {
 
     return result.role;
   } catch (err) {
+    // If it's already a redirect Response from React Router, re-throw as-is
+    if (err instanceof Response) {
+      throw err;
+    }
     console.error("Error during isLogin:", err);
     throw redirect("/login?message=Auth service unavailable");
   }
