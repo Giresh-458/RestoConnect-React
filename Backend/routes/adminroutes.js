@@ -35,5 +35,15 @@ router.get('/reservations', admincontroller.getAllReservations);
 router.get('/feedback', admincontroller.getAllFeedback);
 router.get('/analytics', admincontroller.getAnalytics);
 
+// Insights endpoints
+router.get('/insights/employees', admincontroller.getEmployeePerformance);
+router.get('/insights/restaurant-revenue', admincontroller.getRestaurantRevenue);
+router.get('/insights/dish-trends', admincontroller.getDishTrends);
+router.get('/insights/top-customers', admincontroller.getTopCustomers);
+
+// Admin analytics overview
+router.get('/overview', admincontroller.getAdminOverview);
+router.get('/revenue-chart', admincontroller.getRevenueOverTime);
+
 
 module.exports = router;

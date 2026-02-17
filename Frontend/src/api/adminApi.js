@@ -97,6 +97,26 @@ export const fetchFeedback = (params = {}) => {
 export const fetchAnalytics = () =>
   fetch(`${BASE}/analytics`, opts("GET")).then(json);
 
+// Insights
+export const fetchEmployeePerformance = () =>
+  fetch(`${BASE}/insights/employees`, opts("GET")).then(json);
+
+export const fetchRestaurantRevenue = (period = "all") =>
+  fetch(`${BASE}/insights/restaurant-revenue?period=${period}`, opts("GET")).then(json);
+
+export const fetchDishTrends = () =>
+  fetch(`${BASE}/insights/dish-trends`, opts("GET")).then(json);
+
+export const fetchTopCustomers = (period = "all") =>
+  fetch(`${BASE}/insights/top-customers?period=${period}`, opts("GET")).then(json);
+
+// Admin Overview
+export const fetchAdminOverview = () =>
+  fetch(`${BASE}/overview`, opts("GET")).then(json);
+
+export const fetchRevenueChart = (period = "monthly") =>
+  fetch(`${BASE}/revenue-chart?period=${period}`, opts("GET")).then(json);
+
 // Profile
 export const editProfile = (data) =>
   fetch(`${BASE}/edit_profile`, opts("POST", data)).then(json);

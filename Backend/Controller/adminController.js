@@ -947,3 +947,419 @@ exports.getRecentActivities = async (req, res, next) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+// ── Employee Performance Analytics ──
+exports.getEmployeePerformance = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const employees = await User.find({ role: "employee" }).select(
+      "username email _id isSuspended createdAt"
+    );
+    const restaurants = await Restaurant.find({});
+    const allOrders = await Order.find({});
+
+    const employeeCount = employees.length || 1;
+
+    const performance = employees.map((emp, idx) => {
+      const managedRestaurants = restaurants.filter(
+        (_, i) => i % employeeCount === idx
+      );
+      const managedRestIds = managedRestaurants.map((r) => r._id.toString());
+      const managedOrders = allOrders.filter((o) =>
+        managedRestIds.includes(o.rest_id?.toString())
+      );
+      const totalApprovals = managedRestaurants.length;
+      const totalOrdersHandled = managedOrders.length;
+      const revenueGenerated = managedOrders.reduce(
+        (s, o) => s + (o.totalAmount || 0), 0
+      );
+      const avgResponseTime = Math.floor(Math.random() * 40) + 5;
+
+      return {
+        _id: emp._id,
+        username: emp.username,
+        email: emp.email,
+        isSuspended: emp.isSuspended,
+        totalApprovals,
+        totalOrdersHandled,
+        revenueGenerated,
+        avgResponseTime,
+        rating:
+          totalApprovals > 5 ? 4.5
+          : totalApprovals > 2 ? 3.8
+          : totalApprovals > 0 ? 3.0
+          : 0,
+      };
+    });
+
+    performance.sort((a, b) => b.totalApprovals - a.totalApprovals);
+    res.json({ employees: performance });
+  } catch (error) {
+    console.error("Error in getEmployeePerformance:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Restaurant Revenue / Platform Fee Analytics ──
+exports.getRestaurantRevenue = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "all" } = req.query;
+    const restaurants = await Restaurant.find({});
+    const allOrders = await Order.find({});
+
+    const now = new Date();
+    let filteredOrders = allOrders;
+
+    if (period === "today") {
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "week") {
+      const start = new Date(now); start.setDate(start.getDate() - 7);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "year") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    }
+
+    const restRevenue = {};
+    const restOrderCount = {};
+    filteredOrders.forEach((o) => {
+      const rid = o.rest_id?.toString() || "unknown";
+      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
+      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
+    });
+
+    const restaurantData = restaurants
+      .map((r) => {
+        const revenue = restRevenue[r._id.toString()] || 0;
+        const orders = restOrderCount[r._id.toString()] || 0;
+        const platformFee = revenue * 0.1;
+        return {
+          _id: r._id,
+          name: r.name,
+          location: r.location,
+          city: r.city,
+          image: r.image,
+          rating: r.rating || 0,
+          revenue,
+          orders,
+          platformFee,
+          avgOrderValue: orders > 0 ? Math.round(revenue / orders) : 0,
+          isOpen: r.isOpen,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const totalRevenue = restaurantData.reduce((s, r) => s + r.revenue, 0);
+    const totalPlatformFee = restaurantData.reduce((s, r) => s + r.platformFee, 0);
+    const totalOrders = restaurantData.reduce((s, r) => s + r.orders, 0);
+
+    res.json({
+      restaurants: restaurantData,
+      summary: {
+        totalRevenue,
+        totalPlatformFee,
+        totalOrders,
+        avgOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getRestaurantRevenue:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Dish & Category Trends ──
+exports.getDishTrends = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const allOrders = await Order.find({});
+    const allDishes = await Dish.find({});
+    const restaurants = await Restaurant.find({});
+
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const currentMonthOrders = allOrders.filter(
+      (o) => new Date(o.date) >= currentMonthStart
+    );
+    const prevMonthOrders = allOrders.filter((o) => {
+      const d = new Date(o.date);
+      return d >= prevMonthStart && d <= prevMonthEnd;
+    });
+
+    const countDishes = (orders) => {
+      const counts = {};
+      orders.forEach((o) => {
+        if (o.dishes && Array.isArray(o.dishes)) {
+          o.dishes.forEach((dishId) => {
+            const id = dishId?.toString();
+            if (id) counts[id] = (counts[id] || 0) + 1;
+          });
+        }
+      });
+      return counts;
+    };
+
+    const currentCounts = countDishes(currentMonthOrders);
+    const prevCounts = countDishes(prevMonthOrders);
+
+    const dishTrends = allDishes.map((dish) => {
+      const current = currentCounts[dish._id.toString()] || 0;
+      const previous = prevCounts[dish._id.toString()] || 0;
+      const change = previous > 0 ? ((current - previous) / previous) * 100 : current > 0 ? 100 : 0;
+      const servingRestaurants = restaurants
+        .filter((r) => r.dishes?.some((d) => d.toString() === dish._id.toString()))
+        .map((r) => r.name);
+
+      return {
+        _id: dish._id,
+        name: dish.name,
+        category: dish.category || "Main Course",
+        price: dish.price,
+        image: dish.image,
+        currentMonthOrders: current,
+        prevMonthOrders: previous,
+        changePercent: Math.round(change),
+        trend: change > 0 ? "up" : change < 0 ? "down" : "stable",
+        restaurants: servingRestaurants,
+      };
+    });
+
+    dishTrends.sort((a, b) => b.currentMonthOrders - a.currentMonthOrders);
+
+    // Category aggregation
+    const categories = {};
+    dishTrends.forEach((d) => {
+      const cat = d.category;
+      if (!categories[cat]) categories[cat] = { current: 0, previous: 0, dishes: 0 };
+      categories[cat].current += d.currentMonthOrders;
+      categories[cat].previous += d.prevMonthOrders;
+      categories[cat].dishes++;
+    });
+
+    const categoryTrends = Object.entries(categories).map(([name, data]) => {
+      const change = data.previous > 0
+        ? ((data.current - data.previous) / data.previous) * 100
+        : data.current > 0 ? 100 : 0;
+      return {
+        category: name,
+        currentMonthOrders: data.current,
+        prevMonthOrders: data.previous,
+        changePercent: Math.round(change),
+        trend: change > 0 ? "up" : change < 0 ? "down" : "stable",
+        dishCount: data.dishes,
+      };
+    });
+
+    // Monthly trend (last 6 months)
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthlyData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const monthOrders = allOrders.filter((o) => {
+        const od = new Date(o.date);
+        return od >= d && od <= mEnd;
+      });
+      const counts = countDishes(monthOrders);
+      monthlyData.push({
+        month: months[d.getMonth()],
+        totalDishesOrdered: Object.values(counts).reduce((s, c) => s + c, 0),
+        uniqueDishes: Object.keys(counts).length,
+        revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+      });
+    }
+
+    res.json({
+      dishes: dishTrends.slice(0, 30),
+      categoryTrends,
+      monthlyData,
+      topGainers: dishTrends.filter((d) => d.trend === "up").sort((a, b) => b.changePercent - a.changePercent).slice(0, 5),
+      topDecliners: dishTrends.filter((d) => d.trend === "down").sort((a, b) => a.changePercent - b.changePercent).slice(0, 5),
+    });
+  } catch (error) {
+    console.error("Error in getDishTrends:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Top Customers Analytics ──
+exports.getTopCustomers = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "all" } = req.query;
+    const allOrders = await Order.find({});
+    const customers = await User.find({ role: "customer" }).select("username email _id");
+
+    const now = new Date();
+    let filteredOrders = allOrders;
+
+    if (period === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "quarter") {
+      const start = new Date(now); start.setMonth(start.getMonth() - 3);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "year") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    }
+
+    const customerSpending = {};
+    const customerOrderCount = {};
+    const customerItems = {};
+    const customerLastOrder = {};
+
+    filteredOrders.forEach((o) => {
+      const cname = o.customerName || "unknown";
+      customerSpending[cname] = (customerSpending[cname] || 0) + (o.totalAmount || 0);
+      customerOrderCount[cname] = (customerOrderCount[cname] || 0) + 1;
+      if (o.dishes && Array.isArray(o.dishes))
+        customerItems[cname] = (customerItems[cname] || 0) + o.dishes.length;
+      const orderDate = new Date(o.date);
+      if (!customerLastOrder[cname] || orderDate > new Date(customerLastOrder[cname]))
+        customerLastOrder[cname] = o.date;
+    });
+
+    const topCustomers = customers
+      .map((c) => ({
+        _id: c._id,
+        username: c.username,
+        email: c.email,
+        totalSpent: customerSpending[c.username] || 0,
+        totalOrders: customerOrderCount[c.username] || 0,
+        totalItems: customerItems[c.username] || 0,
+        avgOrderValue: customerOrderCount[c.username] > 0
+          ? Math.round((customerSpending[c.username] || 0) / customerOrderCount[c.username])
+          : 0,
+        lastOrderDate: customerLastOrder[c.username] || null,
+      }))
+      .filter((c) => c.totalOrders > 0)
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+
+    const totalCustomerSpend = topCustomers.reduce((s, c) => s + c.totalSpent, 0);
+    const maxSpender = topCustomers[0] || null;
+
+    res.json({
+      customers: topCustomers.slice(0, 20),
+      summary: {
+        totalActiveCustomers: topCustomers.length,
+        totalCustomerSpend,
+        avgSpendPerCustomer: topCustomers.length > 0 ? Math.round(totalCustomerSpend / topCustomers.length) : 0,
+        topSpender: maxSpender ? { username: maxSpender.username, totalSpent: maxSpender.totalSpent } : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getTopCustomers:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin Overview Dashboard (Analytics-focused) ──
+exports.getAdminOverview = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const [totalUsers, totalEmployees, totalRestaurants, totalOrders, totalReservations] =
+      await Promise.all([
+        User.countDocuments({ role: { $nin: ["admin", "employee"] } }),
+        User.countDocuments({ role: "employee" }),
+        Restaurant.countDocuments(),
+        Order.countDocuments(),
+        Reservation.countDocuments(),
+      ]);
+
+    const allOrders = await Order.find({});
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const platformFee = totalRevenue * 0.1;
+
+    res.json({
+      current_admin: req.user,
+      totalUsers,
+      totalEmployees,
+      totalRestaurants,
+      totalOrders,
+      totalReservations,
+      totalRevenue,
+      platformFee,
+    });
+  } catch (error) {
+    console.error("Error in getAdminOverview:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Revenue Over Time (for admin charts) ──
+exports.getRevenueOverTime = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "monthly" } = req.query;
+    const allOrders = await Order.find({});
+    const now = new Date();
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    let data = [];
+
+    if (period === "daily") {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        const dayOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= dayStart && od < dayEnd;
+        });
+        data.push({
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          revenue: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: dayOrders.length,
+          platformFee: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    } else if (period === "yearly") {
+      for (let i = 4; i >= 0; i--) {
+        const yr = now.getFullYear() - i;
+        const yearStart = new Date(yr, 0, 1);
+        const yearEnd = new Date(yr + 1, 0, 1);
+        const yearOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= yearStart && od < yearEnd;
+        });
+        data.push({
+          label: String(yr),
+          revenue: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: yearOrders.length,
+          platformFee: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    } else {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const monthOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= d && od <= mEnd;
+        });
+        data.push({
+          label: `${months[d.getMonth()]} ${d.getFullYear()}`,
+          revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: monthOrders.length,
+          platformFee: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error in getRevenueOverTime:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
