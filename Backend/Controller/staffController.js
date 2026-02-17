@@ -505,10 +505,30 @@ exports.getStaffHomepageData = async (req, res, next) => {
         id: task._id, name: task.description, status: task.status, priority: task.priority,
       }));
 
-    // --- Support Messages ---
-    const supportMessages = (restaurant.supportMessages || [])
+    // --- Support Messages (from both embedded and SupportTicket model) ---
+    const SupportTicket = require("../Model/SupportTicket_model");
+    const embeddedMessages = (restaurant.supportMessages || [])
       .filter((msg) => msg.from === staffMember.username)
-      .map((msg) => ({ id: msg._id, message: msg.message, timestamp: msg.timestamp, status: msg.status }))
+      .map((msg) => ({ id: msg._id, message: msg.message, timestamp: msg.timestamp, status: msg.status, source: 'embedded' }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Also fetch staff's SupportTicket-based tickets
+    const staffTickets = await SupportTicket.find({
+      createdBy: staffMember.username,
+      createdByRole: 'staff',
+      rest_id: staffMember.rest_id
+    }).sort({ createdAt: -1 }).lean().catch(() => []);
+
+    const ticketMessages = (staffTickets || []).map((t) => ({
+      id: t._id,
+      ticketNumber: t.ticketNumber,
+      message: t.subject,
+      timestamp: t.createdAt,
+      status: t.status,
+      source: 'ticket'
+    }));
+
+    const supportMessages = [...embeddedMessages, ...ticketMessages]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     // --- Today's Orders (from Order collection) ---
@@ -692,31 +712,53 @@ exports.getStaffHomepageData = async (req, res, next) => {
 
 exports.postSupportMessage = async (req, res, next) => {
   try {
-    const { message } = req.body;
+    const { message, subject, category, orderId } = req.body;
     const staffMember = req.user;
     if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
 
+    const SupportTicket = require("../Model/SupportTicket_model");
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
+    // Create a proper support ticket instead of embedded message
+    const ticket = new SupportTicket({
+      createdBy: staffMember.username,
+      createdByRole: "staff",
+      rest_id: staffMember.rest_id,
+      restaurantName: restaurant.name,
+      category: category || "other",
+      subject: subject || "Staff support request",
+      priority: "medium",
+      status: "open",
+      relatedOrderId: orderId || null,
+      messages: [{
+        senderRole: "staff",
+        senderName: staffMember.username,
+        text: message,
+        timestamp: new Date(),
+      }],
+    });
+
+    await ticket.save();
+
+    // Also keep backward compatibility with embedded supportMessages
     if (!restaurant.supportMessages) {
       restaurant.supportMessages = [];
     }
-
     restaurant.supportMessages.push({
       from: staffMember.username,
       message: message,
       timestamp: new Date(),
       status: "pending",
     });
-
     await restaurant.save();
 
     res.json({
       success: true,
-      message: "Message sent to manager successfully",
+      message: "Support ticket created successfully",
+      ticketNumber: ticket.ticketNumber,
     });
   } catch (error) {
     console.error("Error sending support message:", error);

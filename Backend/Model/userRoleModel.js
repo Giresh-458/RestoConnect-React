@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true,unique: true },
   role: { type: String, required: true, enum: ['customer', 'owner', 'staff', 'admin', 'employee'] },
   restaurantName: { type: String, default: null },
-  rest_id: { type: String, default: null },
+  rest_id: { type: String, ref: 'Restaurant', default: null },
   password: { type: String, required: true },
   isSuspended: { type: Boolean, default: false },
   suspensionEndDate: { type: Date, default: null },

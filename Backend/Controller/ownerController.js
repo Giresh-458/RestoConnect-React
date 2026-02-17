@@ -1981,10 +1981,17 @@ exports.deleteTableAPI = async (req, res) => {
 exports.editProductAPI = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = req.user;
     const { name, price, description, serves, isAvailable } = req.body;
 
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ error: "Dish not found" });
+
+    // Verify the dish belongs to this owner's restaurant
+    const restaurant = await Restaurant.findById(user.rest_id);
+    if (!restaurant || !restaurant.dishes.includes(id)) {
+      return res.status(403).json({ error: "Not authorized to edit this dish" });
+    }
 
     if (name !== undefined) dish.name = name;
     if (price !== undefined) dish.price = price;
@@ -2127,6 +2134,11 @@ exports.togglePromoCode = async (req, res) => {
     const promo = await PromoCode.findById(id);
     if (!promo) return res.status(404).json({ error: "Promo code not found" });
 
+    // Verify promo code belongs to this owner's restaurant
+    if (promo.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Not authorized to modify this promo code" });
+    }
+
     promo.isActive = !promo.isActive;
     await promo.save();
     res.json({ success: true, promoCode: promo });
@@ -2139,6 +2151,17 @@ exports.togglePromoCode = async (req, res) => {
 exports.deletePromoCode = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const promo = await PromoCode.findById(id);
+    if (!promo) return res.status(404).json({ error: "Promo code not found" });
+
+    // Verify promo code belongs to this owner's restaurant
+    if (promo.rest_id !== user.rest_id) {
+      return res.status(403).json({ error: "Not authorized to delete this promo code" });
+    }
+
     await PromoCode.findByIdAndDelete(id);
     res.json({ success: true, message: "Promo code deleted" });
   } catch (error) {

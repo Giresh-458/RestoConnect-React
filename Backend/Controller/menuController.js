@@ -94,7 +94,7 @@ exports.addDishToCart = async (req, res, next) => {
 exports.increaseDishQuantity = async (req, res, next) => {
     try {
         
-        const user = req.session.username;
+        const user = req.user?.username || req.session.username;
        
         const dishName = req.body.dish;
        
@@ -130,7 +130,7 @@ exports.increaseDishQuantity = async (req, res, next) => {
 // Decrease dish quantity in cart
 exports.decreaseDishQuantity = async (req, res, next) => {
     try {
-        const user = req.session.username;
+        const user = req.user?.username || req.session.username;
         
         const dishName = req.body.dish;
         if (!dishName) {

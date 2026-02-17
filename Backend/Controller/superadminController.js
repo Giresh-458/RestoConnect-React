@@ -226,11 +226,11 @@ exports.getDishTrends = async (req, res) => {
     const countDishes = (orders) => {
       const counts = {};
       orders.forEach((o) => {
-        if (o.items && Array.isArray(o.items)) {
-          o.items.forEach((item) => {
-            const dishId = item.dish_id?.toString() || item.dishId?.toString();
-            if (dishId) {
-              counts[dishId] = (counts[dishId] || 0) + (item.quantity || 1);
+        if (o.dishes && Array.isArray(o.dishes)) {
+          o.dishes.forEach((dishId) => {
+            const id = dishId?.toString();
+            if (id) {
+              counts[id] = (counts[id] || 0) + 1;
             }
           });
         }
@@ -270,21 +270,20 @@ exports.getDishTrends = async (req, res) => {
     // Sort by current month orders desc
     dishTrends.sort((a, b) => b.currentMonthOrders - a.currentMonthOrders);
 
-    // Category aggregation (group by price range as proxy for category)
-    const categories = {
-      "Budget (< ₹150)": { current: 0, previous: 0, dishes: 0 },
-      "Mid-Range (₹150-350)": { current: 0, previous: 0, dishes: 0 },
-      "Premium (₹350-500)": { current: 0, previous: 0, dishes: 0 },
-      "Luxury (> ₹500)": { current: 0, previous: 0, dishes: 0 },
-    };
+    // Category aggregation (group by actual dish category)
+    const categories = {};
+
+    // Build a dish ID -> category map from allDishes
+    const dishCategoryMap = {};
+    allDishes.forEach((d) => {
+      dishCategoryMap[d._id.toString()] = d.category || "Main Course";
+    });
 
     dishTrends.forEach((d) => {
-      let cat;
-      if (d.price < 150) cat = "Budget (< ₹150)";
-      else if (d.price < 350) cat = "Mid-Range (₹150-350)";
-      else if (d.price <= 500) cat = "Premium (₹350-500)";
-      else cat = "Luxury (> ₹500)";
-
+      const cat = dishCategoryMap[d._id.toString()] || "Main Course";
+      if (!categories[cat]) {
+        categories[cat] = { current: 0, previous: 0, dishes: 0 };
+      }
       categories[cat].current += d.currentMonthOrders;
       categories[cat].previous += d.prevMonthOrders;
       categories[cat].dishes++;
@@ -391,46 +390,45 @@ exports.getTopCustomers = async (req, res) => {
     const customerLastOrder = {};
 
     filteredOrders.forEach((o) => {
-      const uid = o.user_id?.toString() || o.username || "unknown";
-      customerSpending[uid] =
-        (customerSpending[uid] || 0) + (o.totalAmount || 0);
-      customerOrderCount[uid] = (customerOrderCount[uid] || 0) + 1;
+      const cname = o.customerName || "unknown";
+      customerSpending[cname] =
+        (customerSpending[cname] || 0) + (o.totalAmount || 0);
+      customerOrderCount[cname] = (customerOrderCount[cname] || 0) + 1;
 
-      // Count items
-      if (o.items && Array.isArray(o.items)) {
-        customerItems[uid] =
-          (customerItems[uid] || 0) +
-          o.items.reduce((s, item) => s + (item.quantity || 1), 0);
+      // Count items (dishes array)
+      if (o.dishes && Array.isArray(o.dishes)) {
+        customerItems[cname] =
+          (customerItems[cname] || 0) + o.dishes.length;
       }
 
       // Track last order date
       const orderDate = new Date(o.date);
       if (
-        !customerLastOrder[uid] ||
-        orderDate > new Date(customerLastOrder[uid])
+        !customerLastOrder[cname] ||
+        orderDate > new Date(customerLastOrder[cname])
       ) {
-        customerLastOrder[uid] = o.date;
+        customerLastOrder[cname] = o.date;
       }
     });
 
     // Match with user profiles
     const topCustomers = customers
       .map((c) => {
-        const uid = c._id.toString();
+        const cname = c.username;
         return {
           _id: c._id,
           username: c.username,
           email: c.email,
-          totalSpent: customerSpending[uid] || 0,
-          totalOrders: customerOrderCount[uid] || 0,
-          totalItems: customerItems[uid] || 0,
+          totalSpent: customerSpending[cname] || 0,
+          totalOrders: customerOrderCount[cname] || 0,
+          totalItems: customerItems[cname] || 0,
           avgOrderValue:
-            customerOrderCount[uid] > 0
+            customerOrderCount[cname] > 0
               ? Math.round(
-                  (customerSpending[uid] || 0) / customerOrderCount[uid]
+                  (customerSpending[cname] || 0) / customerOrderCount[cname]
                 )
               : 0,
-          lastOrderDate: customerLastOrder[uid] || null,
+          lastOrderDate: customerLastOrder[cname] || null,
         };
       })
       .filter((c) => c.totalOrders > 0)

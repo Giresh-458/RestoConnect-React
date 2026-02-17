@@ -44,8 +44,7 @@ import {action as authAction} from './pages/AuthPage';
 import { RestaurantApplication } from "./pages/RestaurantApplication";
 import {action as restaurantApplicationAction} from './pages/RestaurantApplication';
 
-import { logout } from "./util/auth";
-import { isLogin } from "./util/auth";
+import { logout, isLogin, customerLoader, ownerLoader, staffLoader } from "./util/auth";
 import ErrorPage from "./pages/ErrorPage";
 
 
@@ -65,7 +64,7 @@ const router = createBrowserRouter([
       { path: "support", element: <SupportChatPage mode="customer" /> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],
-    loader:isLogin
+    loader:customerLoader
   },
   {
     path: "/owner",
@@ -84,7 +83,7 @@ const router = createBrowserRouter([
       { path: "support", element: <SupportChatPage mode="owner" />, loader: isLogin },
       { path: "staffmanagement", element: <StaffManagement />, loader: isLogin },
     ],
-    loader:isLogin
+    loader:ownerLoader
   },
   {
     path: "/staff",
@@ -93,7 +92,7 @@ const router = createBrowserRouter([
       { index: true, element: <StaffHomePage></StaffHomePage>,loader:StaffHomePageLoader},
       { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader}
     ],
-    loader:isLogin
+    loader:staffLoader
   },
   {
     path: "/admin",

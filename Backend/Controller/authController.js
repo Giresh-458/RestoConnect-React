@@ -173,12 +173,14 @@ const signup = async (req, res, next) => {
             });
         }
 
-        // Validate role
-        const allowedRoles = ['customer', 'owner', 'staff'];
+        // Validate role - only customers can self-register
+        // Owners are created when admin accepts restaurant requests
+        // Staff are created by restaurant owners
+        const allowedRoles = ['customer'];
         if (!allowedRoles.includes(role)) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid role selected'
+                error: 'Only customer accounts can be created through signup. Owners and staff are added by administrators and restaurant owners respectively.'
             });
         }
 

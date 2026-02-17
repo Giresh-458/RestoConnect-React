@@ -104,10 +104,10 @@ const supportTicketSchema = new mongoose.Schema(
     },
 
     /* ── The order this ticket is about ── */
-    relatedOrderId: { type: String, default: null },
+    relatedOrderId: { type: String, ref: 'Order', default: null },
     orderSnapshot: { type: orderSnapshotSchema, default: null },
 
-    relatedReservationId: { type: String, default: null },
+    relatedReservationId: { type: String, ref: 'Reservation', default: null },
 
     /* Resolution / feedback */
     satisfactionRating: { type: Number, min: 1, max: 5, default: null },
@@ -135,7 +135,7 @@ supportTicketSchema.pre("save", async function (next) {
 /* ── Indexes ──────────────────────────────────────── */
 supportTicketSchema.index({ rest_id: 1, status: 1 });
 supportTicketSchema.index({ createdBy: 1, status: 1 });
-supportTicketSchema.index({ ticketNumber: 1 });
+// ticketNumber index is already created by unique: true
 supportTicketSchema.index({ status: 1, priority: 1 });
 supportTicketSchema.index({ relatedOrderId: 1 });
 

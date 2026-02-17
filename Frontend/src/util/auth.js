@@ -41,3 +41,18 @@ export async function isLogin() {
     throw redirect("/login?message=Auth service unavailable");
   }
 }
+
+// Role-specific loaders that verify both authentication AND authorization
+export function requireRole(...allowedRoles) {
+  return async () => {
+    const role = await isLogin();
+    if (!allowedRoles.includes(role)) {
+      throw redirect(`/${role}?message=Access denied`);
+    }
+    return role;
+  };
+}
+
+export const customerLoader = requireRole("customer");
+export const ownerLoader = requireRole("owner");
+export const staffLoader = requireRole("staff");

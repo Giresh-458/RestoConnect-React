@@ -46,7 +46,7 @@ export const fetchRestaurants = () =>
   fetch(`${BASE}/restaurants`, opts("GET")).then(json);
 
 export const deleteRestaurant = (id) =>
-  fetch(`${BASE}/delete_restaurant/${id}`, opts("GET")).then(json);
+  fetch(`${BASE}/delete_restaurant/${id}`, opts("DELETE")).then(json);
 
 export const suspendRestaurant = (id, data) =>
   fetch(`${BASE}/suspend_restaurant/${id}`, opts("POST", data)).then(json);
@@ -59,10 +59,10 @@ export const fetchRequests = () =>
   fetch(`${BASE}/requests`, opts("GET")).then(json);
 
 export const acceptRequest = (ownerUsername) =>
-  fetch(`${BASE}/accept_request/${ownerUsername}`, opts("GET")).then(json);
+  fetch(`${BASE}/accept_request/${ownerUsername}`, opts("POST")).then(json);
 
 export const rejectRequest = (ownerUsername) =>
-  fetch(`${BASE}/reject_request/${ownerUsername}`, opts("GET")).then(json);
+  fetch(`${BASE}/reject_request/${ownerUsername}`, opts("POST")).then(json);
 
 // Orders
 export const fetchOrders = (params = {}) => {

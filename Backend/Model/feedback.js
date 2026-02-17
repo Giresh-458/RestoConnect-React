@@ -9,6 +9,7 @@ const feedbackSchema = new mongoose.Schema({
 
   orderId: {
     type: String,
+    ref: 'Order',
     required: true,
     unique: true,
   },

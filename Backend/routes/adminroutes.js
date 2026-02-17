@@ -11,7 +11,7 @@ router.get('/dashboard', admincontroller.getAdminDashboard);
 router.get('/restaurants', admincontroller.getAllRestaurants); // admin use
 router.post('/add_restaurant', admincontroller.postAddRestaurent);
 router.post('/edit_restaurant/:id', admincontroller.postEditRestaurent);
-router.get('/delete_restaurant/:id',admincontroller.postDeleteRestaurent);
+router.delete('/delete_restaurant/:id',admincontroller.postDeleteRestaurent);
 router.post('/suspend_restaurant/:id', admincontroller.suspendRestaurant);
 router.post('/unsuspend_restaurant/:id', admincontroller.unsuspendRestaurant);
 router.get('/chartstats',admincontroller.getStatisticsGraphs);
@@ -24,8 +24,8 @@ router.post('/edit_profile', admincontroller.editProfile);
 router.post('/change_password', admincontroller.changePassword); 
 router.delete('/delete_account', admincontroller.deleteAccount);
 router.get('/statistics', admincontroller.getStatistics);
-router.get('/accept_request/:owner_username', admincontroller.getaceptreq);
-router.get('/reject_request/:owner_username', admincontroller.getrejectreq);
+router.post('/accept_request/:owner_username', admincontroller.getaceptreq);
+router.post('/reject_request/:owner_username', admincontroller.getrejectreq);
 router.get('/requests', admincontroller.getAllRequests);
 
 router.get('/activities', admincontroller.getRecentActivities);

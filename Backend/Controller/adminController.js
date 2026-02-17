@@ -336,7 +336,7 @@ exports.editProfile = async (req, res, next) => {
 
     const updateData = { username, email };
     if (newpassword && newpassword.trim() !== "") {
-      if(newpassword.time().length<6){
+      if(newpassword.trim().length<6){
       return res.status(400).json({
   message: "password must be at least 6 letters"
 });

@@ -1,8 +1,12 @@
-const SupportTicket = require("../Model/SupportTicket_model");
+﻿const SupportTicket = require("../Model/SupportTicket_model");
 const { Restaurant } = require("../Model/Restaurents_model");
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
 const { Dish } = require("../Model/Dishes_model_test");
+
+// Helper: resolve username from req.user (set by auth middleware) with session fallback
+const getUsername = (req) => req.user?.username || req.session?.username;
+const getRestId = (req) => req.user?.rest_id || req.session?.rest_id;
 
 const CATEGORY_LABELS = {
   wrong_order: "Wrong Order",
@@ -17,15 +21,15 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  wrong_order: "🔄",
-  food_quality: "🍽️",
-  missing_items: "📦",
-  overcharged: "💰",
-  long_wait: "⏳",
-  staff_conduct: "👤",
-  hygiene: "🧹",
-  reservation_issue: "📅",
-  other: "❓",
+  wrong_order: "ðŸ”„",
+  food_quality: "ðŸ½ï¸",
+  missing_items: "ðŸ“¦",
+  overcharged: "ðŸ’°",
+  long_wait: "â³",
+  staff_conduct: "ðŸ‘¤",
+  hygiene: "ðŸ§¹",
+  reservation_issue: "ðŸ“…",
+  other: "â“",
 };
 
 const formatTicket = (ticket) => ({
@@ -34,7 +38,7 @@ const formatTicket = (ticket) => ({
   subject: ticket.subject,
   category: ticket.category,
   categoryLabel: CATEGORY_LABELS[ticket.category] || ticket.category,
-  categoryIcon: CATEGORY_ICONS[ticket.category] || "❓",
+  categoryIcon: CATEGORY_ICONS[ticket.category] || "â“",
   priority: ticket.priority,
   status: ticket.status,
   createdBy: ticket.createdBy,
@@ -56,9 +60,9 @@ const formatTicket = (ticket) => ({
   updatedAt: ticket.updatedAt,
 });
 
-/* ═══════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CUSTOMER  ENDPOINTS
-   ═══════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * GET /api/customer/support/orders
@@ -68,7 +72,7 @@ const formatTicket = (ticket) => ({
  */
 exports.customerGetOrders = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     // Fetch recent orders (last 50)
@@ -137,7 +141,7 @@ exports.getCategories = async (_req, res) => {
  */
 exports.customerGetTickets = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const filter = { createdBy: customerName, createdByRole: "customer" };
@@ -157,7 +161,7 @@ exports.customerGetTickets = async (req, res, next) => {
  */
 exports.customerGetTicket = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const ticket = await SupportTicket.findOne({
@@ -181,7 +185,7 @@ exports.customerGetTicket = async (req, res, next) => {
  */
 exports.customerCreateTicket = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const { orderId, category, description } = req.body;
@@ -222,7 +226,7 @@ exports.customerCreateTicket = async (req, res, next) => {
     const restaurant = await Restaurant.findById(order.rest_id);
     const dishDocs = await Dish.find({ _id: { $in: order.dishes || [] } });
 
-    const subject = `${CATEGORY_LABELS[category]} — Order at ${restaurant?.name || order.restaurant || "Restaurant"}`;
+    const subject = `${CATEGORY_LABELS[category]} â€” Order at ${restaurant?.name || order.restaurant || "Restaurant"}`;
 
     // Auto-determine priority from category
     let priority = "medium";
@@ -270,7 +274,7 @@ exports.customerCreateTicket = async (req, res, next) => {
  */
 exports.customerPostMessage = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const { message } = req.body;
@@ -312,7 +316,7 @@ exports.customerPostMessage = async (req, res, next) => {
  */
 exports.customerRateTicket = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const { rating, comment } = req.body;
@@ -345,7 +349,7 @@ exports.customerRateTicket = async (req, res, next) => {
  */
 exports.customerCloseTicket = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getUsername(req);
     if (!customerName) return res.status(401).json({ error: "Not authenticated" });
 
     const ticket = await SupportTicket.findOne({
@@ -371,9 +375,9 @@ exports.customerCloseTicket = async (req, res, next) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    OWNER  ENDPOINTS
-   ═══════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * GET /api/owner/support/tickets?status=open&priority=high&category=billing
@@ -381,7 +385,7 @@ exports.customerCloseTicket = async (req, res, next) => {
  */
 exports.ownerGetTickets = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const filter = { rest_id: user.rest_id };
@@ -415,7 +419,7 @@ exports.ownerGetTickets = async (req, res, next) => {
  */
 exports.ownerGetTicket = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const ticket = await SupportTicket.findOne({
@@ -438,7 +442,7 @@ exports.ownerGetTicket = async (req, res, next) => {
  */
 exports.ownerPostMessage = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const { message } = req.body;
@@ -485,7 +489,7 @@ exports.ownerPostMessage = async (req, res, next) => {
  */
 exports.ownerUpdateStatus = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const { status } = req.body;
@@ -534,7 +538,7 @@ exports.ownerUpdateStatus = async (req, res, next) => {
  */
 exports.ownerUpdatePriority = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const { priority } = req.body;
@@ -564,7 +568,7 @@ exports.ownerUpdatePriority = async (req, res, next) => {
  */
 exports.ownerAddNote = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const { text } = req.body;
@@ -592,7 +596,7 @@ exports.ownerAddNote = async (req, res, next) => {
  */
 exports.ownerGetStats = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session.username });
+    const user = req.user || await User.findOne({ username: getUsername(req) });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const allTickets = await SupportTicket.find({ rest_id: user.rest_id });
@@ -654,9 +658,9 @@ exports.ownerGetStats = async (req, res, next) => {
   }
 };
 
-/* ═══════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    ADMIN  ENDPOINTS
-   ═══════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * GET /api/admin/support/tickets?status=escalated&rest_id=XYZ
@@ -717,7 +721,7 @@ exports.adminPostMessage = async (req, res, next) => {
     const ticket = await SupportTicket.findById(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
-    const adminUser = req.session.username || "admin";
+    const adminUser = getUsername(req) || "admin";
 
     ticket.messages.push({
       senderRole: "admin",
@@ -751,7 +755,7 @@ exports.adminUpdateStatus = async (req, res, next) => {
     const ticket = await SupportTicket.findById(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
-    const adminUser = req.session.username || "admin";
+    const adminUser = getUsername(req) || "admin";
     const prev = ticket.status;
     ticket.status = status;
 
@@ -800,7 +804,7 @@ exports.adminAssignTicket = async (req, res, next) => {
     ticket.messages.push({
       senderRole: "system",
       senderName: "System",
-      text: `Ticket assigned to ${assignedTo || "unassigned"} (${assignedRole || "–"}).`,
+      text: `Ticket assigned to ${assignedTo || "unassigned"} (${assignedRole || "â€“"}).`,
     });
 
     await ticket.save();
@@ -823,7 +827,7 @@ exports.adminAddNote = async (req, res, next) => {
     const ticket = await SupportTicket.findById(req.params.ticketId);
     if (!ticket) return res.status(404).json({ error: "Ticket not found" });
 
-    const adminUser = req.session.username || "admin";
+    const adminUser = getUsername(req) || "admin";
     ticket.internalNotes.push({ author: adminUser, text: text.trim() });
     await ticket.save();
 
