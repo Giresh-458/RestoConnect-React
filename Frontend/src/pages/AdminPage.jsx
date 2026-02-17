@@ -13,6 +13,7 @@ import {
   fetchDishTrends,
   fetchTopCustomers,
   fetchRevenueChart,
+  addEmployee,
 } from "../api/adminApi";
 import "../styles/admin.css";
 
@@ -235,6 +236,122 @@ function OverviewSection({ dashData }) {
 }
 
 /* ═══════════════════════════════
+   ADD EMPLOYEE FORM
+   ═══════════════════════════════ */
+function AddEmployeeForm({ onAdded }) {
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setMessage(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.username || !form.email || !form.password) {
+      setMessage({ type: "error", text: "All fields are required" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await addEmployee(form);
+      setMessage({ type: "success", text: res.message || "Employee added!" });
+      setForm({ username: "", email: "", password: "" });
+      if (onAdded) onAdded();
+    } catch (err) {
+      setMessage({ type: "error", text: err.message || "Failed to add employee" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="admin-card-header">
+        <h3>➕ Add New Employee</h3>
+      </div>
+      <div className="admin-card-body">
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#475569", marginBottom: 4 }}>Username</label>
+            <input
+              type="text" name="username" value={form.username} onChange={handleChange}
+              placeholder="e.g. john_doe"
+              style={{
+                width: "100%", padding: "0.55rem 0.75rem", borderRadius: 8,
+                border: "1.5px solid #e2e8f0", fontSize: "0.9rem", outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+              onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#475569", marginBottom: 4 }}>Email</label>
+            <input
+              type="email" name="email" value={form.email} onChange={handleChange}
+              placeholder="e.g. john@example.com"
+              style={{
+                width: "100%", padding: "0.55rem 0.75rem", borderRadius: 8,
+                border: "1.5px solid #e2e8f0", fontSize: "0.9rem", outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+              onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#475569", marginBottom: 4 }}>Password</label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"} name="password" value={form.password} onChange={handleChange}
+                placeholder="Min 6 characters"
+                style={{
+                  width: "100%", padding: "0.55rem 0.75rem", paddingRight: "2.5rem", borderRadius: 8,
+                  border: "1.5px solid #e2e8f0", fontSize: "0.9rem", outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
+                onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer", fontSize: "1rem", color: "#64748b",
+                }}>
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+          </div>
+          {message && (
+            <div style={{
+              padding: "0.5rem 0.75rem", borderRadius: 8, fontSize: "0.85rem", fontWeight: 500,
+              background: message.type === "success" ? "#f0fdf4" : "#fef2f2",
+              color: message.type === "success" ? "#16a34a" : "#dc2626",
+              border: `1px solid ${message.type === "success" ? "#bbf7d0" : "#fecaca"}`,
+            }}>
+              {message.text}
+            </div>
+          )}
+          <button type="submit" disabled={submitting}
+            style={{
+              padding: "0.6rem 1.2rem", borderRadius: 8, border: "none",
+              background: submitting ? "#94a3b8" : "#2563eb", color: "#fff",
+              fontWeight: 600, fontSize: "0.9rem", cursor: submitting ? "not-allowed" : "pointer",
+              transition: "background 0.2s",
+            }}>
+            {submitting ? "Adding..." : "Add Employee"}
+          </button>
+        </form>
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════
    EMPLOYEE PERFORMANCE
    ═══════════════════════════════ */
 function EmployeePerformanceSection() {
@@ -269,15 +386,7 @@ function EmployeePerformanceSection() {
             <div className="admin-stat-value">{employees.reduce((s, e) => s + e.totalApprovals, 0)}</div>
           </div>
         </div>
-        <div className="admin-stat-card">
-          <div className="admin-stat-icon orange">⏱️</div>
-          <div className="admin-stat-info">
-            <div className="admin-stat-label">Avg Response Time</div>
-            <div className="admin-stat-value">
-              {employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.avgResponseTime, 0) / employees.length) : 0} min
-            </div>
-          </div>
-        </div>
+
         <div className="admin-stat-card">
           <div className="admin-stat-icon purple">💰</div>
           <div className="admin-stat-info">
@@ -288,6 +397,15 @@ function EmployeePerformanceSection() {
       </div>
 
       <div className="admin-grid-2">
+        <div className="admin-card">
+          <AddEmployeeForm onAdded={() => {
+            setLoading(true);
+            fetchEmployeePerformance()
+              .then((d) => { setData(d); setLoading(false); })
+              .catch(() => setLoading(false));
+          }} />
+        </div>
+
         <div className="admin-card">
           <div className="admin-card-header"><h3>Approvals & Orders Comparison</h3></div>
           <div className="admin-card-body">
@@ -305,24 +423,7 @@ function EmployeePerformanceSection() {
           </div>
         </div>
 
-        <div className="admin-card">
-          <div className="admin-card-header"><h3>Response Time (minutes)</h3></div>
-          <div className="admin-card-body">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={employees}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="username" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="avgResponseTime" name="Avg Response (min)" radius={[4, 4, 0, 0]}>
-                  {employees.map((e, i) => (
-                    <Cell key={i} fill={e.avgResponseTime < 15 ? "#16a34a" : e.avgResponseTime < 30 ? "#f59e0b" : "#dc2626"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+
       </div>
 
       <div className="admin-card">
@@ -339,7 +440,6 @@ function EmployeePerformanceSection() {
                   <th>Employee</th>
                   <th>Approvals</th>
                   <th>Orders Handled</th>
-                  <th>Avg Response</th>
                   <th>Revenue Generated</th>
                   <th>Rating</th>
                   <th>Status</th>
@@ -363,11 +463,6 @@ function EmployeePerformanceSection() {
                     </td>
                     <td><span className="admin-badge success">{emp.totalApprovals}</span></td>
                     <td>{emp.totalOrdersHandled}</td>
-                    <td>
-                      <span className={`admin-badge ${emp.avgResponseTime < 15 ? "success" : emp.avgResponseTime < 30 ? "warning" : "danger"}`}>
-                        {emp.avgResponseTime} min
-                      </span>
-                    </td>
                     <td style={{ fontWeight: 600, color: "#16a34a" }}>₹{emp.revenueGenerated.toLocaleString()}</td>
                     <td>
                       <span className="admin-stars">{"★".repeat(Math.round(emp.rating))}</span>

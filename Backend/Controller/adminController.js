@@ -973,8 +973,6 @@ exports.getEmployeePerformance = async (req, res) => {
       const revenueGenerated = managedOrders.reduce(
         (s, o) => s + (o.totalAmount || 0), 0
       );
-      const avgResponseTime = Math.floor(Math.random() * 40) + 5;
-
       return {
         _id: emp._id,
         username: emp.username,
@@ -983,7 +981,6 @@ exports.getEmployeePerformance = async (req, res) => {
         totalApprovals,
         totalOrdersHandled,
         revenueGenerated,
-        avgResponseTime,
         rating:
           totalApprovals > 5 ? 4.5
           : totalApprovals > 2 ? 3.8
@@ -997,6 +994,64 @@ exports.getEmployeePerformance = async (req, res) => {
   } catch (error) {
     console.error("Error in getEmployeePerformance:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Add Employee ──
+exports.addEmployee = async (req, res) => {
+  try {
+    let { username, email, password } = req.body;
+
+    // Trim and sanitize
+    username = username ? username.trim() : '';
+    email = email ? email.trim().toLowerCase() : '';
+    password = password ? password.trim() : '';
+
+    // Validate required fields
+    if (!username || !email || !password) {
+      return res.status(400).json({ success: false, error: 'Username, email, and password are required' });
+    }
+
+    // Validate username: 3-20 chars, letters/numbers/underscores
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({ success: false, error: 'Username must be 3-20 characters (letters, numbers, underscores only)' });
+    }
+
+    // Validate email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if username or email already exists
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: 'Username or email already exists' });
+    }
+
+    // Create employee user
+    const newEmployee = new User({
+      username,
+      email,
+      role: 'employee',
+      password,
+      restaurantName: null,
+      rest_id: null,
+    });
+    await newEmployee.save();
+
+    res.status(201).json({
+      success: true,
+      message: `Employee '${username}' created successfully`,
+      employee: { _id: newEmployee._id, username: newEmployee.username, email: newEmployee.email, role: 'employee' },
+    });
+  } catch (error) {
+    console.error('Error in addEmployee:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 };
 

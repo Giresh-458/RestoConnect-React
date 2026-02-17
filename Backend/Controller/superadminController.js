@@ -23,7 +23,7 @@ exports.getDashboard = async (req, res) => {
     const restaurants = await Restaurant.find({});
     const allOrders = await Order.find({});
     const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const platformFee = totalRevenue * 0.1; // 10% platform fee
+    const platformFee = totalRevenue * 0.1; 
 
     res.json({
       current_admin: currentAdmin,
@@ -58,11 +58,10 @@ exports.getEmployeePerformance = async (req, res) => {
 
     // Get all restaurants to determine which ones were approved by employees
     const restaurants = await Restaurant.find({});
-    const allOrders = await Order.find({});
+    const allOrders = await Order.nd({});
 
-    // Simulate employee performance based on restaurant count managed
-    // In a real scenario, you'd track who approved what. Here we distribute evenly
-    const employeeCount = employees.length || 1;
+
+    const employeeCount = employees.length || 1;fi
 
     const performance = employees.map((emp, idx) => {
       // Distribute restaurants among employees for simulation
@@ -82,7 +81,6 @@ exports.getEmployeePerformance = async (req, res) => {
         0
       );
 
-      // Simulated avg response time (minutes) - random between 5-45 min
       const avgResponseTime = Math.floor(Math.random() * 40) + 5;
 
       return {

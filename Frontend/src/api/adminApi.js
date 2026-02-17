@@ -97,6 +97,10 @@ export const fetchFeedback = (params = {}) => {
 export const fetchAnalytics = () =>
   fetch(`${BASE}/analytics`, opts("GET")).then(json);
 
+// Employee management
+export const addEmployee = (data) =>
+  fetch(`${BASE}/add-employee`, opts("POST", data)).then(json);
+
 // Insights
 export const fetchEmployeePerformance = () =>
   fetch(`${BASE}/insights/employees`, opts("GET")).then(json);

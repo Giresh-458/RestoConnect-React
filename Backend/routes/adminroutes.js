@@ -35,6 +35,9 @@ router.get('/reservations', admincontroller.getAllReservations);
 router.get('/feedback', admincontroller.getAllFeedback);
 router.get('/analytics', admincontroller.getAnalytics);
 
+// Employee management
+router.post('/add-employee', admincontroller.addEmployee);
+
 // Insights endpoints
 router.get('/insights/employees', admincontroller.getEmployeePerformance);
 router.get('/insights/restaurant-revenue', admincontroller.getRestaurantRevenue);
