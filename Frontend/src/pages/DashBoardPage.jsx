@@ -6,6 +6,7 @@ import { logout } from "../util/auth";
 import { useDispatch } from "react-redux";
 import { replaceCart, setRestaurant } from "../store/CartSlice";
 import styles from "./DashBoardPage.module.css";
+import { useToast } from "../components/common/Toast";
 
 export async function loader() {
   const role = await isLogin();
@@ -47,6 +48,7 @@ export const DashBoardPage = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const fileInputRef = useRef(null);
+  const toast = useToast();
 
   /* sidebar / section */
   const [activeSection, setActiveSection] = useState("overview");
@@ -126,7 +128,7 @@ export const DashBoardPage = () => {
   const handleReorder = async (entity) => {
     if (!entity) { navigate("/customer/order"); return; }
     const recordId = entity.recordId || entity._id || entity.id;
-    if (!recordId) { alert("Could not identify order."); return; }
+    if (!recordId) { toast.error("Could not identify order."); return; }
     try {
       setReorderingOrderId(recordId);
       const response = await fetch(`http://localhost:3000/api/customer/orders/${recordId}/reorder`, { method: "POST", headers: { Accept: "application/json" }, credentials: "include" });
@@ -156,7 +158,7 @@ export const DashBoardPage = () => {
       dispatch(replaceCart(items));
       if (data.restaurant?.id) { dispatch(setRestaurant({ restId: data.restaurant.id, restName: data.restaurant.name || "Restaurant" })); navigate(`/customer/restaurant/${data.restaurant.id}?reorder=true`); }
       else { navigate("/customer/order"); }
-    } catch (error) { alert(`Could not reorder: ${error.message}`); }
+    } catch (error) { toast.error(`Could not reorder: ${error.message}`); }
     finally { setReorderingOrderId(null); }
   };
 
@@ -174,7 +176,7 @@ export const DashBoardPage = () => {
       if (r.status === 401) { navigate("/login?message=Please login again"); return; }
       if (!r.ok) throw new Error();
       const d = await r.json(); if (!d.success) throw new Error();
-    } catch { alert("Could not update preference."); setEmailNotificationsEnabled((p) => !p); }
+    } catch { toast.error("Could not update preference."); setEmailNotificationsEnabled((p) => !p); }
     finally { setNotificationSaving(false); }
   };
 
@@ -187,8 +189,8 @@ export const DashBoardPage = () => {
   const handleProfilePicClick = () => fileInputRef.current?.click();
   const handleProfilePicChange = (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("Please select an image"); return; }
-    if (file.size > 2 * 1024 * 1024) { alert("Max 2MB"); return; }
+    if (!file.type.startsWith("image/")) { toast.warn("Please select an image"); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.warn("Max 2MB"); return; }
     setSelectedProfileFile(file);
     const reader = new FileReader(); reader.onloadend = () => setProfilePicPreview(reader.result); reader.readAsDataURL(file);
   };
@@ -491,7 +493,7 @@ export const DashBoardPage = () => {
       await removeFromFavourites(dishId);
       setFavoriteDishes((prev) => prev.filter((d) => (d._id || d.id) !== dishId));
     } catch (err) {
-      alert("Failed to remove from favourites: " + (err.message || "Unknown error"));
+      toast.error("Failed to remove from favourites: " + (err.message || "Unknown error"));
     }
   };
 

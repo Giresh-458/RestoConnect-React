@@ -39,6 +39,18 @@ const restaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isSuspended: {
+    type: Boolean,
+    default: false,
+  },
+  suspensionEndDate: {
+    type: Date,
+    default: null,
+  },
+  suspensionReason: {
+    type: String,
+    default: null,
+  },
   operatingHours: {
     open: { type: String, default: "09:00" },
     close: { type: String, default: "22:00" },

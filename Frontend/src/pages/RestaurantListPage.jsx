@@ -6,9 +6,11 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import EmptyState from '../components/common/EmptyState';
 import PageHeader from '../components/layout/PageHeader';
 import GridLayout from '../components/layout/GridLayout';
+import { useToast } from '../components/common/Toast';
 
 const RestaurantListPage = () => {
   const dispatch = useDispatch();
+  const toast = useToast();
   const { items: restaurants, loading, error } = useSelector((state) => state.restaurants);
 
   useEffect(() => {
@@ -17,7 +19,7 @@ const RestaurantListPage = () => {
 
   useEffect(() => {
     if (error) {
-      alert(`Error: ${error}`);
+      toast.error(`Error: ${error}`);
       dispatch(clearError());
     }
   }, [error, dispatch]);

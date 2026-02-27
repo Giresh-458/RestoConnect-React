@@ -535,6 +535,49 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.admin-search-input {
+  padding: 7px 12px 7px 34px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+  min-width: 200px;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 10px center;
+  font-family: inherit;
+}
+
+.admin-search-input:focus {
+  border-color: var(--admin-primary);
+}
+
+.admin-filter-select {
+  padding: 7px 28px 7px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.admin-filter-select:focus {
+  border-color: var(--admin-primary);
+}
+
+.admin-filter-count {
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+  margin-left: auto;
 }
 
 /* ── Period Toggle ── */

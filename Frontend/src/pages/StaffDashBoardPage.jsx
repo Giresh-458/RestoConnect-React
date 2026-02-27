@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { redirect, useNavigate } from "react-router-dom";
 import { isLogin, logout } from "../util/auth";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 import "./StaffDashBoardPage.css";
 import {
   FaUtensils, FaCog, FaSignOutAlt, FaClock, FaCheckCircle,
@@ -63,6 +65,8 @@ const TABLE_STATUSES = {
 // ═══════════════════════════════════════════
 export function StaffDashBoardPage() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   // ─── STATE ───
   const [data, setData] = useState(null);
@@ -213,7 +217,7 @@ export function StaffDashBoardPage() {
       });
       if (!resp.ok) throw new Error("Failed to update order");
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
@@ -231,13 +235,13 @@ export function StaffDashBoardPage() {
         throw new Error(err.error || "Failed to update table");
       }
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
   const handleAssignTable = async (reservationId) => {
     const tableNumber = selectedTableForRes[reservationId];
-    if (!tableNumber) { alert('Select a table first'); return; }
+    if (!tableNumber) { toast.warn('Select a table first'); return; }
     setProcessingId(`res-${reservationId}`);
     try {
       const resp = await fetch("http://localhost:3000/staff/Dashboard/allocate-table", {
@@ -252,12 +256,13 @@ export function StaffDashBoardPage() {
       }
       setSelectedTableForRes(prev => { const n = { ...prev }; delete n[reservationId]; return n; });
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
   const handleRemoveReservation = async (id) => {
-    if (!window.confirm("Remove this reservation and free the table?")) return;
+    const ok = await confirm({ title: "Remove Reservation", message: "Remove this reservation and free the table?", variant: "warning", confirmText: "Remove" });
+    if (!ok) return;
     setProcessingId(`res-del-${id}`);
     try {
       const resp = await fetch(`http://localhost:3000/staff/Dashboard/remove-reservation/${id}`, {
@@ -265,7 +270,7 @@ export function StaffDashBoardPage() {
       });
       if (!resp.ok) throw new Error("Failed to remove reservation");
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
@@ -280,12 +285,12 @@ export function StaffDashBoardPage() {
       });
       if (!resp.ok) throw new Error("Failed to update task");
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
   const handleAddTable = async () => {
-    if (!newTable.number || !newTable.capacity) { alert('Enter table number and capacity'); return; }
+    if (!newTable.number || !newTable.capacity) { toast.warn('Enter table number and capacity'); return; }
     setProcessingId('add-table');
     try {
       const resp = await fetch("http://localhost:3000/staff/add-table", {
@@ -298,12 +303,13 @@ export function StaffDashBoardPage() {
       if (!resp.ok) throw new Error(result.error || "Failed to add table");
       setNewTable({ number: '', capacity: '' });
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
   const handleDeleteTable = async (num) => {
-    if (!window.confirm(`Delete Table ${num}?`)) return;
+    const ok = await confirm({ title: `Delete Table ${num}`, message: "Are you sure you want to delete this table?", variant: "danger", confirmText: "Delete" });
+    if (!ok) return;
     setProcessingId(`del-table-${num}`);
     try {
       const resp = await fetch(`http://localhost:3000/staff/tables/${num}`, {
@@ -311,13 +317,13 @@ export function StaffDashBoardPage() {
       });
       if (!resp.ok) throw new Error("Failed to delete table");
       await fetchData(true);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
     finally { setProcessingId(null); }
   };
 
   const handlePasswordChange = async () => {
-    if (!passwords.old || !passwords.new) { alert('Fill in all fields'); return; }
-    if (passwords.new !== passwords.confirm) { alert('Passwords do not match'); return; }
+    if (!passwords.old || !passwords.new) { toast.warn('Fill in all fields'); return; }
+    if (passwords.new !== passwords.confirm) { toast.warn('Passwords do not match'); return; }
     try {
       const resp = await fetch('http://localhost:3000/staff/change-password', {
         method: 'POST',
@@ -329,10 +335,10 @@ export function StaffDashBoardPage() {
         const err = await resp.json();
         throw new Error(err.error || 'Failed to change password');
       }
-      alert('Password changed successfully!');
+      toast.success('Password changed successfully!');
       setPasswords({ old: '', new: '', confirm: '' });
       setShowSettings(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
   };
 
   // ─── ORDER CARD SUB-COMPONENT ───

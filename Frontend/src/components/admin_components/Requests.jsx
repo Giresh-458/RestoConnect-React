@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { maskEmail } from "../../util/maskEmail";
 import styles from "./RestaurantSubPage.module.css";
 
 const initialState = {
@@ -70,7 +71,7 @@ export function Requests({ searchTerm }) {
     if (state.lastaction === "accept") {
       let xhr = new XMLHttpRequest();
       xhr.open(
-        "GET",
+        "POST",
         `http://localhost:3000/admin/accept_request/${state.lastpayload}`,
         true
       );
@@ -79,7 +80,7 @@ export function Requests({ searchTerm }) {
     } else if (state.lastaction === "reject") {
       let xhr = new XMLHttpRequest();
       xhr.open(
-        "GET",
+        "POST",
         `http://localhost:3000/admin/reject_request/${state.lastpayload}`,
         true
       );
@@ -113,7 +114,7 @@ export function Requests({ searchTerm }) {
               <tr key={request._id}>
                 <td className={styles.restaurantName}>{request.name}</td>
                 <td className={styles.ownerName}>{request.owner_username}</td>
-                <td className={styles.email}>{request.email}</td>
+                <td className={styles.email}>{maskEmail(request.email)}</td>
                 <td className={styles.location}>{request.location}</td>
                 <td className={styles.amount}>₹{request.amount}</td>
                 <td className={styles.actions}>

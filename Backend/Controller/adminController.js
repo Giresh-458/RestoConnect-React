@@ -42,7 +42,7 @@ exports.getAdminDashboard = async (req, res, next) => {
     if (currentAdminUsername) {
       currentAdminProfile = await User.findOne({
         username: currentAdminUsername,
-      });
+      }).select('-password');
     }
 
     let users = [];
@@ -51,9 +51,9 @@ exports.getAdminDashboard = async (req, res, next) => {
       users = await User.find({
         ...userFilter,
         username: { $ne: currentAdminUsername },
-      });
+      }).select('-password');
     } else {
-      users = await User.find(userFilter);
+      users = await User.find(userFilter).select('-password');
     }
 
     users = users.map((user) => {
@@ -159,9 +159,9 @@ exports.getAllUsers = async (req, res, next) => {
       users = await User.find({
         ...filter,
         username: { $ne: currentAdminUsername },
-      });
+      }).select('-password');
     } else {
-      users = await User.find(filter);
+      users = await User.find(filter).select('-password');
     }
     res.json(users);
   } catch (error) {
@@ -841,13 +841,16 @@ exports.getAnalytics = async (req, res, next) => {
       restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
     });
 
+    // Filter out suspended restaurants from top performing
     const topRestaurants = restaurants
+      .filter(r => !r.isSuspended) // Exclude suspended restaurants
       .map(r => ({
         _id: r._id.toString(),
         name: r.name,
         orders: restOrderCount[r._id.toString()] || 0,
         revenue: restRevenue[r._id.toString()] || 0,
         rating: r.rating || 0,
+        isSuspended: r.isSuspended,
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
@@ -1336,8 +1339,9 @@ exports.getAdminOverview = async (req, res) => {
     const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
     const platformFee = totalRevenue * 0.1;
 
+    const { password: _pw, ...safeAdmin } = req.user.toObject ? req.user.toObject() : req.user;
     res.json({
-      current_admin: req.user,
+      current_admin: safeAdmin,
       totalUsers,
       totalEmployees,
       totalRestaurants,

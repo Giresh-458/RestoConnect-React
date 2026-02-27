@@ -1,6 +1,11 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { useToast } from "../common/Toast";
+import { useConfirm } from "../common/ConfirmDialog";
+import { maskEmail } from "../../util/maskEmail";
 
 export default function User() {
+  const toast = useToast();
+  const confirmDlg = useConfirm();
   const initialState = {
     users_list: [],
     lastaction: "load",
@@ -69,8 +74,9 @@ export default function User() {
   }
 
   const handleDelete = (userId, username) => {
-    if (!confirm(`Are you sure you want to permanently delete user '${username}'? This action cannot be undone.`)) return;
-    Dispatch({ type: "delete", payload: userId });
+    confirmDlg({ title: "Delete User", message: `Are you sure you want to permanently delete user '${username}'? This action cannot be undone.`, variant: "danger", confirmText: "Delete" }).then(ok => {
+      if (ok) Dispatch({ type: "delete", payload: userId });
+    });
   };
 
   const openSuspendModal = (user) => {
@@ -144,7 +150,8 @@ export default function User() {
   };
 
   const handleUnsuspend = async (user) => {
-    if (!confirm(`Unsuspend user '${user.username}'?`)) return;
+    const ok = await confirmDlg({ title: "Unsuspend User", message: `Unsuspend user '${user.username}'?`, variant: "warning", confirmText: "Unsuspend" });
+    if (!ok) return;
     try {
       const resp = await fetch(`http://localhost:3000/admin/unsuspend_user/${user._id}`, {
         method: 'POST',
@@ -152,15 +159,15 @@ export default function User() {
       });
       if (!resp.ok) {
         const err = await resp.json().catch(()=>({ error: 'Server error' }));
-        alert('Error: ' + (err.error || 'Failed to unsuspend'));
+        toast.error('Error: ' + (err.error || 'Failed to unsuspend'));
         return;
       }
       // Update UI to reflect unsuspension
       Dispatch({ type: 'load', payload: state.users_list.map(u => u._id === user._id ? { ...u, isSuspended: false, suspensionEndDate: null, suspensionReason: null } : u) });
-      alert('User unsuspended');
+      toast.success('User unsuspended');
     } catch (e) {
       console.error(e);
-      alert('Network or server error while unsuspending');
+      toast.error('Network or server error while unsuspending');
     }
   };
 
@@ -340,7 +347,7 @@ export default function User() {
               .map((user, i) => (
                 <tr key={i}>
                   <td style={styles.td}>{user.username}</td>
-                  <td style={styles.td}>{user.email}</td>
+                  <td style={styles.td}>{maskEmail(user.email)}</td>
                   <td style={styles.td}>{user.role}</td>
                   <td style={styles.td}>
                     <button

@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import * as api from "../api/ownerApi";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 import styles from "./OwnerReservations.module.css";
 
 const FLOW_STEPS = ["pending", "confirmed", "seated", "completed"];
 const STATUS_ACTIONS = {
   pending: ["confirmed", "cancelled"],
-  confirmed: ["seated", "cancelled"],
-  seated: ["completed"],
+  confirmed: ["seated", "cancelled", "unassign"],
+  seated: ["completed", "unassign"],
   completed: [],
   cancelled: [],
 };
@@ -24,9 +26,12 @@ const ACTION_LABELS = {
   seated:    { icon: "🪑", label: "Seat Guest", desc: "Assign table & seat" },
   completed: { icon: "✔", label: "Complete", desc: "Mark visit complete" },
   cancelled: { icon: "✕", label: "Cancel", desc: "Cancel reservation" },
+  unassign:  { icon: "↩️", label: "Unassign", desc: "Remove table assignment" },
 };
 
 export function OwnerReservations() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [reservations, setReservations] = useState([]);
   const [tables, setTables] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -55,9 +60,10 @@ export function OwnerReservations() {
     finally { setLoading(false); }
   };
 
-  const openAssignModal = (resId, targetStatus, guests) => {
-    setSelectedTables([]);
-    setAssignModal({ resId, targetStatus, guests });
+const openAssignModal = (resId, targetStatus, guests, existingTables = []) => {
+    // If there are existing tables, pre-select them for reassignment
+    setSelectedTables(existingTables);
+    setAssignModal({ resId, targetStatus, guests, isReassign: existingTables.length > 0 });
   };
 
   const toggleTableSelection = (tableNum) => {
@@ -70,7 +76,7 @@ export function OwnerReservations() {
     if (!assignModal) return;
     const { resId, targetStatus } = assignModal;
     if (selectedTables.length === 0 && targetStatus === "seated") {
-      alert("Please select at least one table to seat the customer.");
+      toast.warn("Please select at least one table to seat the customer.");
       return;
     }
     setUpdating(resId);
@@ -78,21 +84,44 @@ export function OwnerReservations() {
     try {
       await api.updateReservationStatus(resId, targetStatus, selectedTables.length > 0 ? selectedTables : undefined);
       await load();
-    } catch (e) { alert("Failed: " + e.message); }
+    } catch (e) { toast.error("Failed: " + e.message); }
     finally { setUpdating(null); }
   };
 
-  const handleStatus = async (id, status) => {
+const handleStatus = async (id, status) => {
     if (status === "confirmed" || status === "seated") {
       const res = reservations.find((r) => r._id === id);
       openAssignModal(id, status, res?.guests || 1);
       return;
     }
+    
+    // Handle unassign table action
+    if (status === "unassign") {
+      const res = reservations.find((r) => r._id === id);
+      const ok = await confirm({ 
+        title: "Unassign Table", 
+        message: `Remove table assignment for ${res?.customerName}? The table will become available.`,
+        variant: "warning", 
+        confirmText: "Unassign" 
+      });
+      if (!ok) return;
+      
+      setUpdating(id);
+      try {
+        // Update to remove tables - set tables to empty array
+        await api.updateReservationStatus(id, "confirmed", []);
+        toast.success("Table assignment removed");
+        await load();
+      } catch (e) { toast.error("Failed: " + e.message); }
+      finally { setUpdating(null); }
+      return;
+    }
+    
     setUpdating(id);
     try {
       await api.updateReservationStatus(id, status);
       await load();
-    } catch (e) { alert("Failed: " + e.message); }
+    } catch (e) { toast.error("Failed: " + e.message); }
     finally { setUpdating(null); }
   };
 
@@ -252,19 +281,31 @@ export function OwnerReservations() {
                 )}
               </div>
 
-              {/* Right: Actions */}
+{/* Right: Actions */}
               <div className={styles.cardRight}>
                 {actions.length > 0 ? (
                   <div className={styles.actions}>
                     {actions.map((a) => {
                       const act = ACTION_LABELS[a];
-                      const isPrimary = a !== "cancelled";
+                      const isPrimary = a !== "cancelled" && a !== "unassign";
+                      // Skip showing unassign button if no tables are assigned
+                      if (a === "unassign" && (!r.tables || r.tables.length === 0)) {
+                        return null;
+                      }
                       return (
                         <button
                           key={a}
                           className={`${styles.actionBtn} ${isPrimary ? styles.actionPrimary : styles.actionDanger}`}
-                          style={isPrimary ? { "--a-color": STATUS_META[a].color } : {}}
-                          onClick={() => handleStatus(r._id, a)}
+                          style={isPrimary ? { "--a-color": STATUS_META[a]?.color || "#6366f1" } : {}}
+                          onClick={() => {
+                            if (a === "confirmed" && r.tables?.length > 0) {
+                              // Reassign tables - open modal with existing tables
+                              const resItem = reservations.find(resItem => resItem._id === r._id);
+                              openAssignModal(r._id, a, resItem?.guests || 1, r.tables);
+                            } else {
+                              handleStatus(r._id, a);
+                            }
+                          }}
                           disabled={updating === r._id}
                           title={act.desc}
                         >
@@ -286,12 +327,14 @@ export function OwnerReservations() {
       {assignModal && (
         <div className={styles.modalOverlay} onClick={() => setAssignModal(null)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
+<div className={styles.modalHeader}>
               <div>
-                <h3>{assignModal.targetStatus === "seated" ? "🪑 Seat Customer" : "✓ Confirm & Assign Table"}</h3>
+                <h3>{assignModal.targetStatus === "seated" ? "🪑 Seat Customer" : assignModal.isReassign ? "🔄 Reassign Table" : "✓ Confirm & Assign Table"}</h3>
                 <p className={styles.modalSubtitle}>
                   {assignModal.targetStatus === "seated"
                     ? "Choose which table(s) to seat the guest at"
+                    : assignModal.isReassign
+                    ? "Change table assignment for this reservation"
                     : "Confirm the booking and optionally pre-assign a table"}
                 </p>
               </div>

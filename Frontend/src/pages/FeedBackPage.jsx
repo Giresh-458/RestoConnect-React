@@ -4,6 +4,7 @@ import { addToFavourites } from "../util/favourites";
 import "../styles/owner_dashboard.css";
 import styles from "./FeedBackPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
+import { useToast } from "../components/common/Toast";
 
 /* Interactive star rating component */
 function StarRating({ value, onChange, label, disabled }) {
@@ -35,6 +36,7 @@ function StarRating({ value, onChange, label, disabled }) {
 export function FeedBackPage({ mode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const isOwnerView =
     mode === "owner" || location.pathname.includes("/owner/feedback");
   const isCustomerView =
@@ -325,7 +327,7 @@ export function FeedBackPage({ mode }) {
       fetchOwnerFeedback();
     } catch (err) {
       console.error("Error updating status:", err);
-      alert("Could not update the feedback status.");
+      toast.error("Could not update the feedback status.");
     }
   };
 

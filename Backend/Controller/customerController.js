@@ -1322,6 +1322,7 @@ exports.apiCheckout = async (req, res, next) => {
       totalAmount: finalAmount,
       promoCode: promoCode || null,
       promoDiscount: discount || 0,
+      tableNumber: req.body.tableNumber || null,
     });
     await order.save();
 

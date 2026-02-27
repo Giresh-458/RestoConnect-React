@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../components/common/Toast';
+import { useConfirm } from '../components/common/ConfirmDialog';
 import './StaffManagement.css';
 
 const StaffManagement = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [staffList, setStaffList] = useState([]);
   const [supportMessages, setSupportMessages] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -95,7 +99,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Refresh task list if a staff member is selected
       if (selectedStaff) {
@@ -110,18 +114,18 @@ const StaffManagement = () => {
       });
     } catch (error) {
       console.error('Error adding task:', error);
-      alert('Failed to add task: ' + error.message);
+      toast.error('Failed to add task: ' + error.message);
     }
   };
 
   const handleAddStaffSubmit = async (e) => {
     e.preventDefault();
     if (!addStaffForm.username.trim() || !addStaffForm.password.trim()) {
-      alert('Username and password are required.');
+      toast.warn('Username and password are required.');
       return;
     }
     if (!addStaffForm.email.trim()) {
-      alert('Email is required for staff accounts.');
+      toast.warn('Email is required for staff accounts.');
       return;
     }
     try {
@@ -139,7 +143,7 @@ const StaffManagement = () => {
         throw new Error(result.error || 'Failed to add staff');
       }
 
-      alert('Staff added successfully');
+      toast.success('Staff added successfully');
       setAddStaffForm({
         username: '',
         password: '',
@@ -148,14 +152,13 @@ const StaffManagement = () => {
       fetchInitialData();
     } catch (error) {
       console.error('Error adding staff:', error);
-      alert('Failed to add staff: ' + error.message);
+      toast.error('Failed to add staff: ' + error.message);
     }
   };
 
   const handleDeleteStaff = async (staffId) => {
-    if (!window.confirm('Are you sure you want to remove this staff member?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Remove Staff', message: 'Are you sure you want to remove this staff member?', variant: 'danger', confirmText: 'Remove' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3000/api/owner/staffManagement/api/${staffId}`, {
@@ -167,11 +170,11 @@ const StaffManagement = () => {
         throw new Error('Failed to remove staff');
       }
 
-      alert('Staff removed successfully');
+      toast.success('Staff removed successfully');
       fetchInitialData();
     } catch (error) {
       console.error('Error removing staff:', error);
-      alert('Failed to remove staff: ' + error.message);
+      toast.error('Failed to remove staff: ' + error.message);
     }
   };
 
@@ -192,7 +195,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Reset form
       setAnnouncementForm({
@@ -204,14 +207,14 @@ const StaffManagement = () => {
       fetchInitialData();
     } catch (error) {
       console.error('Error adding announcement:', error);
-      alert('Failed to add announcement: ' + error.message);
+      toast.error('Failed to add announcement: ' + error.message);
     }
   };
 
   const handleShiftSubmit = async (e) => {
     e.preventDefault();
     if (!shiftForm.assignedStaff || shiftForm.assignedStaff.length === 0) {
-      alert('Please select at least one staff member for the shift.');
+      toast.warn('Please select at least one staff member for the shift.');
       return;
     }
     try {
@@ -229,7 +232,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Reset form
       setShiftForm({
@@ -241,7 +244,7 @@ const StaffManagement = () => {
       });
     } catch (error) {
       console.error('Error adding shift:', error);
-      alert('Failed to add shift: ' + error.message);
+      toast.error('Failed to add shift: ' + error.message);
     }
   };
 
@@ -264,9 +267,8 @@ const StaffManagement = () => {
   };
 
   const handleDeleteAnnouncement = async (announcementId) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Delete Announcement', message: 'Are you sure you want to delete this announcement?', variant: 'danger', confirmText: 'Delete' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3000/api/owner/announcements/${announcementId}`, {
@@ -279,13 +281,13 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Refresh announcements list
       fetchInitialData();
     } catch (error) {
       console.error('Error deleting announcement:', error);
-      alert('Failed to delete announcement: ' + error.message);
+      toast.error('Failed to delete announcement: ' + error.message);
     }
   };
 
@@ -309,14 +311,13 @@ const StaffManagement = () => {
       setStaffTasks(result.tasks || []);
     } catch (error) {
       console.error('Error fetching staff tasks:', error);
-      alert('Failed to fetch staff tasks: ' + error.message);
+      toast.error('Failed to fetch staff tasks: ' + error.message);
     }
   };
 
   const handleDeleteStaffTask = async (taskId) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Delete Task', message: 'Are you sure you want to delete this task?', variant: 'danger', confirmText: 'Delete' });
+    if (!ok) return;
 
     try {
       const response = await fetch(`http://localhost:3000/api/owner/staffManagement/tasks/${taskId}`, {
@@ -329,7 +330,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Refresh tasks for selected staff
       if (selectedStaff) {
@@ -337,7 +338,7 @@ const StaffManagement = () => {
       }
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to delete task: ' + error.message);
+      toast.error('Failed to delete task: ' + error.message);
     }
   };
 

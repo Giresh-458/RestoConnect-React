@@ -1,6 +1,7 @@
 import { Form, useActionData } from "react-router-dom";
 import "./RestaurantApplication.css";
 import { useEffect, useState } from "react";
+import { toast } from "../components/common/Toast";
 
 export function RestaurantApplication() {
   const actionData = useActionData();
@@ -375,12 +376,11 @@ export async function action({ request }) {
     }
 
     // Show success popup and redirect to login
-    alert(
-      "✅ " +
-        (result.message ||
-          "Application submitted successfully! We will review and contact you soon. You can now login.")
+    toast.success(
+      result.message ||
+        "Application submitted successfully! We will review and contact you soon. You can now login."
     );
-    window.location.href = "/login";
+    setTimeout(() => { window.location.href = "/login"; }, 2000);
     return null;
   } catch (error) {
     console.error("Application error:", error);

@@ -1060,7 +1060,7 @@ exports.addProduct = async (req, res, next) => {
     const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const { name, price, description, serves } = req.body;
+    const { name, price, description, serves, category } = req.body;
     console.log(`Owner ${user.username} adding dish: ${name} for restaurant ${user.rest_id}`);
     
     // Handle image upload - if file was uploaded, use the filename
@@ -1069,12 +1069,16 @@ exports.addProduct = async (req, res, next) => {
       imagePath = req.file.filename; // multer saves to /public/uploads/
     }
     
+    // Default category if not provided
+    const dishCategory = category || "Main Course";
+    
     let dish = new Dish({ 
       name, 
       price, 
       description: description,
       serves: serves ? parseInt(serves) : 1,
-      image: imagePath
+      image: imagePath,
+      category: dishCategory
     });
     await dish.addDish(user.rest_id);
     console.log(`Dish ${name} added successfully to restaurant ${user.rest_id}`);
@@ -1846,8 +1850,21 @@ exports.updateReservationStatus = async (req, res) => {
 
     const rest = await Restaurant.findById(user.rest_id);
 
-    // Assign tables if provided
-    if (assignedTables && Array.isArray(assignedTables) && assignedTables.length > 0) {
+    // Check if tables are being unassigned (empty array passed)
+    const isUnassigning = Array.isArray(assignedTables) && assignedTables.length === 0;
+    
+    // If unassigning tables, free the previously assigned tables first
+    if (isUnassigning && reservation.tables?.length > 0 && rest) {
+      reservation.tables.forEach(tableNum => {
+        const table = rest.tables.find(t => String(t.number) === String(tableNum));
+        if (table) table.status = "Available";
+      });
+      reservation.tables = [];
+      reservation.table_id = null;
+      reservation.allocated = false;
+    }
+    // Assign tables if provided (and not unassigning)
+    else if (assignedTables && Array.isArray(assignedTables) && assignedTables.length > 0) {
       // Validate total seats across assigned tables vs reservation guests
       if (rest) {
         const totalSeats = assignedTables.reduce((sum, tableNum) => {

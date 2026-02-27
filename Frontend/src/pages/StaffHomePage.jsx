@@ -2,8 +2,8 @@ import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "../components/StaffHomePage.css";
+import { useToast } from "../components/common/Toast";
 
-// ─── Helper: time ago ───
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
@@ -12,16 +12,33 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 60)}h ${Math.round(diff % 60)}m ago`;
 }
 
-// ─── Helper: countdown to reservation ───
 function timeUntil(dateStr) {
   if (!dateStr) return "";
-  const diff = (new Date(dateStr).getTime() - Date.now()) / 60000;
+  
+  let targetDate;
+  try {
+    if (dateStr && typeof dateStr === 'string' && dateStr.includes(':') && !dateStr.includes('T')) {
+      const today = new Date();
+      const [hours, minutes] = dateStr.split(':');
+      today.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
+      targetDate = today;
+    } else {
+      targetDate = new Date(dateStr);
+    }
+    
+    if (isNaN(targetDate.getTime())) {
+      return "";
+    }
+  } catch (e) {
+    return "";
+  }
+  
+  const diff = (targetDate.getTime() - Date.now()) / 60000;
   if (diff < 0) return `${Math.abs(Math.round(diff))}m overdue`;
   if (diff < 60) return `in ${Math.round(diff)}m`;
   return `in ${Math.floor(diff / 60)}h ${Math.round(diff % 60)}m`;
 }
 
-// ─── Sub-component: Stat Card ───
 function StatCard({ icon, label, value, subtext, color }) {
   return (
     <div className={`sh-stat-card sh-stat-${color}`}>
@@ -35,7 +52,6 @@ function StatCard({ icon, label, value, subtext, color }) {
   );
 }
 
-// ─── Sub-component: Order Card ───
 function OrderCard({ order, onStatusChange, isUpdating }) {
   const elapsed = order.orderTime ? timeAgo(order.orderTime) : "";
   const statusFlow = ["pending", "preparing", "ready", "served"];
@@ -285,6 +301,7 @@ export function StaffHomePage() {
   const [updatingTask, setUpdatingTask] = useState(null);
   const [processingReservation, setProcessingReservation] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
 
   // Live clock
   useEffect(() => {
@@ -347,7 +364,7 @@ export function StaffHomePage() {
       if (!resp.ok) throw new Error("Failed to update order");
       await fetchData(true);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setUpdatingOrder(null);
     }
@@ -376,7 +393,7 @@ export function StaffHomePage() {
       }
       await fetchData(true);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setProcessingReservation(false);
     }
@@ -398,7 +415,7 @@ export function StaffHomePage() {
       if (!resp.ok) throw new Error("Failed to update task");
       await fetchData(true);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setUpdatingTask(null);
     }
@@ -839,20 +856,24 @@ export function StaffHomePage() {
           {(data?.recentFeedback || []).length > 0 && (
             <div className="sh-feedback-section">
               <h4>💬 Recent Feedback</h4>
-              {data.recentFeedback.slice(0, 3).map((f, i) => (
-                <div key={i} className="sh-feedback-item">
-                  <div className="sh-feedback-header">
-                    <span className="sh-feedback-name">{f.customerName}</span>
-                    <span className="sh-feedback-rating">
-                      {"★".repeat(f.rating || 0)}
-                      {"☆".repeat(5 - (f.rating || 0))}
-                    </span>
+              {data.recentFeedback.slice(0, 3).map((f, i) => {
+                const ratings = [f.diningRating, f.orderRating].filter(r => typeof r === 'number');
+                const avgRating = ratings.length > 0 ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0;
+                return (
+                  <div key={i} className="sh-feedback-item">
+                    <div className="sh-feedback-header">
+                      <span className="sh-feedback-name">{f.customerName}</span>
+                      <span className="sh-feedback-rating">
+                        {"★".repeat(avgRating || 0)}
+                        {"☆".repeat(5 - (avgRating || 0))}
+                      </span>
+                    </div>
+                    {f.feedback && (
+                      <p className="sh-feedback-text">"{f.feedback}"</p>
+                    )}
                   </div>
-                  {f.feedback && (
-                    <p className="sh-feedback-text">"{f.feedback}"</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

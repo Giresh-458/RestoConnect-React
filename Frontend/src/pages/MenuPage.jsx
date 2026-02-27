@@ -21,6 +21,7 @@ import {
 } from "../util/imageUtils";
 import styles from "./MenuPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
+import { useToast } from "../components/common/Toast";
 
 export function MenuPage() {
   const data = useLoaderData();
@@ -37,6 +38,7 @@ export function MenuPage() {
   const [loadingFavourites, setLoadingFavourites] = useState(true);
   const [showSwitchWarning, setShowSwitchWarning] = useState(false);
   const [pendingDish, setPendingDish] = useState(null);
+  const toast = useToast();
 
   if (!data || !data.restaurant || !data.dishes) {
     return (
@@ -122,7 +124,7 @@ export function MenuPage() {
 
   const handleOrder = () => {
     if (cartItems.length === 0) {
-      alert("Your cart is empty. Add some items first!");
+      toast.warn("Your cart is empty. Add some items first!");
       return;
     }
     navigate("/customer/order", {
@@ -174,7 +176,7 @@ export function MenuPage() {
       setFavourites((prev) => [...prev, dishId]);
     } catch (error) {
       console.error("Error adding to favourites:", error);
-      alert("Failed to add to favourites");
+      toast.error("Failed to add to favourites");
     }
   };
 
@@ -185,7 +187,7 @@ export function MenuPage() {
       setFavourites((prev) => prev.filter((id) => id !== dishId));
     } catch (error) {
       console.error("Error removing from favourites:", error);
-      alert("Failed to remove from favourites");
+      toast.error("Failed to remove from favourites");
     }
   };
 
@@ -197,8 +199,8 @@ export function MenuPage() {
         className={styles.restaurantBanner}
         style={{
           backgroundImage: restaurant.image
-            ? `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6)), url("${restaurant.image}")`
-            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`,
+            ? `linear-gradient(to right, rgba(30, 41, 59, 0.7), rgba(30, 41, 59, 0.4)), url("${restaurant.image}")`
+            : `linear-gradient(to right, #1e293b, #334155)`,
         }}
       >
         <div className={styles.bannerOverlay}>

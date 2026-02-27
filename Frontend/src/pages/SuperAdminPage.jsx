@@ -1,5 +1,6 @@
 import { redirect, useLoaderData } from "react-router-dom";
 import { isLogin, logout } from "../util/auth";
+import { maskEmail } from "../util/maskEmail";
 import { useState, useEffect } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -324,7 +325,7 @@ function EmployeePerformanceSection() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{emp.username}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{emp.email}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{maskEmail(emp.email)}</div>
                     </td>
                     <td><span className="sa-badge success">{emp.totalApprovals}</span></td>
                     <td>{emp.totalOrdersHandled}</td>
@@ -776,7 +777,7 @@ function TopCustomersSection() {
                     <td><span className={`sa-rank ${i < 3 ? ["gold", "silver", "bronze"][i] : ""}`}>{i + 1}</span></td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{c.username}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{c.email}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{maskEmail(c.email)}</div>
                     </td>
                     <td>{c.totalOrders}</td>
                     <td>{c.totalItems}</td>
@@ -814,7 +815,7 @@ function AdminSettingsSection({ adminData }) {
           <div>
             <label style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 500 }}>Email</label>
             <div style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", marginTop: 4 }}>
-              {adminData?.email || "—"}
+              {maskEmail(adminData?.email) || "—"}
             </div>
           </div>
           <div>

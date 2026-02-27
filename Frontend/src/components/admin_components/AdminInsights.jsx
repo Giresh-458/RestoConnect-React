@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { maskEmail } from "../../util/maskEmail";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell,
@@ -149,7 +150,7 @@ function EmployeeTab() {
                       }}>{i + 1}</span>
                     </td>
                     <td style={{ fontWeight: 500 }}>{emp.username}</td>
-                    <td style={{ color: "#64748b", fontSize: "0.8rem" }}>{emp.email}</td>
+                    <td style={{ color: "#64748b", fontSize: "0.8rem" }}>{maskEmail(emp.email)}</td>
                     <td>{emp.totalApprovals}</td>
                     <td>{emp.totalOrdersHandled}</td>
                     <td style={{ fontWeight: 600, color: "#16a34a" }}>₹{emp.revenueGenerated.toLocaleString()}</td>
@@ -687,7 +688,7 @@ function CustomersTab() {
                       }}>{i + 1}</span>
                     </td>
                     <td style={{ fontWeight: 500 }}>{c.username}</td>
-                    <td style={{ color: "#64748b", fontSize: "0.8rem" }}>{c.email}</td>
+                    <td style={{ color: "#64748b", fontSize: "0.8rem" }}>{maskEmail(c.email)}</td>
                     <td>{c.totalOrders}</td>
                     <td>{c.totalItems}</td>
                     <td style={{ fontWeight: 600, color: "#16a34a" }}>₹{c.totalSpent.toLocaleString()}</td>

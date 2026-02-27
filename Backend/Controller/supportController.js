@@ -375,14 +375,7 @@ exports.customerCloseTicket = async (req, res, next) => {
   }
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   OWNER  ENDPOINTS
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/**
- * GET /api/owner/support/tickets?status=open&priority=high&category=billing
- * List all tickets for the owner's restaurant
- */
 exports.ownerGetTickets = async (req, res, next) => {
   try {
     const user = req.user || await User.findOne({ username: getUsername(req) });

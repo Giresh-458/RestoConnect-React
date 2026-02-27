@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { Form, useActionData, useNavigate, useSearchParams } from 'react-router-dom';
 import './AuthPage.css';
+import { useToast } from '../components/common/Toast';
+import { toast as imperativeToast } from '../components/common/Toast';
 
 export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +15,7 @@ export function AuthPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const message = searchParams.get('message');
+    const toast = useToast();
     
     // Forgot password states
     const [forgotPasswordStep, setForgotPasswordStep] = useState(null); // null, 'email', 'code', 'newPassword'
@@ -226,12 +229,12 @@ export function AuthPage() {
         if (file) {
             // Validate file type
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
+                toast.warn('Please select an image file');
                 return;
             }
             // Validate file size (2MB max)
             if (file.size > 2 * 1024 * 1024) {
-                alert('File size must be less than 2MB');
+                toast.warn('File size must be less than 2MB');
                 return;
             }
 
@@ -751,8 +754,8 @@ export async function action({ request }) {
             }
 
             // Show success popup and redirect to login
-            alert('✅ ' + (result.message || 'Account created successfully! Please login.'));
-            window.location.href = '/login';
+            imperativeToast.success(result.message || 'Account created successfully! Please login.');
+            setTimeout(() => { window.location.href = '/login'; }, 2000);
             return null;
 
         } catch (error) {

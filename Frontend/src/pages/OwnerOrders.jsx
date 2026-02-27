@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import * as api from "../api/ownerApi";
+import { useToast } from "../components/common/Toast";
 import styles from "./OwnerOrders.module.css";
 
 const STATUS_FLOW = {
@@ -25,6 +26,7 @@ const STATUS_COLORS = {
 };
 
 export function OwnerOrders() {
+  const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("all");
   const [expandedOrder, setExpandedOrder] = useState(null);
@@ -52,7 +54,7 @@ export function OwnerOrders() {
         prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
       );
     } catch (e) {
-      alert("Failed: " + (e.message || "Unknown error"));
+      toast.error("Failed: " + (e.message || "Unknown error"));
     } finally {
       setUpdating(null);
     }

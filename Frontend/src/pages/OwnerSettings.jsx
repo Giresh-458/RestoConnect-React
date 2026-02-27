@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import * as api from "../api/ownerApi";
 import s from "./OwnerSettings.module.css";
+import { useToast } from "../components/common/Toast";
 
 export default function OwnerSettings() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -59,7 +61,7 @@ export default function OwnerSettings() {
       await api.updateSettings(payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch { alert("Failed to save settings"); }
+    } catch { toast.error("Failed to save settings"); }
     setSaving(false);
   };
 

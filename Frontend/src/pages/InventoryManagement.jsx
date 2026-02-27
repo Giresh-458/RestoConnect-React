@@ -8,9 +8,13 @@ import {
   deleteInventoryItem 
 } from "../api/inventoryApi";
 import styles from "./InventoryManagement.module.css";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 
 export function InventoryManagement({ onInventoryChange }) {
   console.log("InventoryManagement component mounted");
+  const toast = useToast();
+  const confirmDlg = useConfirm();
   const [inventory, setInventory] = useState(() => {
     try {
       const saved = localStorage.getItem('inventory');
@@ -46,7 +50,7 @@ export function InventoryManagement({ onInventoryChange }) {
 
     } catch (error) {
       console.error("Error loading inventory:", error);
-      alert('Failed to load inventory. Please try again.');
+      toast.error('Failed to load inventory. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,7 @@ export function InventoryManagement({ onInventoryChange }) {
       }
     } catch (error) {
       console.error("Error updating inventory:", error);
-      alert(error.message || "Failed to update inventory. Please try again.");
+      toast.error(error.message || "Failed to update inventory. Please try again.");
     }
   };
 
@@ -84,7 +88,7 @@ export function InventoryManagement({ onInventoryChange }) {
       };
       
       if (!payload.name) {
-        alert('Please enter a valid item name');
+        toast.warn('Please enter a valid item name');
         return;
       }
       
@@ -105,14 +109,13 @@ export function InventoryManagement({ onInventoryChange }) {
       setShowAddForm(false);
     } catch (error) {
       console.error("Error adding inventory item:", error);
-      alert(error.message || "Failed to add inventory item. Please try again.");
+      toast.error(error.message || "Failed to add inventory item. Please try again.");
     }
   };
 
   const handleDeleteItem = async (itemId) => {
-    if (!window.confirm("Are you sure you want to delete this inventory item?")) {
-      return;
-    }
+    const ok = await confirmDlg({ title: "Delete Item", message: "Are you sure you want to delete this inventory item?", variant: "danger", confirmText: "Delete" });
+    if (!ok) return;
 
     try {
       await deleteInventoryItem(itemId);
@@ -130,7 +133,7 @@ export function InventoryManagement({ onInventoryChange }) {
 
     } catch (error) {
       console.error("Error deleting inventory item:", error);
-      alert(error.message || "Failed to delete inventory item. Please try again.");
+      toast.error(error.message || "Failed to delete inventory item. Please try again.");
     }
   };
 

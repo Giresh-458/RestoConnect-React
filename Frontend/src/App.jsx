@@ -3,6 +3,10 @@ import { Provider } from "react-redux";
 
 import store from "./store/store";
 
+import { ToastProvider } from "./components/common/Toast";
+import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import "./components/common/Toast.css";
+
 import { HomePage, loader as homeLoader } from "./pages/HomePage";
 import RestaurantListPage from "./pages/RestaurantListPage";
 
@@ -141,9 +145,12 @@ function App() {
   return (
     <>
       <Provider store={store}>
-      <RouterProvider router={router} />
+        <ToastProvider>
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
+        </ToastProvider>
       </Provider>
-
     </>
   )
 }

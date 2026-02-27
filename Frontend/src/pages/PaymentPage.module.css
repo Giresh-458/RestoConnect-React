@@ -1,59 +1,32 @@
 /* ============================================
-   PAYMENT PAGE - GLASSMORPHISM DESIGN
-   Bluish Green Theme matching Menu & Order Pages
+   PAYMENT PAGE — Clean Professional Design
    ============================================ */
 
 .paymentPage {
   min-height: 100vh;
   padding: 0 0 3rem 0;
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-  position: relative;
+  background: #f8f9fa;
 }
 
-.paymentPage::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(79, 172, 254, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(0, 242, 254, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 40% 20%, rgba(0, 212, 170, 0.2) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* Header Checkout Steps inherit from parent — no extra bg needed */
 
 .paymentContainer {
   max-width: 780px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
-  position: relative;
-  z-index: 1;
 }
 
 .paymentCard {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
-  border: 1.5px solid rgba(255, 255, 255, 0.6);
-  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
   padding: 32px;
-  box-shadow:
-    0 12px 48px rgba(0, 0, 0, 0.12),
-    0 4px 16px rgba(79, 172, 254, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  animation: fadeInUp 0.5s ease-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  animation: fadeInUp 0.4s ease-out;
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -70,22 +43,20 @@
 }
 
 .backBtn {
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(15px);
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
   color: #374151;
   padding: 8px 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.9rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 
 .backBtn:hover {
-  background: rgba(255, 255, 255, 0.85);
-  transform: translateX(-2px);
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 .headerRow h1 {
@@ -106,9 +77,9 @@
 .dueTotal {
   margin-top: 12px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(79, 172, 254, 0.12), rgba(0, 242, 254, 0.08));
-  border: 1px solid rgba(79, 172, 254, 0.2);
-  border-radius: 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
   color: #111827;
   font-size: 1rem;
   font-weight: 500;
@@ -120,18 +91,15 @@
 .dueTotal strong {
   font-size: 1.6rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #4facfe, #00d4aa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #16a34a;
 }
 
 /* Error */
 .paymentError {
   padding: 14px 18px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
   color: #dc2626;
   font-weight: 600;
   font-size: 0.95rem;
@@ -148,10 +116,9 @@
 
 .methodGroup {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
 }
 
 .methodGroup h2 {
@@ -191,22 +158,19 @@
 .fieldRow input,
 .fieldRowTwoCols input {
   padding: 12px 14px;
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(15px);
+  border-radius: 10px;
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
   font-size: 0.95rem;
   color: #111827;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease;
 }
 
 .fieldRow input:focus,
 .fieldRowTwoCols input:focus {
   outline: none;
-  border-color: #4facfe;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.15);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .pillRow {
@@ -217,40 +181,36 @@
 
 .pillBtn {
   border-radius: 50px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(15px);
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
   padding: 10px 20px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   color: #374151;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
 }
 
 .pillBtn:hover {
-  border-color: #4facfe;
-  color: #4facfe;
-  background: rgba(79, 172, 254, 0.08);
-  transform: translateY(-2px);
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: #eff6ff;
 }
 
 .pillBtnSelected {
-  border-color: #00d4aa;
-  color: #fff;
-  background: linear-gradient(135deg, #00d4aa, #00f2fe);
-  box-shadow: 0 4px 16px rgba(0, 212, 170, 0.3);
+  border-color: #3b82f6;
+  color: #ffffff;
+  background: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
 }
 
 /* Promo Section */
 .promoSection {
   margin-bottom: 24px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
 }
 
 .promoSection h3 {
@@ -264,7 +224,7 @@
 }
 
 .promoSection h3::before {
-  content: '🎫';
+  content: '\1F3AB';
 }
 
 .promoApplied {
@@ -272,9 +232,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
 }
 
 .promoAppliedCode {
@@ -303,7 +263,7 @@
 }
 
 .promoRemoveBtn:hover {
-  background: rgba(220, 38, 38, 0.1);
+  background: #fef2f2;
 }
 
 .promoInputRow {
@@ -314,22 +274,20 @@
 .promoInput {
   flex: 1;
   padding: 12px 14px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(15px);
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
   font-size: 0.95rem;
   color: #111827;
   font-weight: 600;
   letter-spacing: 1px;
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease;
 }
 
 .promoInput:focus {
   outline: none;
-  border-color: #4facfe;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.15);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .promoInputError {
@@ -338,21 +296,19 @@
 
 .promoApplyBtn {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  background: #3b82f6;
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 700;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);
+  transition: background 0.2s ease;
   white-space: nowrap;
 }
 
 .promoApplyBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(79, 172, 254, 0.4);
+  background: #2563eb;
 }
 
 .promoApplyBtn:disabled {
@@ -370,10 +326,9 @@
 /* Charge summary */
 .chargeSummary {
   padding: 20px;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   margin-bottom: 24px;
 }
 
@@ -416,22 +371,22 @@
 }
 
 .payBtn {
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 16px 36px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: linear-gradient(135deg, #00d4aa 0%, #00f2fe 100%);
+  border: none;
+  background: #16a34a;
   color: #fff;
   font-weight: 800;
   font-size: 1.05rem;
   cursor: pointer;
-  box-shadow: 0 8px 32px rgba(0, 212, 170, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.2);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
   letter-spacing: 0.3px;
 }
 
 .payBtn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(0, 212, 170, 0.45), 0 0 20px rgba(0, 212, 170, 0.2);
+  background: #15803d;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.3);
 }
 
 .payBtn:disabled {
@@ -448,7 +403,7 @@
 
   .paymentCard {
     padding: 24px 20px;
-    border-radius: 20px;
+    border-radius: 14px;
   }
 
   .headerRow h1 {

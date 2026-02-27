@@ -15,6 +15,8 @@ import {
   fetchRevenueChart,
   addEmployee,
 } from "../api/adminApi";
+import { maskEmail } from "../util/maskEmail";
+import { SupportChatPage } from "./SupportChatPage";
 import "../styles/admin.css";
 
 const COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#e11d48", "#84cc16", "#6366f1", "#14b8a6"];
@@ -25,6 +27,7 @@ const NAV_ITEMS = [
   { key: "restaurants", label: "Revenue", icon: "🍽️", section: "analytics" },
   { key: "dishes", label: "Dish Trends", icon: "🍛", section: "analytics" },
   { key: "customers", label: "Top Customers", icon: "🛒", section: "analytics" },
+  { key: "support", label: "Support Tickets", icon: "🎫", section: "system" },
   { key: "settings", label: "Settings", icon: "⚙️", section: "system" },
 ];
 
@@ -40,6 +43,7 @@ const PAGE_META = {
   restaurants: { title: "Restaurant Revenue", subtitle: "Platform fees, profits, and restaurant rankings" },
   dishes: { title: "Dish & Category Trends", subtitle: "Which items are trending up or down" },
   customers: { title: "Top Customers", subtitle: "Highest spenders and most active buyers" },
+  support: { title: "Support Tickets", subtitle: "Manage and resolve customer complaints and issues" },
   settings: { title: "Settings", subtitle: "Admin account settings" },
 };
 
@@ -357,6 +361,8 @@ function AddEmployeeForm({ onAdded }) {
 function EmployeePerformanceSection() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [empSearch, setEmpSearch] = useState("");
+  const [empStatus, setEmpStatus] = useState("all");
 
   useEffect(() => {
     fetchEmployeePerformance()
@@ -367,7 +373,12 @@ function EmployeePerformanceSection() {
   if (loading) return <div className="admin-loading"><div className="spinner"></div> Loading employee data...</div>;
   if (!data?.employees?.length) return <div className="admin-empty-state"><div className="icon">👨‍💼</div><p>No employee data available</p></div>;
 
-  const employees = data.employees;
+  const allEmployees = data.employees;
+  const employees = allEmployees.filter((emp) => {
+    const matchSearch = !empSearch || emp.username.toLowerCase().includes(empSearch.toLowerCase()) || emp.email.toLowerCase().includes(empSearch.toLowerCase());
+    const matchStatus = empStatus === "all" || (empStatus === "active" ? !emp.isSuspended : emp.isSuspended);
+    return matchSearch && matchStatus;
+  });
 
   return (
     <>
@@ -431,6 +442,15 @@ function EmployeePerformanceSection() {
           <h3>Employee Leaderboard</h3>
           <span className="admin-badge primary">{employees.length} employees</span>
         </div>
+        <div className="admin-filter-bar" style={{ padding: "0 22px 12px" }}>
+          <input className="admin-search-input" placeholder="Search by name or email…" value={empSearch} onChange={(e) => setEmpSearch(e.target.value)} />
+          <select className="admin-filter-select" value={empStatus} onChange={(e) => setEmpStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+          {(empSearch || empStatus !== "all") && <span className="admin-filter-count">Showing {employees.length} of {allEmployees.length}</span>}
+        </div>
         <div className="admin-card-body no-pad">
           <div className="admin-table-container">
             <table className="admin-table">
@@ -459,7 +479,7 @@ function EmployeePerformanceSection() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{emp.username}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{emp.email}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{maskEmail(emp.email)}</div>
                     </td>
                     <td><span className="admin-badge success">{emp.totalApprovals}</span></td>
                     <td>{emp.totalOrdersHandled}</td>
@@ -491,6 +511,8 @@ function RestaurantRevenueSection() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("all");
+  const [restSearch, setRestSearch] = useState("");
+  const [restStatus, setRestStatus] = useState("all");
 
   useEffect(() => {
     setLoading(true);
@@ -502,7 +524,12 @@ function RestaurantRevenueSection() {
   if (loading) return <div className="admin-loading"><div className="spinner"></div> Loading restaurant revenue...</div>;
   if (!data) return <div className="admin-empty-state"><div className="icon">🍽️</div><p>No revenue data available</p></div>;
 
-  const { restaurants, summary } = data;
+  const { restaurants: allRestaurants, summary } = data;
+  const restaurants = allRestaurants.filter((r) => {
+    const matchSearch = !restSearch || r.name.toLowerCase().includes(restSearch.toLowerCase()) || (r.city || "").toLowerCase().includes(restSearch.toLowerCase());
+    const matchStatus = restStatus === "all" || (restStatus === "open" ? r.isOpen : !r.isOpen);
+    return matchSearch && matchStatus;
+  });
   const pieData = restaurants.slice(0, 8).map((r) => ({ name: r.name, value: r.platformFee }));
 
   return (
@@ -592,6 +619,15 @@ function RestaurantRevenueSection() {
           <h3>Restaurant Leaderboard</h3>
           <span className="admin-badge primary">{restaurants.length} restaurants</span>
         </div>
+        <div className="admin-filter-bar" style={{ padding: "0 22px 12px" }}>
+          <input className="admin-search-input" placeholder="Search by name or city…" value={restSearch} onChange={(e) => setRestSearch(e.target.value)} />
+          <select className="admin-filter-select" value={restStatus} onChange={(e) => setRestStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+          </select>
+          {(restSearch || restStatus !== "all") && <span className="admin-filter-count">Showing {restaurants.length} of {allRestaurants.length}</span>}
+        </div>
         <div className="admin-card-body no-pad">
           <div className="admin-table-container">
             <table className="admin-table">
@@ -648,6 +684,9 @@ function RestaurantRevenueSection() {
 function DishTrendsSection() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dishSearch, setDishSearch] = useState("");
+  const [dishCategory, setDishCategory] = useState("all");
+  const [dishTrend, setDishTrend] = useState("all");
 
   useEffect(() => {
     fetchDishTrends()
@@ -658,7 +697,14 @@ function DishTrendsSection() {
   if (loading) return <div className="admin-loading"><div className="spinner"></div> Loading dish trends...</div>;
   if (!data) return <div className="admin-empty-state"><div className="icon">🍛</div><p>No trend data available</p></div>;
 
-  const { dishes, categoryTrends, monthlyData, topGainers, topDecliners } = data;
+  const { dishes: allDishes, categoryTrends, monthlyData, topGainers, topDecliners } = data;
+  const categories = [...new Set(allDishes.map((d) => d.category).filter(Boolean))];
+  const dishes = allDishes.filter((d) => {
+    const matchSearch = !dishSearch || d.name.toLowerCase().includes(dishSearch.toLowerCase());
+    const matchCat = dishCategory === "all" || d.category === dishCategory;
+    const matchTrend = dishTrend === "all" || d.trend === dishTrend;
+    return matchSearch && matchCat && matchTrend;
+  });
 
   return (
     <>
@@ -778,6 +824,20 @@ function DishTrendsSection() {
           <h3>All Dish Performance</h3>
           <span className="admin-badge primary">{dishes.length} dishes</span>
         </div>
+        <div className="admin-filter-bar" style={{ padding: "0 22px 12px" }}>
+          <input className="admin-search-input" placeholder="Search dish name…" value={dishSearch} onChange={(e) => setDishSearch(e.target.value)} />
+          <select className="admin-filter-select" value={dishCategory} onChange={(e) => setDishCategory(e.target.value)}>
+            <option value="all">All Categories</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select className="admin-filter-select" value={dishTrend} onChange={(e) => setDishTrend(e.target.value)}>
+            <option value="all">All Trends</option>
+            <option value="up">Trending Up</option>
+            <option value="down">Trending Down</option>
+            <option value="stable">Stable</option>
+          </select>
+          {(dishSearch || dishCategory !== "all" || dishTrend !== "all") && <span className="admin-filter-count">Showing {dishes.length} of {allDishes.length}</span>}
+        </div>
         <div className="admin-card-body no-pad">
           <div className="admin-table-container">
             <table className="admin-table">
@@ -828,6 +888,7 @@ function TopCustomersSection() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("all");
+  const [custSearch, setCustSearch] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -839,7 +900,10 @@ function TopCustomersSection() {
   if (loading) return <div className="admin-loading"><div className="spinner"></div> Loading customer data...</div>;
   if (!data) return <div className="admin-empty-state"><div className="icon">🛒</div><p>No customer data available</p></div>;
 
-  const { customers, summary } = data;
+  const { customers: allCustomers, summary } = data;
+  const customers = allCustomers.filter((c) => {
+    return !custSearch || c.username.toLowerCase().includes(custSearch.toLowerCase()) || c.email.toLowerCase().includes(custSearch.toLowerCase());
+  });
   const chartCustomers = customers.slice(0, 10);
 
   return (
@@ -926,6 +990,10 @@ function TopCustomersSection() {
           <h3>Customer Rankings</h3>
           <span className="admin-badge primary">{customers.length} active</span>
         </div>
+        <div className="admin-filter-bar" style={{ padding: "0 22px 12px" }}>
+          <input className="admin-search-input" placeholder="Search by name or email…" value={custSearch} onChange={(e) => setCustSearch(e.target.value)} />
+          {custSearch && <span className="admin-filter-count">Showing {customers.length} of {allCustomers.length}</span>}
+        </div>
         <div className="admin-card-body no-pad">
           <div className="admin-table-container">
             <table className="admin-table">
@@ -954,7 +1022,7 @@ function TopCustomersSection() {
                     </td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{c.username}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{c.email}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{maskEmail(c.email)}</div>
                     </td>
                     <td>{c.totalOrders}</td>
                     <td>{c.totalItems}</td>
@@ -1026,6 +1094,7 @@ export function AdminPage() {
           {subPage === "restaurants" && <RestaurantRevenueSection />}
           {subPage === "dishes" && <DishTrendsSection />}
           {subPage === "customers" && <TopCustomersSection />}
+          {subPage === "support" && <SupportChatPage mode="admin" />}
           {subPage === "settings" && <AdminSettingsSection adminData={data.current_admin} />}
         </div>
       </div>

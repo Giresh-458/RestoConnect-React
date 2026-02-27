@@ -488,9 +488,10 @@ exports.getStaffHomepageData = async (req, res, next) => {
     // --- Shifts ---
     const todayShifts = (restaurant.staffShifts || [])
       .filter((shift) => {
-        const shiftDate = new Date(shift.date);
-        return shiftDate.toDateString() === today.toDateString() &&
-          shift.assignedStaff.includes(staffMember.username);
+        const shiftDate = shift.date instanceof Date ? shift.date : new Date(shift.date);
+        const isToday = shiftDate.toDateString() === today.toDateString();
+        const isAssigned = Array.isArray(shift.assignedStaff) && shift.assignedStaff.includes(staffMember.username);
+        return isToday && isAssigned;
       })
       .map((shift) => ({
         id: shift._id, name: shift.name,

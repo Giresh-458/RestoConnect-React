@@ -3,6 +3,8 @@ import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import * as api from "../api/ownerApi";
 import styles from "./LiveFloor.module.css";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 
 const TABLE_STATUSES = ["Available", "Occupied", "Reserved", "Cleaning"];
 const STATUS_COLORS = { Available: "#10b981", Occupied: "#ef4444", Reserved: "#f59e0b", Cleaning: "#6366f1" };
@@ -19,6 +21,8 @@ export function LiveFloor() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [restInfo, setRestInfo] = useState({ name: "", cuisine: [], operatingHours: {} });
   const [time] = useState(new Date());
+  const toast = useToast();
+  const confirmDlg = useConfirm();
 
   useEffect(() => {
     load();
@@ -53,16 +57,17 @@ export function LiveFloor() {
       setTables(result.tables || []);
       setNewTable({ number: "", seats: "" });
       setShowAddTable(false);
-    } catch (e) { alert(e.message || "Failed to add table"); }
+    } catch (e) { toast.error(e.message || "Failed to add table"); }
   };
 
   const handleDeleteTable = async (number) => {
-    if (!confirm(`Delete Table ${number}?`)) return;
+    const ok = await confirmDlg({ title: "Delete Table", message: `Delete Table ${number}?`, variant: "danger", confirmText: "Delete" });
+    if (!ok) return;
     try {
       const result = await api.deleteTable(number);
       setTables(result.tables || []);
       setSelectedTable(null);
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const toggleRestaurant = async () => {

@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import * as api from "../api/ownerApi";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 import s from "./Promotions.module.css";
 
 export default function Promotions() {
+  const toast = useToast();
+  const confirmDlg = useConfirm();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -25,18 +29,19 @@ export default function Promotions() {
       setShowForm(false);
       setForm({ code: "", discountType: "percentage", discountValue: 10, usageLimit: 50, validUntil: "" });
       load();
-    } catch (err) { alert(err.message || "Failed to create promo code"); }
+    } catch (err) { toast.error(err.message || "Failed to create promo code"); }
   };
 
   const handleToggle = async (id) => {
     try { await api.togglePromoCode(id); load(); }
-    catch { alert("Failed to toggle promo code"); }
+    catch { toast.error("Failed to toggle promo code"); }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this promo code?")) return;
-    try { await api.deletePromoCodeApi(id); load(); }
-    catch { alert("Failed to delete promo code"); }
+    const ok = await confirmDlg({ title: "Delete Promo Code", message: "Delete this promo code? This cannot be undone.", variant: "danger", confirmText: "Delete" });
+    if (!ok) return;
+    try { await api.deletePromoCodeApi(id); toast.success("Promo code deleted"); load(); }
+    catch { toast.error("Failed to delete promo code"); }
   };
 
   if (loading) return <div className={s.loader}><div className={s.spinner} /><p>Loading promotions…</p></div>;

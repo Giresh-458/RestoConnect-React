@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import * as api from "../api/ownerApi";
+import { useToast } from "../components/common/Toast";
+import { useConfirm } from "../components/common/ConfirmDialog";
 import styles from "./OwnerManagement.module.css";
 
 const CATEGORIES = ["Starters", "Main Course", "Desserts", "Beverages", "Sides", "Specials"];
 
 export function OwnerManagement() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -33,7 +37,7 @@ export function OwnerManagement() {
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { alert("Max file size is 5MB"); return; }
+      if (file.size > 5 * 1024 * 1024) { toast.warn("Max file size is 5MB"); return; }
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result);
@@ -68,7 +72,7 @@ export function OwnerManagement() {
       resetForm();
       await load();
     } catch (e) {
-      alert(e.message || "Failed to save dish");
+      toast.error(e.message || "Failed to save dish");
     }
   };
 
@@ -86,11 +90,13 @@ export function OwnerManagement() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this dish?")) return;
+    const ok = await confirm({ title: "Delete Dish", message: "Are you sure you want to delete this dish? This cannot be undone.", variant: "danger", confirmText: "Delete" });
+    if (!ok) return;
     try {
       await api.deleteDish(id);
+      toast.success("Dish deleted successfully");
       await load();
-    } catch (e) { alert("Failed to delete"); }
+    } catch (e) { toast.error("Failed to delete dish"); }
   };
 
   const getImageUrl = (item) => {
