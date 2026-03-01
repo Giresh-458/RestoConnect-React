@@ -471,20 +471,18 @@ const StaffManagement = () => {
 
             <div className="form-group">
               <label>Assign to Staff:</label>
-              <select
-                value={taskForm.assignedTo[0] || ''}
-                onChange={(e) => setTaskForm(prev => ({
-                  ...prev,
-                  assignedTo: e.target.value ? [e.target.value] : []
-                }))}
-              >
-                <option value="">Select Staff Member</option>
+              <div className="staff-checkboxes">
                 {staffList.map(staff => (
-                  <option key={staff._id} value={staff.username}>
+                  <label key={staff._id} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={taskForm.assignedTo.includes(staff.username)}
+                      onChange={() => handleStaffSelection(staff.username, 'task')}
+                    />
                     {staff.username}
-                  </option>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
             <button type="submit" className="submit-btn">Add Task</button>
@@ -579,6 +577,7 @@ const StaffManagement = () => {
                 type="date"
                 value={shiftForm.date}
                 onChange={(e) => setShiftForm(prev => ({ ...prev, date: e.target.value }))}
+                min={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>

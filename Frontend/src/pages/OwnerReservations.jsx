@@ -116,6 +116,21 @@ const handleStatus = async (id, status) => {
       finally { setUpdating(null); }
       return;
     }
+
+    if (status === "cancelled") {
+      const reason = window.prompt("Please enter cancellation reason to notify the customer:");
+      if (!reason || !reason.trim()) {
+        toast.warn("Cancellation reason is required");
+        return;
+      }
+      setUpdating(id);
+      try {
+        await api.updateReservationStatus(id, status, undefined, { cancellationReason: reason.trim() });
+        await load();
+      } catch (e) { toast.error("Failed: " + e.message); }
+      finally { setUpdating(null); }
+      return;
+    }
     
     setUpdating(id);
     try {

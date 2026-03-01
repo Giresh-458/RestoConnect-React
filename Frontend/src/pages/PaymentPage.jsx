@@ -2,14 +2,14 @@
 import styles from "./PaymentPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearcart, setPromoCode, clearPromoCode } from '../store/CartSlice';
 
 export function PaymentPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { restId, orderId, amount, payload } = location.state || {};
+  const { restId, orderId, payload } = location.state || {};
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const dispatch = useDispatch();
@@ -20,6 +20,7 @@ export function PaymentPage() {
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoCodeError, setPromoCodeError] = useState(null);
   const [promoCodeLoading, setPromoCodeLoading] = useState(false);
+  const [availablePromos, setAvailablePromos] = useState([]);
   const promoCode = useSelector((state) => state.cart?.promoCode || null);
   const promoDiscount = useSelector((state) => state.cart?.promoDiscount || 0);
 
@@ -31,12 +32,33 @@ export function PaymentPage() {
   const subtotal = (typeof srcPayload.totalAmount === 'number' && !Number.isNaN(srcPayload.totalAmount))
     ? srcPayload.totalAmount
     : items.reduce((s, it) => s + ((it.amount ?? it.price ?? 0) * (it.quantity ?? 1)), 0);
-  const deliveryFee = 3.0;
-  const taxes = +(subtotal * 0.08).toFixed(2);
-  const subtotalWithTaxes = +(subtotal + deliveryFee + taxes).toFixed(2);
+  const deliveryFee = Number(srcPayload.deliveryFee ?? 3.0) || 0;
+  const taxRate = Number(srcPayload.taxRate ?? 0) || 0;
+  const serviceChargeRate = Number(srcPayload.serviceCharge ?? 0) || 0;
+  const taxes = +(subtotal * (taxRate / 100)).toFixed(2);
+  const serviceCharge = +(subtotal * (serviceChargeRate / 100)).toFixed(2);
+  const subtotalWithTaxes = +(subtotal + deliveryFee + taxes + serviceCharge).toFixed(2);
   const finalDiscount = promoDiscount > subtotalWithTaxes ? subtotalWithTaxes : promoDiscount;
   const grandTotal = +(subtotalWithTaxes - finalDiscount).toFixed(2);
   const restIdEffective = restId || srcPayload.rest_id || storeRestId || null;
+
+  useEffect(() => {
+    const loadPromos = async () => {
+      if (!restIdEffective) return;
+      try {
+        const response = await fetch(`http://localhost:3000/api/customer/promo/available?rest_id=${encodeURIComponent(restIdEffective)}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setAvailablePromos(Array.isArray(data.data) ? data.data : []);
+        }
+      } catch {
+        setAvailablePromos([]);
+      }
+    };
+    loadPromos();
+  }, [restIdEffective]);
 
   const handlePromoCodeApply = async () => {
     if (!promoCodeInput.trim()) {
@@ -55,6 +77,7 @@ export function PaymentPage() {
         body: JSON.stringify({
           code: promoCodeInput.trim().toUpperCase(),
           orderAmount: subtotalWithTaxes,
+          rest_id: restIdEffective,
         }),
       });
 
@@ -141,7 +164,6 @@ export function PaymentPage() {
 
     try {
       let resp, data;
-      // If orderId exists, confirm it. Otherwise create then pay.
       if (orderId) {
         resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
           method: 'POST', 
@@ -171,7 +193,7 @@ export function PaymentPage() {
           ...srcPayload,
           items: formattedItems,
           rest_id: srcPayload.rest_id || restIdEffective,
-          totalAmount: grandTotal,
+          totalAmount: subtotalWithTaxes,
           restaurantName: srcPayload.restaurantName || '',
           promoCode: promoCode || null,
           promoDiscount: finalDiscount || 0,
@@ -183,68 +205,24 @@ export function PaymentPage() {
           delete bodyPayload.reservation;
         }
 
-        // First try a two-step: create then pay
-        let createdOrderId = null;
-        try {
-          const createResp = await fetch('http://localhost:3000/api/customer/checkout', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify(bodyPayload)
-          });
-          const createData = await createResp.json();
-          if (!createResp.ok) {
-            throw new Error(createData.error || createData.message || 'Failed to create order');
-          }
-          createdOrderId = (createData && createData.data && createData.data.orderId) || createData.orderId;
-          if (!createdOrderId) {
-            throw new Error('Missing orderId from checkout');
-          }
-          
-          resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify({ orderId: createdOrderId, rest_id: bodyPayload.rest_id || restIdEffective })
-          });
-          data = await resp.json();
-          if (!resp.ok) {
-            throw new Error(data.error || data.message || 'Payment failed');
-          }
-        } catch (stepErr) {
-          // Fallback to one-step: let backend create+pay from payload
-          const payResp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify({ payload: bodyPayload })
-          });
-          const payData = await payResp.json();
-          if (!payResp.ok) {
-            throw new Error(payData.error || payData.message || 'Payment failed');
-          }
-          data = payData;
+        // One-step payment to prevent duplicate order/reservation creation on retry paths
+        const payResp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          credentials: 'include',
+          body: JSON.stringify({ payload: bodyPayload })
+        });
+        const payData = await payResp.json();
+        if (!payResp.ok) {
+          throw new Error(payData.error || payData.message || 'Payment failed');
         }
+        data = payData;
       }
 
       // Extract orderId in a tolerant way
       const newOrderId = (data && data.data && data.data.orderId) || data.orderId || (data && data.data && data.data.order?._id) || (data && data.data && data.data.order?.id);
       if (!newOrderId) {
         throw new Error('Missing orderId in response');
-      }
-
-      // Apply promo code usage if promo code was used
-      if (promoCode) {
-        try {
-          await fetch('http://localhost:3000/api/customer/promo/apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ code: promoCode }),
-          });
-        } catch (e) {
-          console.warn('Failed to apply promo code usage:', e);
-        }
       }
 
       try { 
@@ -354,6 +332,22 @@ export function PaymentPage() {
 
           <section className={styles.promoSection}>
             <h3>Promo Code</h3>
+            {!promoCode && availablePromos.length > 0 && (
+              <div className={styles.promoInputRow}>
+                <select
+                  value={promoCodeInput}
+                  onChange={(e) => setPromoCodeInput(e.target.value)}
+                  className={styles.promoInput}
+                >
+                  <option value="">Select available promo</option>
+                  {availablePromos.map((promo) => (
+                    <option key={promo._id || promo.code} value={promo.code}>
+                      {promo.code} - {promo.discountType === 'fixed' ? `₹${promo.discountValue}` : `${promo.discountValue}%`} OFF
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {promoCode ? (
               <div className={styles.promoApplied}>
                 <div>
@@ -388,7 +382,8 @@ export function PaymentPage() {
           <section className={styles.chargeSummary}>
             <div className={styles.chargeRow}><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
             <div className={styles.chargeRow}><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
-            <div className={styles.chargeRow}><span>Taxes (8%)</span><span>₹ {taxes.toFixed(2)}</span></div>
+            <div className={styles.chargeRow}><span>Taxes ({taxRate}%)</span><span>₹ {taxes.toFixed(2)}</span></div>
+            {serviceChargeRate > 0 && <div className={styles.chargeRow}><span>Service Charge ({serviceChargeRate}%)</span><span>₹ {serviceCharge.toFixed(2)}</span></div>}
             {promoCode && finalDiscount > 0 && (
               <div className={`${styles.chargeRow} ${styles.chargeRowDiscount}`}>
                 <span>Promo Discount ({promoCode})</span>

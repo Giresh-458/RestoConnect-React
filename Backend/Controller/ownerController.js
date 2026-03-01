@@ -1250,6 +1250,9 @@ exports.getOrders = async (req, res, next) => {
       .sort({ date: -1 })
       .select("-rest_id -__v"); // <-- Exclude internal fields
 
+    const rest = await Restaurant.findById(user.rest_id).select("taxRate");
+    const effectiveTaxRate = Number.isFinite(Number(rest?.taxRate)) ? Number(rest.taxRate) : 10;
+
     // Format orders to match frontend expectations
     const formattedOrders = await Promise.all(orders.map(async (order) => {
       // Count dish quantities (since dishes array contains names, duplicates for quantity)
@@ -1275,8 +1278,7 @@ exports.getOrders = async (req, res, next) => {
       // Calculate subtotal (sum of dish prices * quantities)
       const subtotal = dishDetails.reduce((sum, dish) => sum + (dish.price * dish.quantity), 0);
 
-      // Assume tax rate of 10% if not stored
-      const taxRate = 10;
+      const taxRate = effectiveTaxRate;
       const taxAmount = subtotal * (taxRate / 100);
       const totalAmount = subtotal + taxAmount;
 
@@ -1540,9 +1542,20 @@ exports.addShift = async (req, res, next) => {
     const restaurant = await Restaurant.findById(user.rest_id);
     if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
 
+    const shiftDate = new Date(date);
+    if (Number.isNaN(shiftDate.getTime())) {
+      return res.status(400).json({ error: "Invalid shift date" });
+    }
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    shiftDate.setHours(0, 0, 0, 0);
+    if (shiftDate < todayStart) {
+      return res.status(400).json({ error: "Cannot assign shifts for past dates" });
+    }
+
     const newShift = {
       name,
-      date: new Date(date),
+      date: shiftDate,
       startTime,
       endTime,
       assignedStaff: assignedStaff || [],
@@ -1762,7 +1775,12 @@ exports.getStaffTasks = async (req, res, next) => {
     const staffTasks = restaurant.staffTasks.filter(task =>
       Array.isArray(task.assignedTo) &&
       task.assignedTo.includes(staff.username)
-    );
+    ).map((task) => ({
+      ...task.toObject(),
+      status: ["done", "completed"].includes(String(task.status || "").toLowerCase())
+        ? "Completed"
+        : "Pending",
+    }));
 
 
     console.log("Filtered tasks:", staffTasks);
@@ -1821,6 +1839,10 @@ exports.updateOrderStatus = async (req, res) => {
     const order = await Order.findOne({ _id: id, rest_id: user.rest_id });
     if (!order) return res.status(404).json({ error: "Order not found" });
 
+    if (status === "cancelled" && order.paymentStatus === "paid") {
+      return res.status(400).json({ error: "Paid orders cannot be cancelled directly. Please process a refund first." });
+    }
+
     order.status = status;
     if (status === "completed") {
       order.completionTime = new Date();
@@ -1837,7 +1859,7 @@ exports.updateOrderStatus = async (req, res) => {
 exports.updateReservationStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, tables: assignedTables } = req.body;
+    const { status, tables: assignedTables, cancellationReason } = req.body;
     const validStatuses = ["pending", "confirmed", "seated", "completed", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status" });
@@ -1897,6 +1919,18 @@ exports.updateReservationStatus = async (req, res) => {
         const table = rest.tables.find(t => String(t.number) === String(tableNum));
         if (table) table.status = "Available";
       });
+      reservation.allocated = false;
+    }
+
+    if (status === "cancelled") {
+      if (!cancellationReason || !String(cancellationReason).trim()) {
+        return res.status(400).json({ error: "Cancellation reason is required" });
+      }
+      reservation.cancellationReason = String(cancellationReason).trim();
+      reservation.cancelledAt = new Date();
+    } else {
+      reservation.cancellationReason = "";
+      reservation.cancelledAt = null;
     }
 
     // When seating without new tables provided, mark existing assigned tables as Occupied
@@ -1909,10 +1943,20 @@ exports.updateReservationStatus = async (req, res) => {
 
     reservation.status = status;
     if (status === "confirmed") {
-      reservation.allocated = true;
+      reservation.allocated = Array.isArray(reservation.tables) && reservation.tables.length > 0;
     }
 
     await reservation.save();
+    if (rest) {
+      const embeddedReservation = (rest.reservations || []).find((r) => String(r.id) === String(reservation._id));
+      if (embeddedReservation) {
+        embeddedReservation.allocated = reservation.allocated;
+        embeddedReservation.tables = Array.isArray(reservation.tables) ? reservation.tables : [];
+        embeddedReservation.status = reservation.status;
+        embeddedReservation.cancellationReason = reservation.cancellationReason || "";
+        embeddedReservation.cancelledAt = reservation.cancelledAt || null;
+      }
+    }
     if (rest) await rest.save();
     res.json({ success: true, reservation });
   } catch (error) {
@@ -2055,12 +2099,18 @@ exports.getRestaurantSettings = async (req, res) => {
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
     res.json({
+      ownerUsername: user.username,
       name: rest.name,
       cuisine: rest.cuisine || [],
       isOpen: rest.isOpen !== undefined ? rest.isOpen : true,
       operatingHours: rest.operatingHours || { open: "09:00", close: "22:00" },
       location: rest.location || "",
       city: rest.city || "",
+      phone: rest.phone || "",
+      email: rest.email || "",
+      description: rest.description || "",
+      taxRate: Number(rest.taxRate) || 0,
+      serviceCharge: Number(rest.serviceCharge) || 0,
       tables: rest.tables || [],
       totalTables: rest.totalTables || 0
     });
@@ -2081,7 +2131,9 @@ exports.updateRestaurantSettings = async (req, res) => {
     if (!rest) return res.status(404).json({ error: "Restaurant not found" });
 
     if (name !== undefined) rest.name = name;
-    if (isOpen !== undefined) rest.isOpen = isOpen;
+    if (isOpen !== undefined) {
+      rest.isOpen = typeof isOpen === "boolean" ? isOpen : String(isOpen).toLowerCase() === "true";
+    }
     if (operatingHours) rest.operatingHours = operatingHours;
     if (location !== undefined) rest.location = location;
     if (city !== undefined) rest.city = city;
@@ -2089,8 +2141,8 @@ exports.updateRestaurantSettings = async (req, res) => {
     if (phone !== undefined) rest.phone = phone;
     if (email !== undefined) rest.email = email;
     if (description !== undefined) rest.description = description;
-    if (taxRate !== undefined) rest.taxRate = taxRate;
-    if (serviceCharge !== undefined) rest.serviceCharge = serviceCharge;
+    if (taxRate !== undefined) rest.taxRate = Number(taxRate) || 0;
+    if (serviceCharge !== undefined) rest.serviceCharge = Number(serviceCharge) || 0;
 
     await rest.save();
     res.json({ success: true, message: "Settings updated" });
@@ -2120,16 +2172,52 @@ exports.createPromoCode = async (req, res) => {
     const user = req.user;
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    const parsedValidFrom = validFrom ? new Date(validFrom) : new Date();
+    const parsedValidUntil = validUntil ? new Date(validUntil) : null;
+    if (!parsedValidUntil || Number.isNaN(parsedValidUntil.getTime())) {
+      return res.status(400).json({ error: "A valid expiry date is required" });
+    }
+    if (Number.isNaN(parsedValidFrom.getTime())) {
+      return res.status(400).json({ error: "Invalid start date" });
+    }
+    if (parsedValidUntil < parsedValidFrom) {
+      return res.status(400).json({ error: "Expiry date must be after start date" });
+    }
+
+    parsedValidFrom.setHours(0, 0, 0, 0);
+    parsedValidUntil.setHours(23, 59, 59, 999);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (parsedValidFrom < todayStart) {
+      return res.status(400).json({ error: "Promo start date cannot be in the past" });
+    }
+
+    const normalizedDiscountType = discountType || "percentage";
+    const numericDiscountValue = Number(discountValue);
+    const numericMinAmount = Number(minAmount);
+    const hasMaxDiscount = maxDiscount !== undefined && maxDiscount !== null && String(maxDiscount).trim() !== "";
+    const numericMaxDiscount = hasMaxDiscount ? Number(maxDiscount) : null;
+    const hasUsageLimit = usageLimit !== undefined && usageLimit !== null && String(usageLimit).trim() !== "";
+    const numericUsageLimit = hasUsageLimit ? Number(usageLimit) : null;
+
+    if (!Number.isFinite(numericDiscountValue) || numericDiscountValue <= 0) {
+      return res.status(400).json({ error: "Discount value must be greater than 0" });
+    }
+    if (normalizedDiscountType === "percentage" && numericDiscountValue > 100) {
+      return res.status(400).json({ error: "Percentage discount cannot exceed 100" });
+    }
+
     const promo = new PromoCode({
       code: code.toUpperCase(),
       description,
-      discountType: discountType || "percentage",
-      discountValue,
-      minAmount: minAmount || 0,
-      maxDiscount: maxDiscount || 0,
-      validFrom: validFrom ? new Date(validFrom) : new Date(),
-      validUntil: validUntil ? new Date(validUntil) : null,
-      usageLimit: usageLimit || 0,
+      discountType: normalizedDiscountType,
+      discountValue: numericDiscountValue,
+      minAmount: Number.isFinite(numericMinAmount) ? numericMinAmount : 0,
+      maxDiscount: Number.isFinite(numericMaxDiscount) ? numericMaxDiscount : null,
+      validFrom: parsedValidFrom,
+      validUntil: parsedValidUntil,
+      usageLimit: Number.isFinite(numericUsageLimit) ? numericUsageLimit : null,
       rest_id: user.rest_id,
       isActive: true
     });
@@ -2299,5 +2387,44 @@ exports.getLiveFloor = async (req, res) => {
   } catch (error) {
     console.error("Error in getLiveFloor:", error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.updateOwnerAccount = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const { username, currentPassword, newPassword } = req.body;
+    const owner = await User.findById(user._id);
+    if (!owner) return res.status(404).json({ error: "Owner not found" });
+
+    if (username && username !== owner.username) {
+      const existing = await User.findOne({ username });
+      if (existing && String(existing._id) !== String(owner._id)) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+      owner.username = username;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: "Current password is required to set a new password" });
+      }
+      const isMatch = await require("bcrypt").compare(currentPassword, owner.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: "Current password is incorrect" });
+      }
+      if (String(newPassword).length < 6) {
+        return res.status(400).json({ error: "New password must be at least 6 characters" });
+      }
+      owner.password = newPassword;
+    }
+
+    await owner.save();
+    return res.json({ success: true, username: owner.username, message: "Account updated successfully" });
+  } catch (error) {
+    console.error("Error in updateOwnerAccount:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };

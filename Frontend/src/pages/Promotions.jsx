@@ -22,6 +22,9 @@ export default function Promotions() {
 
   useEffect(() => { load(); }, []);
 
+  const today = new Date();
+  const minExpiryDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
@@ -90,7 +93,7 @@ export default function Promotions() {
             </div>
             <div className={s.formGroup}>
               <label>Expires At</label>
-              <input type="date" required value={form.validUntil}
+              <input type="date" required min={minExpiryDate} value={form.validUntil}
                 onChange={e => setForm({ ...form, validUntil: e.target.value })} />
             </div>
           </div>

@@ -14,6 +14,12 @@ export default function OwnerSettings() {
     openingTime: "09:00", closingTime: "23:00", isOpen: true,
     taxRate: 5, serviceCharge: 0, description: ""
   });
+  const [accountForm, setAccountForm] = useState({
+    username: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   useEffect(() => {
     (async () => {
@@ -24,14 +30,22 @@ export default function OwnerSettings() {
             ...prev,
             name: data.name || "",
             location: data.location || "",
+             phone: data.phone || "",
+             email: data.email || "",
+             description: data.description || "",
+             taxRate: Number(data.taxRate ?? 0),
+             serviceCharge: Number(data.serviceCharge ?? 0),
             cuisine: Array.isArray(data.cuisine) ? data.cuisine.join(", ") : (data.cuisine || ""),
             isOpen: data.isOpen !== undefined ? data.isOpen : true,
             openingTime: data.operatingHours?.open || "09:00",
             closingTime: data.operatingHours?.close || "23:00",
             city: data.city || "",
           }));
+          setAccountForm(prev => ({ ...prev, username: data.ownerUsername || "" }));
         }
-      } catch {}
+      } catch (err) {
+        toast.error(err?.message || "Failed to load settings");
+      }
       setLoading(false);
     })();
   }, []);
@@ -63,6 +77,25 @@ export default function OwnerSettings() {
       setTimeout(() => setSaved(false), 3000);
     } catch { toast.error("Failed to save settings"); }
     setSaving(false);
+  };
+
+  const handleAccountSave = async (e) => {
+    e.preventDefault();
+    if (accountForm.newPassword && accountForm.newPassword !== accountForm.confirmPassword) {
+      toast.error("New password and confirm password must match");
+      return;
+    }
+    try {
+      await api.updateOwnerAccount({
+        username: accountForm.username || undefined,
+        currentPassword: accountForm.currentPassword || undefined,
+        newPassword: accountForm.newPassword || undefined,
+      });
+      toast.success("Account updated");
+      setAccountForm((prev) => ({ ...prev, currentPassword: "", newPassword: "", confirmPassword: "" }));
+    } catch (err) {
+      toast.error(err.message || "Failed to update account");
+    }
   };
 
   if (loading) return <div className={s.loader}><div className={s.spinner} /><p>Loading settings…</p></div>;
@@ -159,6 +192,31 @@ export default function OwnerSettings() {
               <input type="number" min={0} max={30} step={0.5} value={form.serviceCharge}
                 onChange={e => update("serviceCharge", +e.target.value)} />
             </div>
+          </div>
+        </section>
+
+        <section className={s.section}>
+          <h2 className={s.sectionTitle}>🔐 Account</h2>
+          <div className={s.grid}>
+            <div className={s.field}>
+              <label>Username</label>
+              <input value={accountForm.username} onChange={e => setAccountForm(prev => ({ ...prev, username: e.target.value }))} />
+            </div>
+            <div className={s.field}>
+              <label>Current Password</label>
+              <input type="password" value={accountForm.currentPassword} onChange={e => setAccountForm(prev => ({ ...prev, currentPassword: e.target.value }))} />
+            </div>
+            <div className={s.field}>
+              <label>New Password</label>
+              <input type="password" value={accountForm.newPassword} onChange={e => setAccountForm(prev => ({ ...prev, newPassword: e.target.value }))} />
+            </div>
+            <div className={s.field}>
+              <label>Confirm New Password</label>
+              <input type="password" value={accountForm.confirmPassword} onChange={e => setAccountForm(prev => ({ ...prev, confirmPassword: e.target.value }))} />
+            </div>
+          </div>
+          <div className={s.footer}>
+            <button type="button" className={s.saveBtn} onClick={handleAccountSave}>Update Account</button>
           </div>
         </section>
 

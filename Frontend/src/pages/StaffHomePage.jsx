@@ -263,7 +263,7 @@ function AlertItem({ alert }) {
 
 // ─── Sub-component: Task Item ───
 function TaskItem({ task, onToggle, isUpdating }) {
-  const isDone = task.status === "Done";
+  const isDone = ["Done", "Completed"].includes(task.status);
   return (
     <div className={`sh-task-item ${isDone ? "sh-task-done" : ""}`}>
       <button
@@ -409,7 +409,7 @@ export function StaffHomePage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ status: "Done" }),
+          body: JSON.stringify({ status: "Completed" }),
         }
       );
       if (!resp.ok) throw new Error("Failed to update task");
@@ -445,11 +445,11 @@ export function StaffHomePage() {
   }, [data?.orders]);
 
   const pendingTasks = useMemo(
-    () => (data?.tasks || []).filter((t) => t.status !== "Done"),
+    () => (data?.tasks || []).filter((t) => !["Done", "Completed"].includes(t.status)),
     [data?.tasks]
   );
   const doneTasks = useMemo(
-    () => (data?.tasks || []).filter((t) => t.status === "Done"),
+    () => (data?.tasks || []).filter((t) => ["Done", "Completed"].includes(t.status)),
     [data?.tasks]
   );
 

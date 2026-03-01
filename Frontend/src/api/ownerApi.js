@@ -35,12 +35,16 @@ export const updateOrderStatus = (id, status) =>
 
 // Reservations
 export const fetchReservations = () => fetch(`${BASE}/reservations`, opts).then(json);
-export const updateReservationStatus = (id, status, tables) =>
+export const updateReservationStatus = (id, status, tables, extra = {}) =>
   fetch(`${BASE}/reservations/${id}/status`, {
     ...opts,
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, ...(tables?.length ? { tables } : {}) }),
+    body: JSON.stringify({
+      status,
+      ...(Array.isArray(tables) ? { tables } : {}),
+      ...extra,
+    }),
   }).then(json);
 
 // Menu
@@ -149,6 +153,14 @@ export const deleteAnnouncement = (id) =>
 export const fetchSettings = () => fetch(`${BASE}/settings`, opts).then(json);
 export const updateSettings = (data) =>
   fetch(`${BASE}/settings`, {
+    ...opts,
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then(json);
+
+export const updateOwnerAccount = (data) =>
+  fetch(`${BASE}/account`, {
     ...opts,
     method: "PUT",
     headers: { "Content-Type": "application/json" },

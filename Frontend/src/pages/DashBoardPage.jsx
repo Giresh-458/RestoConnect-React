@@ -396,6 +396,9 @@ export const DashBoardPage = () => {
                     <span>👥 {res.guests} {res.guests === 1 ? "Guest" : "Guests"}</span>
                     {res.table_id && <span>🪑 Table {res.table_id}</span>}
                   </div>
+                  {res.status === "cancelled" && res.cancellationReason && (
+                    <div className={styles.resFullMeta}>❗ Cancelled: {res.cancellationReason}</div>
+                  )}
                 </div>
                 <div className={`${styles.resStatusBadge} ${styles[`res_${(res.status || "pending").toLowerCase()}`]}`}>
                   {(res.status || "pending").charAt(0).toUpperCase() + (res.status || "pending").slice(1)}
@@ -421,8 +424,13 @@ export const DashBoardPage = () => {
                     <span>🕐 {fmtTime(res.time)}</span>
                     <span>👥 {res.guests} Guests</span>
                   </div>
+                  {res.status === "cancelled" && res.cancellationReason && (
+                    <div className={styles.resFullMeta}>❗ Cancelled: {res.cancellationReason}</div>
+                  )}
                 </div>
-                <div className={styles.resStatusBadge} style={{ background: "#f3f4f6", color: "#6b7280" }}>Completed</div>
+                <div className={`${styles.resStatusBadge} ${styles[`res_${(res.status || "completed").toLowerCase()}`]}`}>
+                  {(res.status || "completed").charAt(0).toUpperCase() + (res.status || "completed").slice(1)}
+                </div>
               </div>
             ))}
           </div>

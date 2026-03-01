@@ -17,6 +17,8 @@ export function OrderPage() {
   const navState = location.state || {};
   const restIdFromState = navState.restId || null;
   const restNameFromState = navState.restName || "Restaurant";
+  const taxRateFromState = Number(navState.taxRate ?? 0) || 0;
+  const serviceChargeFromState = Number(navState.serviceCharge ?? 0) || 0;
 
   const pad = (n) => String(n).padStart(2, '0');
   const todayDate = new Date();
@@ -112,8 +114,9 @@ export function OrderPage() {
     0
   );
   const deliveryFee = 3.0;
-  const taxes = +(subtotal * 0.08).toFixed(2);
-  const finalTotal = (subtotal + deliveryFee + taxes).toFixed(2);
+  const taxes = +(subtotal * (taxRateFromState / 100)).toFixed(2);
+  const serviceCharge = +(subtotal * (serviceChargeFromState / 100)).toFixed(2);
+  const finalTotal = (subtotal + deliveryFee + taxes + serviceCharge).toFixed(2);
 
   const handleReservationSubmit = async (e) => {
     e.preventDefault();
@@ -191,6 +194,9 @@ export function OrderPage() {
         rest_id: restIdFromState,
         items: cartItems,
         totalAmount: Number(subtotal.toFixed(2)),
+        taxRate: taxRateFromState,
+        serviceCharge: serviceChargeFromState,
+        deliveryFee,
         reservation: { date, time, guests, name, phone, notes },
       };
       navigate("/customer/payment", { state: { payload } });
@@ -268,6 +274,12 @@ export function OrderPage() {
                   <span>Taxes & Charges</span>
                   <span>₹{taxes.toFixed(2)}</span>
                 </div>
+                {serviceChargeFromState > 0 && (
+                  <div className={styles.totRow}>
+                    <span>Service Charge</span>
+                    <span>₹{serviceCharge.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className={styles.totTotal}>
                   <strong>Total</strong>
                   <strong>₹{finalTotal}</strong>

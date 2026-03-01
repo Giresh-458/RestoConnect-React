@@ -68,6 +68,9 @@ export const ownerApi = {
   getTicket: (ticketId) =>
     fetch(`${BASE}/api/owner/support/tickets/${ticketId}`, opts("GET")).then(json),
 
+  createTicket: (data) =>
+    fetch(`${BASE}/api/owner/support/tickets`, opts("POST", data)).then(json),
+
   postMessage: (ticketId, message) =>
     fetch(
       `${BASE}/api/owner/support/tickets/${ticketId}/messages`,
@@ -131,5 +134,28 @@ export const adminApi = {
     fetch(
       `${BASE}/api/admin/support/tickets/${ticketId}/notes`,
       opts("POST", { text })
+    ).then(json),
+};
+
+export const staffApi = {
+  getTickets: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.status && filters.status !== "all") params.set("status", filters.status);
+    return fetch(`${BASE}/api/staff/support/tickets?${params}`, opts("GET")).then(json);
+  },
+
+  getTicket: (ticketId) =>
+    fetch(`${BASE}/api/staff/support/tickets/${ticketId}`, opts("GET")).then(json),
+
+  postMessage: (ticketId, message) =>
+    fetch(
+      `${BASE}/api/staff/support/tickets/${ticketId}/messages`,
+      opts("POST", { message })
+    ).then(json),
+
+  updateStatus: (ticketId, status) =>
+    fetch(
+      `${BASE}/api/staff/support/tickets/${ticketId}/status`,
+      opts("PATCH", { status })
     ).then(json),
 };

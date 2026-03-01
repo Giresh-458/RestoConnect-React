@@ -83,6 +83,33 @@ exports.postUpdateOrder = async (req, res, next) => {
   try {
     const { orderId, status } = req.body;
 
+    const targetStatus = String(status || "").toLowerCase();
+    const mustBeSeatedStatuses = ["served", "done", "completed"];
+
+    if (mustBeSeatedStatuses.includes(targetStatus)) {
+      const orderForValidation = await Order.findById(orderId).lean();
+      if (!orderForValidation) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      const orderTableNumber = String(
+        orderForValidation.tableNumber || orderForValidation.table_id || ""
+      ).trim();
+
+      if (orderTableNumber) {
+        const restForValidation = await Restaurant.findById(req.user.rest_id).lean();
+        const tableForOrder = (restForValidation?.tables || []).find(
+          (table) => String(table.number) === orderTableNumber
+        );
+
+        if (tableForOrder && tableForOrder.status !== "Occupied") {
+          return res.status(400).json({
+            error: "Cannot mark order as served before guest arrival. Mark the table as Occupied first.",
+          });
+        }
+      }
+    }
+
     // Update order in the Order collection
     const Order = require("../Model/Order_model").Order;
     const updatedOrder = await Order.findByIdAndUpdate(
@@ -171,6 +198,21 @@ exports.postAllocateTable = async (req, res, next) => {
 
     // Update table status so it is no longer available
     table.status = "Allocated";
+
+    // Keep linked order(s) in sync so live queue immediately reflects table assignment
+    await Order.updateMany(
+      {
+        reservation_id: String(reservationId),
+        rest_id: String(rest._id),
+        status: { $in: ["pending", "active", "waiting", "preparing", "ready"] },
+      },
+      {
+        $set: {
+          table_id: String(tableNumber),
+          tableNumber: String(tableNumber),
+        },
+      }
+    );
 
     await reservation.save();
     await rest.save();
@@ -699,7 +741,8 @@ exports.getStaffHomepageData = async (req, res, next) => {
       tableStats: { total: totalTables, occupied: occupiedTables, available: totalTables - occupiedTables, guests: totalGuests },
       alerts: alerts.sort((a, b) => (a.severity === "critical" ? -1 : 1)),
       recentFeedback: (recentFeedback || []).map((f) => ({
-        customerName: f.customerName, rating: f.rating,
+        customerName: f.customerName,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
         feedback: f.additionalFeedback || f.feedback, createdAt: f.createdAt,
       })),
     });
@@ -713,9 +756,13 @@ exports.getStaffHomepageData = async (req, res, next) => {
 
 exports.postSupportMessage = async (req, res, next) => {
   try {
-    const { message, subject, category, orderId } = req.body;
+    const { message, text, subject, category, orderId } = req.body;
+    const finalMessage = String(message || text || "").trim();
     const staffMember = req.user;
     if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+    if (!finalMessage) {
+      return res.status(400).json({ error: "Message is required" });
+    }
 
     const SupportTicket = require("../Model/SupportTicket_model");
     const restaurant = await Restaurant.findById(staffMember.rest_id);
@@ -729,7 +776,7 @@ exports.postSupportMessage = async (req, res, next) => {
       createdByRole: "staff",
       rest_id: staffMember.rest_id,
       restaurantName: restaurant.name,
-      category: category || "other",
+      category: category || "web_issue",
       subject: subject || "Staff support request",
       priority: "medium",
       status: "open",
@@ -737,7 +784,7 @@ exports.postSupportMessage = async (req, res, next) => {
       messages: [{
         senderRole: "staff",
         senderName: staffMember.username,
-        text: message,
+        text: finalMessage,
         timestamp: new Date(),
       }],
     });
@@ -750,7 +797,7 @@ exports.postSupportMessage = async (req, res, next) => {
     }
     restaurant.supportMessages.push({
       from: staffMember.username,
-      message: message,
+      message: finalMessage,
       timestamp: new Date(),
       status: "pending",
     });
@@ -825,11 +872,18 @@ exports.updateTaskStatus = async (req, res, next) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    task.status = status;
+    const normalizedStatus = ["done", "completed"].includes(String(status).toLowerCase())
+      ? "Completed"
+      : "Pending";
+
+    task.status = normalizedStatus;
     task.updatedAt = new Date();
 
-    if (status === "Done" && !task.completedBy) {
-      task.completedBy = [staffMember.username];
+    if (normalizedStatus === "Completed") {
+      task.completedBy = Array.isArray(task.completedBy) ? task.completedBy : [];
+      if (!task.completedBy.includes(staffMember.username)) {
+        task.completedBy.push(staffMember.username);
+      }
     }
 
     await restaurant.save();
@@ -1095,7 +1149,10 @@ exports.getDashBoardData = async (req, res, next) => {
       staff: staffInfo,
       orders,
       reservations,
-      feedback,
+      feedback: (feedback || []).map((f) => ({
+        ...f,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
+      })),
       inventoryStatus,
       availableTables,
       allTables,

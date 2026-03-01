@@ -127,8 +127,17 @@ export function MenuPage() {
       toast.warn("Your cart is empty. Add some items first!");
       return;
     }
+    if (!restaurant.isOpen) {
+      toast.warn("This restaurant is currently closed");
+      return;
+    }
     navigate("/customer/order", {
-      state: { restId: restIdForCart, restName: restaurant.name },
+      state: {
+        restId: restIdForCart,
+        restName: restaurant.name,
+        taxRate: Number(restaurant.taxRate ?? 0) || 0,
+        serviceCharge: Number(restaurant.serviceCharge ?? 0) || 0,
+      },
     });
   };
 
@@ -136,7 +145,8 @@ export function MenuPage() {
   const deliveryFee = 3.0;
   const safeCartTotal =
     typeof cartTotal === "number" && !isNaN(cartTotal) ? cartTotal : 0;
-  const taxes = (safeCartTotal * 0.08).toFixed(2); // 8% tax
+  const currentTaxRate = Number(restaurant?.taxRate ?? 0) || 0;
+  const taxes = (safeCartTotal * (currentTaxRate / 100)).toFixed(2);
   const finalTotal = (
     parseFloat(safeCartTotal) +
     deliveryFee +

@@ -55,6 +55,7 @@ router.post('/cart/order', menuController.orderCart);
 router.get('/restaurants/search', customerController.searchRestaurants);
 
 // Promo code routes
+router.get('/promo/available', customerController.getAvailablePromoCodes);
 router.post('/promo/validate', customerController.validatePromoCode);
 router.post('/promo/apply', customerController.applyPromoCode);
 

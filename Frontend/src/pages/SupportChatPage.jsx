@@ -63,6 +63,7 @@ export function SupportChatPage({ mode }) {
   /* Owner / admin: internal note */
   const [noteText, setNoteText] = useState("");
   const [showNotes, setShowNotes] = useState(false);
+  const [ownerTicketForm, setOwnerTicketForm] = useState({ subject: "", message: "", category: "web_issue", priority: "medium" });
 
   /* Rating modal */
   const [showRating, setShowRating] = useState(false);
@@ -143,7 +144,9 @@ export function SupportChatPage({ mode }) {
         const fn = isAdminView ? adminApi.getStats : ownerApi.getStats;
         const data = await fn();
         setStats(data.stats);
-      } catch {}
+      } catch (err) {
+        setError(err.message || "Failed to load support stats");
+      }
     })();
   }, [isOwnerView, isAdminView]);
 
@@ -240,6 +243,20 @@ export function SupportChatPage({ mode }) {
       await loadTickets();
     } catch (err) {
       setError(err.message || "Failed to add note");
+    }
+  };
+
+  const handleOwnerCreateTicket = async () => {
+    if (!ownerTicketForm.subject.trim() || !ownerTicketForm.message.trim()) {
+      setError("Subject and message are required");
+      return;
+    }
+    try {
+      await ownerApi.createTicket(ownerTicketForm);
+      setOwnerTicketForm({ subject: "", message: "", category: "web_issue", priority: "medium" });
+      await loadTickets();
+    } catch (err) {
+      setError(err.message || "Failed to create ticket");
     }
   };
 
@@ -544,6 +561,38 @@ export function SupportChatPage({ mode }) {
           {stats.avgFirstResponseMin != null && (
             <div className={styles.statCard}><span className={styles.statValue}>{stats.avgFirstResponseMin}m</span><span className={styles.statLabel}>Avg Response</span></div>
           )}
+        </div>
+      )}
+
+      {isOwnerView && (
+        <div className={styles.notesPanel}>
+          <h4>Raise Ticket to Admin</h4>
+          <div className={styles.noteComposer}>
+            <input
+              type="text"
+              value={ownerTicketForm.subject}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, subject: e.target.value }))}
+              placeholder="Subject"
+            />
+            <select
+              value={ownerTicketForm.priority}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, priority: e.target.value }))}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className={styles.noteComposer}>
+            <input
+              type="text"
+              value={ownerTicketForm.message}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, message: e.target.value }))}
+              placeholder="Describe the issue for admin"
+            />
+            <button className={styles.primaryBtn} onClick={handleOwnerCreateTicket}>Create Ticket</button>
+          </div>
         </div>
       )}
 

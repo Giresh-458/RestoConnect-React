@@ -248,6 +248,8 @@ exports.getCustomerDashboard = async (req, res, next) => {
               time: reservation.time,
               guests: reservation.guests,
               id: reservation.id,
+              status: reservation.status || "pending",
+              cancellationReason: reservation.cancellationReason || "",
               reservationDate: reservationDateTime,
             });
           }
@@ -1105,6 +1107,13 @@ exports.updateCustomerSupportStatus = async (req, res, next) => {
 
 exports.order = async (req, res, next) => {
   const { restaurant, specialRequests } = req.body;
+  const restId = req.session.rest_id;
+  if (restId) {
+    const restaurantDoc = await Restaurant.find_by_id(restId);
+    if (!restaurantDoc || !restaurantDoc.isOpen) {
+      return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+    }
+  }
   const newOrder = {
     id: Date.now(),
     restaurant,
@@ -1135,6 +1144,13 @@ exports.order = async (req, res, next) => {
 
 exports.reservation = async (req, res, next) => {
   const { restaurant, date, time, guests } = req.body;
+  const restId = req.session.rest_id;
+  if (restId) {
+    const restaurantDoc = await Restaurant.find_by_id(restId);
+    if (!restaurantDoc || !restaurantDoc.isOpen) {
+      return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+    }
+  }
   const newReservation = {
     id: Date.now(),
     name: req.session.username,
@@ -1160,6 +1176,13 @@ exports.reservation = async (req, res, next) => {
 exports.postOrderAndReservationCombined = async (req, res, next) => {
   try {
     const { restaurant, specialRequests, date, time, guests } = req.body;
+    const restId = req.session.rest_id;
+    if (restId) {
+      const restaurantDoc = await Restaurant.find_by_id(restId);
+      if (!restaurantDoc || !restaurantDoc.isOpen) {
+        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+      }
+    }
 
     const newOrder = {
       id: Date.now(),
@@ -1285,7 +1308,6 @@ exports.postPaymentsSuccess = async (req, res, next) => {
 // API: create order and/or reservation from SPA
 exports.apiCheckout = async (req, res, next) => {
   try {
-    const username = req.session.username || null;
     const {
       rest_id,
       items,
@@ -1304,94 +1326,42 @@ exports.apiCheckout = async (req, res, next) => {
         .status(400)
         .json({ success: false, message: "", error: "items are required" });
 
+    const rest = await Restaurant.find_by_id(rest_id);
+    if (!rest) {
+      return res.status(404).json({ success: false, message: "", error: "Restaurant not found" });
+    }
+    if (!rest.isOpen) {
+      return res.status(400).json({ success: false, message: "", error: "Restaurant is currently closed" });
+    }
+
     // Calculate final amount with promo discount
     const baseAmount = Number(totalAmount) || 0;
     const discount = Number(promoDiscount) || 0;
     const finalAmount = Math.max(0, baseAmount - discount);
 
-    // Create Order
-    const dishes = items
-      .map((i) => i.name || i.dish || i.id || "")
-      .filter(Boolean);
-    const order = new Order({
-      dishes,
-      customerName: username || "guest",
-      restaurant: req.body.restaurantName || "",
-      rest_id,
-      status: "pending",
-      totalAmount: finalAmount,
-      promoCode: promoCode || null,
-      promoDiscount: discount || 0,
-      tableNumber: req.body.tableNumber || null,
-    });
-    await order.save();
-
-    // Attach order to restaurant
-    const rest = await Restaurant.find_by_id(rest_id);
-    if (rest) {
-      rest.orders = rest.orders || [];
-      rest.orders.push(order._id);
-      await rest.save();
-    }
-
-    // If reservation provided with all required fields, add to restaurant reservations
-    // Create reservation if date and time are provided (table_id can be assigned later by staff)
-    let reservationSaved = null;
     if (reservation && reservation.date && reservation.time) {
-      // Ensure rest_id is a string for consistency
-      const restIdString = String(rest_id);
-
-      const newReservation = new Reservation({
-        customerName: username || reservation.name || "guest",
-        time: reservation.time,
-        table_id: reservation.table_id || "", // Optional - staff will assign
-        guests: reservation.guests || 1,
-        status: "pending",
-        rest_id: restIdString,
-        date: reservation.date,
-      });
-      await newReservation.save();
-      console.log(
-        "✅ Created reservation:",
-        newReservation._id,
-        "for rest_id:",
-        restIdString,
+      const guests = Number(reservation.guests) || 1;
+      const maxTableSeats = (rest.tables || []).reduce(
+        (max, t) => Math.max(max, Number(t?.seats || 0)),
+        0,
       );
-
-      order.reservation_id = newReservation._id;
-      await order.save();
-      reservationSaved = newReservation;
-
-      // Add reservation to restaurant's reservations array
-      const restForReservation = await Restaurant.find_by_id(restIdString);
-      if (restForReservation) {
-        restForReservation.reservations = restForReservation.reservations || [];
-        restForReservation.reservations.push({
-          id: newReservation._id,
-          name: newReservation.customerName,
-          guests: newReservation.guests,
-          date:
-            newReservation.date instanceof Date
-              ? newReservation.date.toISOString().split("T")[0]
-              : String(newReservation.date),
-          time: newReservation.time,
-          tables: newReservation.table_id ? [newReservation.table_id] : [],
-          allocated: false,
+      if (maxTableSeats > 0 && guests > maxTableSeats) {
+        return res.status(400).json({
+          success: false,
+          message: "",
+          error: `No table can accommodate ${guests} guests. Maximum available seats per table is ${maxTableSeats}.`,
         });
-        await restForReservation.save();
-        console.log("✅ Added reservation to restaurant reservations array");
-      } else {
-        console.warn("⚠️ Restaurant not found for rest_id:", restIdString);
       }
     }
 
-    // Return created ids for frontend to proceed to payment
+    // Validation/preview only: persist on /checkout/pay after successful payment
     return res.json({
       success: true,
       data: {
-        orderId: order._id,
-        reservation: reservationSaved ? { id: reservationSaved._id } : null,
-        amount: order.totalAmount,
+        orderId: null,
+        reservation: null,
+        amount: finalAmount,
+        rest_id,
       },
       message: "",
     });
@@ -1426,6 +1396,19 @@ exports.apiCheckoutPay = async (req, res, next) => {
           .json({ success: false, error: "Order not found" });
       }
 
+      const restDoc = await Restaurant.find_by_id(rest_id || order.rest_id);
+      if (!restDoc || !restDoc.isOpen) {
+        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+      }
+
+      if (order.paymentStatus === "paid") {
+        return res.json({
+          success: true,
+          data: { orderId: order._id },
+          message: "Payment already processed",
+        });
+      }
+
       // If order has a reservation_id, ensure it's in the restaurant's reservations array
       if (order.reservation_id) {
         const existingReservation = await Reservation.findOne({
@@ -1436,8 +1419,8 @@ exports.apiCheckoutPay = async (req, res, next) => {
           const restForReservation = await Restaurant.find_by_id(orderRestId);
           if (restForReservation) {
             // Check if reservation already exists in restaurant's reservations array
-            const reservationExists = restForReservation.reservations.some(
-              (r) => r.id === existingReservation._id,
+            const reservationExists = (restForReservation.reservations || []).some(
+              (r) => String(r.id) === String(existingReservation._id),
             );
             if (!reservationExists) {
               restForReservation.reservations =
@@ -1490,6 +1473,14 @@ exports.apiCheckoutPay = async (req, res, next) => {
         });
       }
 
+      const restDoc = await Restaurant.find_by_id(payload.rest_id);
+      if (!restDoc) {
+        return res.status(404).json({ success: false, error: "Restaurant not found" });
+      }
+      if (!restDoc.isOpen) {
+        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+      }
+
       const username = req.session.username || null;
       const dishes = payload.items
         .map((i) => i.name || i.dish || i.id || "")
@@ -1503,13 +1494,61 @@ exports.apiCheckoutPay = async (req, res, next) => {
       }
 
       const baseAmount = Number(payload.totalAmount) || 0;
-      const promoDiscount = Number(payload.promoDiscount) || 0;
+      let promoDiscount = 0;
+      let resolvedPromoCode = null;
+
+      if (payload.promoCode) {
+        const promoCodeDoc = await PromoCode.findOne({
+          code: String(payload.promoCode).toUpperCase().trim(),
+          rest_id: payload.rest_id,
+        });
+        if (!promoCodeDoc) {
+          return res.status(400).json({ success: false, error: "Invalid promo code" });
+        }
+        const promoValidation = promoCodeDoc.isValid(baseAmount);
+        if (!promoValidation.valid) {
+          return res.status(400).json({ success: false, error: promoValidation.error || "Invalid promo code" });
+        }
+        promoDiscount = promoCodeDoc.calculateDiscount(baseAmount);
+        resolvedPromoCode = promoCodeDoc.code;
+      }
+
       const finalAmount = Math.max(0, baseAmount - promoDiscount);
 
       if (finalAmount <= 0) {
         return res.status(400).json({
           success: false,
           error: "Total amount must be greater than 0",
+        });
+      }
+
+      const recentWindowStart = new Date(Date.now() - 2 * 60 * 1000);
+      const recentPaidCandidates = await Order.find({
+        customerName: username || "guest",
+        rest_id: payload.rest_id,
+        paymentStatus: "paid",
+        totalAmount: finalAmount,
+        date: { $gte: recentWindowStart },
+      })
+        .sort({ date: -1 })
+        .limit(5);
+
+      const sortedDishes = [...dishes].sort();
+      const duplicatePaidOrder = recentPaidCandidates.find((existingOrder) => {
+        const existingDishes = Array.isArray(existingOrder.dishes)
+          ? [...existingOrder.dishes].sort()
+          : [];
+        return (
+          existingDishes.length === sortedDishes.length &&
+          existingDishes.every((dishName, idx) => dishName === sortedDishes[idx])
+        );
+      });
+
+      if (duplicatePaidOrder) {
+        return res.json({
+          success: true,
+          data: { orderId: duplicatePaidOrder._id },
+          message: "Payment already processed",
         });
       }
 
@@ -1520,25 +1559,10 @@ exports.apiCheckoutPay = async (req, res, next) => {
         rest_id: payload.rest_id,
         status: "pending",
         totalAmount: finalAmount,
-        promoCode: payload.promoCode || null,
+        promoCode: resolvedPromoCode,
         promoDiscount: promoDiscount || 0,
       });
       await order.save();
-
-      // Apply promo code usage if promo code was used
-      if (payload.promoCode) {
-        try {
-          const promoCodeDoc = await PromoCode.findOne({
-            code: payload.promoCode.toUpperCase().trim(),
-          });
-          if (promoCodeDoc) {
-            promoCodeDoc.usedCount += 1;
-            await promoCodeDoc.save();
-          }
-        } catch (e) {
-          console.warn("Failed to increment promo code usage:", e);
-        }
-      }
 
       // Attach order to restaurant
       const rest = await Restaurant.find_by_id(payload.rest_id);
@@ -1557,6 +1581,18 @@ exports.apiCheckoutPay = async (req, res, next) => {
         payload.reservation.date &&
         payload.reservation.time
       ) {
+        const guests = Number(payload.reservation.guests) || 1;
+        const maxTableSeats = (restDoc.tables || []).reduce(
+          (max, t) => Math.max(max, Number(t?.seats || 0)),
+          0,
+        );
+        if (maxTableSeats > 0 && guests > maxTableSeats) {
+          return res.status(400).json({
+            success: false,
+            error: `No table can accommodate ${guests} guests. Maximum available seats per table is ${maxTableSeats}.`,
+          });
+        }
+
         // Ensure rest_id is a string for consistency
         const restIdString = String(payload.rest_id);
 
@@ -1605,18 +1641,29 @@ exports.apiCheckoutPay = async (req, res, next) => {
       }
     }
 
-    // At this point we have an order object; mark payment as paid but keep status as pending for kitchen
-    order.status = "pending"; // Keep as pending until kitchen prepares it
-    order.paymentStatus = "paid"; // Mark payment as completed
+    const wasAlreadyPaid = order.paymentStatus === "paid";
+    order.status = "pending";
+    order.paymentStatus = "paid";
     order.completionTime = new Date();
     await order.save();
+
+    if (!wasAlreadyPaid && order.promoCode) {
+      try {
+        await PromoCode.updateOne(
+          { code: String(order.promoCode).toUpperCase().trim(), rest_id: order.rest_id },
+          { $inc: { usedCount: 1 } },
+        );
+      } catch (e) {
+        console.warn("Failed to increment promo code usage:", e);
+      }
+    }
 
     // Add payment to restaurant record
     const finalRestId =
       rest_id || (order && order.rest_id) || (payload && payload.rest_id);
     if (finalRestId) {
       const rest = await Restaurant.find_by_id(finalRestId);
-      if (rest) {
+      if (rest && !wasAlreadyPaid) {
         rest.payments = rest.payments || [];
         rest.payments.push({ amount: order.totalAmount, date: new Date() });
         await rest.save();
@@ -2220,7 +2267,7 @@ exports.getFavourites = async (req, res, next) => {
 // Validate promo code
 exports.validatePromoCode = async (req, res, next) => {
   try {
-    const { code, orderAmount } = req.body;
+    const { code, orderAmount, rest_id } = req.body;
 
     if (!code) {
       return res.status(400).json({
@@ -2229,8 +2276,16 @@ exports.validatePromoCode = async (req, res, next) => {
       });
     }
 
+    if (!rest_id) {
+      return res.status(400).json({
+        success: false,
+        error: "Restaurant ID is required",
+      });
+    }
+
     const promoCode = await PromoCode.findOne({
       code: code.toUpperCase().trim(),
+      rest_id: String(rest_id),
     });
 
     if (!promoCode) {
@@ -2276,7 +2331,7 @@ exports.validatePromoCode = async (req, res, next) => {
 // Apply promo code to order (increment usage count)
 exports.applyPromoCode = async (req, res, next) => {
   try {
-    const { code } = req.body;
+    const { code, rest_id } = req.body;
 
     if (!code) {
       return res.status(400).json({
@@ -2285,8 +2340,16 @@ exports.applyPromoCode = async (req, res, next) => {
       });
     }
 
+    if (!rest_id) {
+      return res.status(400).json({
+        success: false,
+        error: "Restaurant ID is required",
+      });
+    }
+
     const promoCode = await PromoCode.findOne({
       code: code.toUpperCase().trim(),
+      rest_id: String(rest_id),
     });
 
     if (!promoCode) {
@@ -2306,6 +2369,37 @@ exports.applyPromoCode = async (req, res, next) => {
     });
   } catch (error) {
     console.error("applyPromoCode error:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Server error";
+    return next(error);
+  }
+};
+
+exports.getAvailablePromoCodes = async (req, res, next) => {
+  try {
+    const { rest_id } = req.query;
+    if (!rest_id) {
+      return res.status(400).json({ success: false, error: "Restaurant ID is required" });
+    }
+
+    const now = new Date();
+    const promos = await PromoCode.find({
+      rest_id: String(rest_id),
+      isActive: true,
+      validFrom: { $lte: now },
+      validUntil: { $gte: now },
+      $or: [
+        { usageLimit: null },
+        { usageLimit: 0 },
+        { $expr: { $lt: ["$usedCount", "$usageLimit"] } },
+      ],
+    })
+      .sort({ validUntil: 1 })
+      .select("code description discountType discountValue minAmount maxDiscount validUntil");
+
+    return res.json({ success: true, data: promos });
+  } catch (error) {
+    console.error("getAvailablePromoCodes error:", error);
     error.status = error.status || 500;
     error.message = error.message || "Server error";
     return next(error);

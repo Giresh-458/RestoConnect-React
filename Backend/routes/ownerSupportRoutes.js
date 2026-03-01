@@ -3,6 +3,7 @@ const router = express.Router();
 const supportController = require("../Controller/supportController");
 
 router.get("/stats", supportController.ownerGetStats);
+router.post("/tickets", supportController.ownerCreateTicket);
 router.get("/tickets", supportController.ownerGetTickets);
 router.get("/tickets/:ticketId", supportController.ownerGetTicket);
 router.post("/tickets/:ticketId/messages", supportController.ownerPostMessage);

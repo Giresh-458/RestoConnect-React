@@ -17,6 +17,7 @@ const CATEGORY_LABELS = {
   staff_conduct: "Staff Behavior",
   hygiene: "Hygiene Concern",
   reservation_issue: "Reservation Issue",
+  web_issue: "Web Issue",
   other: "Other",
 };
 
@@ -403,6 +404,46 @@ exports.ownerGetTickets = async (req, res, next) => {
     res.json({ tickets: tickets.map(formatTicket), stats });
   } catch (error) {
     console.error("ownerGetTickets error:", error);
+    return next(error);
+  }
+};
+
+exports.ownerCreateTicket = async (req, res, next) => {
+  try {
+    const user = req.user || (await User.findOne({ username: getUsername(req) }));
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const { subject, message, category, priority } = req.body;
+    if (!subject?.trim() || !message?.trim()) {
+      return res.status(400).json({ error: "Subject and message are required" });
+    }
+
+    const restaurant = await Restaurant.findById(user.rest_id).select("name");
+    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+
+    const ticket = new SupportTicket({
+      createdBy: user.username,
+      createdByRole: "owner",
+      rest_id: user.rest_id,
+      restaurantName: restaurant.name,
+      category: category || "web_issue",
+      subject: subject.trim(),
+      priority: ["low", "medium", "high", "urgent"].includes(priority) ? priority : "medium",
+      status: "escalated",
+      assignedRole: "admin",
+      messages: [
+        {
+          senderRole: "owner",
+          senderName: user.username,
+          text: message.trim(),
+        },
+      ],
+    });
+
+    await ticket.save();
+    return res.json({ success: true, ticket: formatTicket(ticket) });
+  } catch (error) {
+    console.error("ownerCreateTicket error:", error);
     return next(error);
   }
 };
@@ -877,6 +918,38 @@ exports.adminGetStats = async (req, res, next) => {
     });
   } catch (error) {
     console.error("adminGetStats error:", error);
+    return next(error);
+  }
+};
+
+exports.staffGetTickets = async (req, res, next) => {
+  try {
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const rest_id = staffMember.rest_id;
+    if (!rest_id) return res.status(400).json({ error: "No restaurant assigned" });
+
+    const filter = { 
+      rest_id: rest_id,
+      category: "web_issue"
+    };
+    
+    const { status } = req.query;
+    if (status && status !== "all") filter.status = status;
+
+    const tickets = await SupportTicket.find(filter).sort({ updatedAt: -1 });
+
+    const stats = {
+      total: tickets.length,
+      open: tickets.filter((t) => t.status === "open").length,
+      inProgress: tickets.filter((t) => t.status === "in_progress").length,
+      resolved: tickets.filter((t) => ["resolved", "closed"].includes(t.status)).length,
+    };
+
+    res.json({ tickets: tickets.map(formatTicket), stats });
+  } catch (error) {
+    console.error("staffGetTickets error:", error);
     return next(error);
   }
 };

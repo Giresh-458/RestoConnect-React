@@ -74,6 +74,7 @@ router.put("/menuManagement/api/edit/:id", uploadDishImage, handleUploadErrors, 
 router.delete("/menuManagement/api/delete/:id", ownerController.deleteProductAPI);
 router.get("/settings", ownerController.getRestaurantSettings);
 router.put("/settings", ownerController.updateRestaurantSettings);
+router.put("/account", ownerController.updateOwnerAccount);
 router.get("/promo-codes", ownerController.getPromoCodes);
 router.post("/promo-codes", ownerController.createPromoCode);
 router.patch("/promo-codes/:id/toggle", ownerController.togglePromoCode);

@@ -113,7 +113,9 @@ export function OwnerOrders() {
         {filtered.length === 0 && <p className={styles.empty}>No orders found</p>}
         {filtered.map((order) => {
           const isExpanded = expandedOrder === order._id;
-          const nextStatuses = STATUS_FLOW[order.status] || [];
+          const nextStatuses = (STATUS_FLOW[order.status] || []).filter(
+            (nextStatus) => !(nextStatus === "cancelled" && order.paymentStatus === "paid")
+          );
           const dishes = order.dishDetails || order.dishes || [];
           const subtotal = dishes.reduce((sum, d) => sum + (d.price || 0) * (d.quantity || 1), 0);
           const taxRate = order.taxRate || 10;
@@ -166,7 +168,9 @@ export function OwnerOrders() {
                     {order.paymentStatus && (
                       <div className={styles.detail}>
                         <span className={styles.detailLabel}>Payment</span>
-                        <span className={`${styles.payBadge} ${styles["pay_" + order.paymentStatus]}`}>{order.paymentStatus}</span>
+                        <span className={`${styles.payBadge} ${styles["pay_" + order.paymentStatus]}`}>
+                          {order.paymentStatus === "unpaid" ? "pending" : order.paymentStatus}
+                        </span>
                       </div>
                     )}
                     {order.estimatedTime && (

@@ -71,5 +71,11 @@ router.put('/tables/status', staffController.postUpdateTableStatus);
 router.delete('/tables/:tableNumber', staffController.postDeleteTable);
 router.post('/change-password', staffController.changePassword);
 
+// Staff support ticket routes - only for web issues
+const staffSupportController = require("../Controller/staffSupportController");
+router.get("/support/tickets", staffSupportController.staffGetTickets);
+router.get("/support/tickets/:ticketId", staffSupportController.staffGetTicket);
+router.post("/support/tickets/:ticketId/messages", staffSupportController.staffPostMessage);
+router.patch("/support/tickets/:ticketId/status", staffSupportController.staffUpdateStatus);
 
 module.exports = router;

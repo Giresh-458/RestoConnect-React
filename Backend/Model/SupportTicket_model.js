@@ -70,6 +70,7 @@ const supportTicketSchema = new mongoose.Schema(
         "staff_conduct",
         "hygiene",
         "reservation_issue",
+        "web_issue",
         "other",
       ],
     },

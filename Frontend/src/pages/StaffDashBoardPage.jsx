@@ -10,8 +10,9 @@ import {
   FaBell, FaConciergeBell, FaCalendarCheck, FaTasks, FaWarehouse,
   FaHome, FaThLarge, FaChartBar, FaPlus, FaTimes, FaArrowRight,
   FaFire, FaCheck, FaBars, FaChevronLeft, FaStar, FaSearch,
-  FaSync, FaBroom, FaLock, FaTrash, FaEye, FaBoxOpen
+  FaSync, FaBroom, FaLock, FaTrash, FaEye, FaBoxOpen, FaGlobe
 } from "react-icons/fa";
+import { staffApi } from "../api/supportApi";
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -167,6 +168,41 @@ export function StaffDashBoardPage() {
     return cols;
   }, [data]);
 
+  const tableStatusByNumber = useMemo(() => {
+    const map = new Map();
+    (data?.allTables || []).forEach((table) => {
+      map.set(String(table.number), table.status || 'Available');
+    });
+    return map;
+  }, [data]);
+
+  const reservationTableById = useMemo(() => {
+    const map = new Map();
+    (data?.reservations || []).forEach((reservation) => {
+      const table = reservation.table_id || reservation.tables?.[0] || null;
+      if (reservation?._id && table) {
+        map.set(String(reservation._id), String(table));
+      }
+    });
+    return map;
+  }, [data]);
+
+  const getOrderTableNumber = useCallback((order) => {
+    const direct = order?.tableNumber || order?.table_id;
+    if (direct && String(direct).trim()) return String(direct);
+
+    const fromReservation = order?.reservation_id
+      ? reservationTableById.get(String(order.reservation_id))
+      : null;
+    return fromReservation || null;
+  }, [reservationTableById]);
+
+  const getFeedbackRating = useCallback((feedbackItem) => {
+    const rawRating = feedbackItem?.rating ?? feedbackItem?.diningRating ?? feedbackItem?.orderRating ?? 0;
+    const numericRating = Number(rawRating) || 0;
+    return Math.max(0, Math.min(5, numericRating));
+  }, []);
+
   const filteredInventory = useMemo(() => {
     if (!data) return [];
     let items = data.inventoryStatus || [];
@@ -281,7 +317,7 @@ export function StaffDashBoardPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status: 'Done' }),
+        body: JSON.stringify({ status: 'Completed' }),
       });
       if (!resp.ok) throw new Error("Failed to update task");
       await fetchData(true);
@@ -348,6 +384,11 @@ export function StaffDashBoardPage() {
     const nextStatus = currentIdx >= 0 && currentIdx < ORDER_FLOW.length - 1 ? ORDER_FLOW[currentIdx + 1] : null;
     const elapsed = timeAgo(order.orderTime || order.date);
     const isProcessing = processingId === order._id;
+    const resolvedTableNumber = getOrderTableNumber(order);
+    const tableStatus = resolvedTableNumber ? tableStatusByNumber.get(String(resolvedTableNumber)) : null;
+    const isDineInOrder = Boolean(resolvedTableNumber);
+    const canMarkServed = !isDineInOrder || tableStatus === 'Occupied';
+    const disableNextAction = isProcessing || (nextStatus === 'served' && !canMarkServed);
 
     const nextLabels = { preparing: '🔥 Start Cooking', ready: '✅ Mark Ready', served: '🍽️ Serve' };
 
@@ -358,7 +399,7 @@ export function StaffDashBoardPage() {
           <span className="sd-order-elapsed">{elapsed}</span>
         </div>
         <div className="sd-order-table-num">
-          <FaChair /> Table {order.tableNumber || order.table_id || 'N/A'}
+          <FaChair /> Table {resolvedTableNumber || 'N/A'}
         </div>
         <div className="sd-order-dishes">
           {(order.dishes || []).slice(0, 4).map((d, i) => (
@@ -377,10 +418,15 @@ export function StaffDashBoardPage() {
         {nextStatus && (
           <button
             className="sd-order-action-btn"
-            disabled={isProcessing}
+            disabled={disableNextAction}
             onClick={() => handleOrderStatus(order._id, nextStatus)}
           >
-            {isProcessing ? <span className="sd-spinner-sm" /> : nextLabels[nextStatus] || `→ ${nextStatus}`}
+            {isProcessing
+              ? <span className="sd-spinner-sm" />
+              : (nextStatus === 'served' && !canMarkServed)
+                ? '⏳ Awaiting Arrival'
+                : (nextLabels[nextStatus] || `→ ${nextStatus}`)
+            }
           </button>
         )}
         {!nextStatus && !['served', 'done', 'completed'].includes(status) && (
@@ -485,7 +531,7 @@ export function StaffDashBoardPage() {
                   {(ordersByColumn[key] || []).slice(0, 3).map(o => (
                     <div key={o._id} className="sd-mini-order">
                       <span className="sd-mini-order-id">#{String(o._id).slice(-4)}</span>
-                      <span className="sd-mini-order-table">T{o.tableNumber || o.table_id || '?'}</span>
+                      <span className="sd-mini-order-table">T{getOrderTableNumber(o) || '?'}</span>
                       <span className="sd-mini-order-time">{timeAgo(o.orderTime || o.date)}</span>
                     </div>
                   ))}
@@ -559,7 +605,7 @@ export function StaffDashBoardPage() {
                   <span className="sd-feedback-name">{f.customerName || 'Guest'}</span>
                   <span className="sd-feedback-stars">
                     {Array.from({ length: 5 }, (_, si) => (
-                      <FaStar key={si} className={si < (f.rating || 0) ? 'sd-star-filled' : 'sd-star-empty'} />
+                      <FaStar key={si} className={si < getFeedbackRating(f) ? 'sd-star-filled' : 'sd-star-empty'} />
                     ))}
                   </span>
                 </div>
@@ -911,7 +957,7 @@ export function StaffDashBoardPage() {
   const renderTasks = () => {
     const tasks = data?.staffTasks || [];
     const pending = tasks.filter(t => t.status === 'Pending');
-    const done = tasks.filter(t => t.status === 'Done');
+    const done = tasks.filter(t => ['Done', 'Completed'].includes(t.status));
 
     return (
       <div className="sd-tasks-page">

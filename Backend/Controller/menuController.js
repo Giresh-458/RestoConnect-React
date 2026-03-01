@@ -44,6 +44,8 @@ exports.getMenu = async (req,res,next)=>{
                 image: rest.image,
                 rating: rest.rating,
                 isOpen: rest.isOpen,
+                taxRate: Number(rest.taxRate) || 0,
+                serviceCharge: Number(rest.serviceCharge) || 0,
                 operatingHours: rest.operatingHours,
                 cuisine: rest.cuisine || []
             },
