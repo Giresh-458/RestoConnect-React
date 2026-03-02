@@ -17,6 +17,7 @@ import {
 } from "../api/adminApi";
 import { maskEmail } from "../util/maskEmail";
 import { SupportChatPage } from "./SupportChatPage";
+import { Settings } from "../components/admin_components/Settings";
 import "../styles/admin.css";
 
 const COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#e11d48", "#84cc16", "#6366f1", "#14b8a6"];
@@ -1046,33 +1047,7 @@ function TopCustomersSection() {
    SETTINGS
    ═══════════════════════════════ */
 function AdminSettingsSection({ adminData }) {
-  return (
-    <div className="admin-card">
-      <div className="admin-card-header"><h3>Admin Account</h3></div>
-      <div className="admin-card-body">
-        <div style={{ display: "grid", gap: 16, maxWidth: 400 }}>
-          <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 500 }}>Username</label>
-            <div style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", marginTop: 4 }}>
-              {adminData?.username || "admin"}
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 500 }}>Email</label>
-            <div style={{ fontSize: "1rem", fontWeight: 600, color: "#1e293b", marginTop: 4 }}>
-              {adminData?.email || "—"}
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 500 }}>Role</label>
-            <div style={{ marginTop: 4 }}>
-              <span className="admin-badge primary">Administrator</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <Settings data={adminData || {}} />;
 }
 
 /* ═══════════════════════════════

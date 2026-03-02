@@ -224,38 +224,36 @@ exports.getCustomerDashboard = async (req, res, next) => {
     ).filter((r) => r !== null);
 
     // =================== RESERVATIONS ===================
-    const restaurants = await Restaurant.find({});
+    // Read from the standalone Reservation collection for up-to-date status
+    const customerReservations = await Reservation.find({ customerName }).lean();
     const allReservations = [];
 
-    restaurants.forEach((restaurant) => {
-      if (restaurant.reservations && restaurant.reservations.length > 0) {
-        restaurant.reservations.forEach((reservation) => {
-          if (reservation.name === customerName) {
-            // Create proper datetime by combining date and time
-            let reservationDateTime = new Date(reservation.date);
-            if (reservation.time) {
-              const [hours, minutes] = reservation.time.split(":");
-              reservationDateTime.setHours(
-                parseInt(hours) || 0,
-                parseInt(minutes) || 0,
-                0,
-                0,
-              );
-            }
-            allReservations.push({
-              restaurant: restaurant.name,
-              date: reservation.date,
-              time: reservation.time,
-              guests: reservation.guests,
-              id: reservation.id,
-              status: reservation.status || "pending",
-              cancellationReason: reservation.cancellationReason || "",
-              reservationDate: reservationDateTime,
-            });
-          }
-        });
+    for (const reservation of customerReservations) {
+      // Look up the restaurant name for display
+      const restaurant = await Restaurant.findById(reservation.rest_id).select('name').lean();
+
+      // Create proper datetime by combining date and time
+      let reservationDateTime = new Date(reservation.date);
+      if (reservation.time) {
+        const [hours, minutes] = reservation.time.split(":");
+        reservationDateTime.setHours(
+          parseInt(hours) || 0,
+          parseInt(minutes) || 0,
+          0,
+          0,
+        );
       }
-    });
+      allReservations.push({
+        restaurant: restaurant ? restaurant.name : "Unknown Restaurant",
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests,
+        id: reservation._id,
+        status: reservation.status || "pending",
+        cancellationReason: reservation.cancellationReason || "",
+        reservationDate: reservationDateTime,
+      });
+    }
 
     const now = new Date();
     const upcoming = allReservations

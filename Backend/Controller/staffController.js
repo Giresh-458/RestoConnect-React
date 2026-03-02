@@ -102,9 +102,9 @@ exports.postUpdateOrder = async (req, res, next) => {
           (table) => String(table.number) === orderTableNumber
         );
 
-        if (tableForOrder && tableForOrder.status !== "Occupied") {
+        if (tableForOrder && tableForOrder.status !== "Occupied" && tableForOrder.status !== "Allocated") {
           return res.status(400).json({
-            error: "Cannot mark order as served before guest arrival. Mark the table as Occupied first.",
+            error: "Cannot mark order as served before guest arrival. Mark the table as Occupied or allocate it first.",
           });
         }
       }
@@ -215,6 +215,17 @@ exports.postAllocateTable = async (req, res, next) => {
     );
 
     await reservation.save();
+
+    // Sync the embedded reservations array so all views stay consistent
+    const embeddedReservation = (rest.reservations || []).find(
+      (r) => String(r.id) === String(reservation._id)
+    );
+    if (embeddedReservation) {
+      embeddedReservation.allocated = reservation.allocated;
+      embeddedReservation.tables = Array.isArray(reservation.tables) ? reservation.tables : [];
+      embeddedReservation.status = reservation.status;
+    }
+
     await rest.save();
 
     return res.json({

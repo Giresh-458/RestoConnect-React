@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { isLogin } from "../util/auth";
 import { getFavourites, removeFromFavourites } from "../util/favourites";
 import { redirect, useNavigate, useLocation } from "react-router-dom";
@@ -67,7 +67,9 @@ export const DashBoardPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [switchFocused, setSwitchFocused] = useState(false);
-  const [notificationsViewed, setNotificationsViewed] = useState(false);
+  const [notificationsViewed, setNotificationsViewed] = useState(() => {
+    try { return sessionStorage.getItem('notificationsViewed') === 'true'; } catch { return false; }
+  });
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [favoriteDishes, setFavoriteDishes] = useState([]);
@@ -229,7 +231,20 @@ export const DashBoardPage = () => {
   const satisfactionRate = feedbackStats?.satisfactionRate ?? 0;
   const totalReviews = feedbackStats?.totalReviews ?? 0;
   const recentReviewsList = Array.isArray(feedbackStats?.recentReviews) ? feedbackStats.recentReviews : [];
-  const unreadNotifications = notificationsViewed ? 0 : notifications.length;
+
+  // Compute unread count by comparing current notification IDs against the ones seen
+  const unreadNotifications = useMemo(() => {
+    if (notificationsViewed && notifications.length > 0) {
+      try {
+        const seenIds = JSON.parse(sessionStorage.getItem('seenNotificationIds') || '[]');
+        const currentIds = notifications.map(n => n._id || n.id || n.message);
+        const newCount = currentIds.filter(id => !seenIds.includes(id)).length;
+        return newCount;
+      } catch { return 0; }
+    }
+    if (notificationsViewed) return 0;
+    return notifications.length;
+  }, [notificationsViewed, notifications]);
 
   const sidebarItems = [
     { id: "overview", icon: "📊", label: "Overview" },
@@ -695,7 +710,7 @@ export const DashBoardPage = () => {
         </div>
         <nav className={styles.sidebarNav}>
           {sidebarItems.map((item) => (
-            <button key={item.id} className={`${styles.sidebarItem} ${activeSection === item.id ? styles.sidebarItemActive : ""}`} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); if (item.id === "notifications") setNotificationsViewed(true); }}>
+            <button key={item.id} className={`${styles.sidebarItem} ${activeSection === item.id ? styles.sidebarItemActive : ""}`} onClick={() => { setActiveSection(item.id); setSidebarOpen(false); if (item.id === "notifications") { setNotificationsViewed(true); try { sessionStorage.setItem('notificationsViewed', 'true'); const ids = notifications.map(n => n._id || n.id || n.message); sessionStorage.setItem('seenNotificationIds', JSON.stringify(ids)); } catch {} } }}>
               <span className={styles.sidebarItemIcon}>{item.icon}</span>
               <span className={styles.sidebarItemLabel}>{item.label}</span>
               {item.badge > 0 && <span className={styles.sidebarBadge}>{item.badge}</span>}
@@ -715,7 +730,7 @@ export const DashBoardPage = () => {
           </div>
           <div className={styles.topBarRight}>
             <button className={styles.topBarBtn} onClick={() => navigate("/customer/")} title="Browse Restaurants">🍽️ Restaurants</button>
-            <button className={styles.topBarBtn} onClick={() => { setActiveSection("notifications"); setNotificationsViewed(true); }} title="Notifications" style={{ position: "relative" }}>
+            <button className={styles.topBarBtn} onClick={() => { setActiveSection("notifications"); setNotificationsViewed(true); try { sessionStorage.setItem('notificationsViewed', 'true'); const ids = notifications.map(n => n._id || n.id || n.message); sessionStorage.setItem('seenNotificationIds', JSON.stringify(ids)); } catch {} }} title="Notifications" style={{ position: "relative" }}>
               🔔{unreadNotifications > 0 && <span className={styles.topBadge}>{unreadNotifications}</span>}
             </button>
           </div>

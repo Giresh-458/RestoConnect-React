@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { customerApi, ownerApi, adminApi } from "../api/supportApi";
+import { customerApi, ownerApi, adminApi, staffApi } from "../api/supportApi";
 import styles from "./SupportChatPage.module.css";
 
 /* ── Constants ──────────────────────────────────────── */
@@ -31,6 +31,7 @@ export function SupportChatPage({ mode }) {
   const isOwnerView = mode === "owner" || location.pathname.includes("/owner/support");
   const isCustomerView = mode === "customer" || location.pathname.includes("/customer/support");
   const isAdminView = mode === "admin" || location.pathname.includes("/admin/support");
+  const isStaffView = mode === "staff" || location.pathname.includes("/staff/support");
 
   /* ── Customer flow: "orders" → pick order → pick issue → ticket created
        Three screens: "orders" | "issue" | "tickets"                       */
@@ -119,6 +120,8 @@ export function SupportChatPage({ mode }) {
       let data;
       if (isCustomerView) {
         data = await customerApi.getTickets(statusFilter !== "all" ? statusFilter : undefined);
+      } else if (isStaffView) {
+        data = await staffApi.getTickets({ status: statusFilter });
       } else if (isOwnerView) {
         data = await ownerApi.getTickets({ status: statusFilter, priority: priorityFilter });
       } else {
@@ -134,7 +137,7 @@ export function SupportChatPage({ mode }) {
     } finally {
       setLoading(false);
     }
-  }, [isCustomerView, isOwnerView, isAdminView, statusFilter, priorityFilter, activeTicketId]);
+  }, [isCustomerView, isOwnerView, isAdminView, isStaffView, statusFilter, priorityFilter, activeTicketId]);
 
   // Owner/Admin: load stats once
   useEffect(() => {
@@ -150,12 +153,12 @@ export function SupportChatPage({ mode }) {
     })();
   }, [isOwnerView, isAdminView]);
 
-  // Load tickets when screen = tickets or for owner/admin
+  // Load tickets when screen = tickets or for owner/admin/staff
   useEffect(() => {
     if (isCustomerView && customerScreen !== "tickets") return;
     setLoading(true);
     loadTickets();
-  }, [customerScreen, statusFilter, priorityFilter, isOwnerView, isAdminView]);
+  }, [customerScreen, statusFilter, priorityFilter, isOwnerView, isAdminView, isStaffView]);
 
   // Keep active ticket in filtered list
   useEffect(() => {
@@ -173,6 +176,7 @@ export function SupportChatPage({ mode }) {
     setError("");
     try {
       if (isCustomerView) await customerApi.postMessage(activeTicketId, message.trim());
+      else if (isStaffView) await staffApi.postMessage(activeTicketId, message.trim());
       else if (isOwnerView) await ownerApi.postMessage(activeTicketId, message.trim());
       else await adminApi.postMessage(activeTicketId, message.trim());
       setMessage("");
@@ -216,6 +220,7 @@ export function SupportChatPage({ mode }) {
     if (!activeTicketId) return;
     try {
       if (isCustomerView && status === "resolved") await customerApi.closeTicket(activeTicketId);
+      else if (isStaffView) await staffApi.updateStatus(activeTicketId, status);
       else if (isOwnerView) await ownerApi.updateStatus(activeTicketId, status);
       else await adminApi.updateStatus(activeTicketId, status);
       await loadTickets();
@@ -253,6 +258,20 @@ export function SupportChatPage({ mode }) {
     }
     try {
       await ownerApi.createTicket(ownerTicketForm);
+      setOwnerTicketForm({ subject: "", message: "", category: "web_issue", priority: "medium" });
+      await loadTickets();
+    } catch (err) {
+      setError(err.message || "Failed to create ticket");
+    }
+  };
+
+  const handleStaffCreateTicket = async () => {
+    if (!ownerTicketForm.subject.trim() || !ownerTicketForm.message.trim()) {
+      setError("Subject and message are required");
+      return;
+    }
+    try {
+      await staffApi.createTicket(ownerTicketForm);
       setOwnerTicketForm({ subject: "", message: "", category: "web_issue", priority: "medium" });
       await loadTickets();
     } catch (err) {
@@ -529,6 +548,128 @@ export function SupportChatPage({ mode }) {
   }
 
   /* ═══════════════════════════════════════════════
+     RENDER: STAFF VIEW
+     ═══════════════════════════════════════════════ */
+  if (isStaffView) {
+    return (
+      <div className={styles.supportPage}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.eyebrow}>Staff Support</p>
+            <h1>Contact Owner / Report Issues</h1>
+            <p className={styles.subtitle}>
+              Create support tickets for website issues or contact your restaurant owner.
+            </p>
+          </div>
+        </header>
+
+        {/* Stats bar */}
+        {stats && (
+          <div className={styles.statsBar}>
+            <div className={styles.statCard}><span className={styles.statValue}>{stats.open ?? 0}</span><span className={styles.statLabel}>Open</span></div>
+            <div className={styles.statCard}><span className={styles.statValue}>{stats.inProgress ?? 0}</span><span className={styles.statLabel}>In Progress</span></div>
+            <div className={styles.statCard}><span className={styles.statValue}>{stats.resolved ?? 0}</span><span className={styles.statLabel}>Resolved</span></div>
+          </div>
+        )}
+
+        {/* Create Ticket Form */}
+        <div className={styles.notesPanel}>
+          <h4>Raise a New Ticket</h4>
+          <div className={styles.noteComposer}>
+            <input
+              type="text"
+              value={ownerTicketForm.subject}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, subject: e.target.value }))}
+              placeholder="Subject"
+            />
+            <select
+              value={ownerTicketForm.priority}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, priority: e.target.value }))}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div className={styles.noteComposer}>
+            <input
+              type="text"
+              value={ownerTicketForm.message}
+              onChange={(e) => setOwnerTicketForm((prev) => ({ ...prev, message: e.target.value }))}
+              placeholder="Describe the issue..."
+            />
+            <button className={styles.primaryBtn} onClick={handleStaffCreateTicket}>Create Ticket</button>
+          </div>
+        </div>
+
+        {error && <div className={styles.errorBanner}>{error}<button onClick={() => setError("")}>✕</button></div>}
+
+        {loading ? (
+          <div className={styles.loader}>Loading support tickets...</div>
+        ) : (
+          <div className={styles.ticketSplitView}>
+            {/* Ticket sidebar */}
+            <aside className={styles.ticketList}>
+              <div className={styles.filterSection}>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="all">All Status</option>
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+
+              {filteredTickets.length === 0 ? (
+                <p className={styles.emptyState}>No tickets found.</p>
+              ) : (
+                filteredTickets.map((ticket) => (
+                  <div
+                    key={ticket.id}
+                    className={ticket.id === activeTicketId ? styles.ticketCardActive : styles.ticketCard}
+                    onClick={() => setActiveTicketId(ticket.id)}
+                  >
+                    <div className={styles.ticketCardHeader}>
+                      <span className={styles.ticketNumber}>{ticket.ticketNumber}</span>
+                      <span className={styles.priorityDot} style={{ background: PRIORITY_COLORS[ticket.priority] }} title={PRIORITY_LABELS[ticket.priority]} />
+                    </div>
+                    <p className={styles.ticketSubject}>{ticket.subject}</p>
+                    <div className={styles.ticketCardMeta}>
+                      <span className={styles.categoryChip}>{ticket.categoryLabel}</span>
+                      <span className={["resolved", "closed"].includes(ticket.status) ? styles.statusResolved : styles.statusOpen}>
+                        {STATUS_LABELS[ticket.status]}
+                      </span>
+                    </div>
+                    <p className={styles.ticketTime}>{new Date(ticket.updatedAt).toLocaleDateString()}</p>
+                  </div>
+                ))
+              )}
+            </aside>
+
+            {/* Chat panel */}
+            <section className={styles.chatPanel}>
+              {activeTicket ? (
+                <>
+                  {renderTicketHeader(activeTicket, { isCustomerView, isOwnerView, isAdminView, isStaffView, handleStatusChange, handlePriorityChange, showNotes, setShowNotes, setShowRating })}
+                  {renderMessages(activeTicket, { isCustomerView, isOwnerView, isAdminView, isStaffView, messagesEndRef })}
+                  {renderComposer(activeTicket, { message, setMessage, handleSendMessage, sending })}
+                </>
+              ) : (
+                <div className={styles.emptyPanel}>
+                  <span className={styles.emptyIcon}>🎫</span>
+                  <h3>No ticket selected</h3>
+                  <p>Select a ticket from the list or create a new one above.</p>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════
      RENDER: OWNER / ADMIN VIEW
      ═══════════════════════════════════════════════ */
   const roleLabel = isAdminView ? "Admin" : "Owner";
@@ -756,6 +897,9 @@ function renderTicketHeader(ticket, ctx) {
         {ctx.isCustomerView && !["resolved", "closed"].includes(ticket.status) && (
           <button className={styles.resolveBtn} onClick={() => ctx.handleStatusChange("resolved")}>Mark Resolved</button>
         )}
+        {ctx.isStaffView && !["resolved", "closed"].includes(ticket.status) && (
+          <button className={styles.resolveBtn} onClick={() => ctx.handleStatusChange("resolved")}>Mark Resolved</button>
+        )}
         {ctx.isCustomerView && ["resolved", "closed"].includes(ticket.status) && !ticket.satisfactionRating && (
           <button className={styles.primaryBtn} onClick={() => ctx.setShowRating(true)}>Rate Experience</button>
         )}
@@ -804,7 +948,8 @@ function renderMessages(ticket, ctx) {
           const isSelf =
             (ctx.isCustomerView && msg.senderRole === "customer") ||
             (ctx.isOwnerView && msg.senderRole === "owner") ||
-            (ctx.isAdminView && msg.senderRole === "admin");
+            (ctx.isAdminView && msg.senderRole === "admin") ||
+            (ctx.isStaffView && msg.senderRole === "staff");
 
           if (isSystem) {
             return (

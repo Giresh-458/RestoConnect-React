@@ -73,6 +73,7 @@ router.post('/change-password', staffController.changePassword);
 
 // Staff support ticket routes - only for web issues
 const staffSupportController = require("../Controller/staffSupportController");
+router.post("/support/tickets", staffSupportController.staffCreateTicket);
 router.get("/support/tickets", staffSupportController.staffGetTickets);
 router.get("/support/tickets/:ticketId", staffSupportController.staffGetTicket);
 router.post("/support/tickets/:ticketId/messages", staffSupportController.staffPostMessage);

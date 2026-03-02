@@ -13,6 +13,7 @@ import {
   FaSync, FaBroom, FaLock, FaTrash, FaEye, FaBoxOpen, FaGlobe
 } from "react-icons/fa";
 import { staffApi } from "../api/supportApi";
+import { SupportChatPage } from "./SupportChatPage";
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -36,6 +37,42 @@ function formatCurrency(amount) {
   return `₹${(amount || 0).toLocaleString('en-IN')}`;
 }
 
+/** Combine a reservation's date + time fields into a proper Date object */
+function parseReservationDateTime(r) {
+  if (!r) return null;
+  // If date exists, combine date + time
+  if (r.date) {
+    const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0]
+      : typeof r.date === 'string' && r.date.includes('T') ? r.date.split('T')[0]
+      : String(r.date);
+    if (r.time && /^\d{1,2}:\d{2}/.test(r.time)) {
+      const combined = new Date(`${dateStr}T${r.time}`);
+      if (!isNaN(combined.getTime())) return combined;
+    }
+    const fallback = new Date(r.date);
+    if (!isNaN(fallback.getTime())) return fallback;
+  }
+  // Try time as full ISO string
+  if (r.time) {
+    const d = new Date(r.time);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+/** Display just the time portion of a reservation */
+function formatReservationTime(r) {
+  // If time is already a readable string like "14:30", format it directly
+  if (r.time && /^\d{1,2}:\d{2}$/.test(r.time)) {
+    const [h, m] = r.time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+  const dt = parseReservationDateTime(r);
+  if (dt) return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return r.time || 'N/A';
+}
+
 const NAV_ITEMS = [
   { id: 'command', icon: <FaThLarge />, label: 'Command Center' },
   { id: 'orders', icon: <FaUtensils />, label: 'Orders' },
@@ -43,6 +80,7 @@ const NAV_ITEMS = [
   { id: 'reservations', icon: <FaCalendarCheck />, label: 'Reservations' },
   { id: 'inventory', icon: <FaWarehouse />, label: 'Inventory' },
   { id: 'tasks', icon: <FaTasks />, label: 'Tasks' },
+  { id: 'support', icon: <FaConciergeBell />, label: 'Support' },
 ];
 
 const ORDER_FLOW = ['pending', 'preparing', 'ready', 'served'];
@@ -225,7 +263,9 @@ export function StaffDashBoardPage() {
     const now = Date.now();
     (data.reservations || []).forEach(r => {
       if (!r.allocated && r.status !== 'cancelled') {
-        const rTime = new Date(r.time).getTime();
+        const resDt = parseReservationDateTime(r);
+        const rTime = resDt ? resDt.getTime() : NaN;
+        if (isNaN(rTime)) return;
         const mins = Math.round((rTime - now) / 60000);
         if (mins > 0 && mins <= 30) {
           list.push({ type: 'warning', icon: '📅', msg: `${r.customerName} (${r.guests} guests) arriving in ${mins}m — no table assigned` });
@@ -387,7 +427,7 @@ export function StaffDashBoardPage() {
     const resolvedTableNumber = getOrderTableNumber(order);
     const tableStatus = resolvedTableNumber ? tableStatusByNumber.get(String(resolvedTableNumber)) : null;
     const isDineInOrder = Boolean(resolvedTableNumber);
-    const canMarkServed = !isDineInOrder || tableStatus === 'Occupied';
+    const canMarkServed = !isDineInOrder || tableStatus === 'Occupied' || tableStatus === 'Allocated';
     const disableNextAction = isProcessing || (nextStatus === 'served' && !canMarkServed);
 
     const nextLabels = { preparing: '🔥 Start Cooking', ready: '✅ Mark Ready', served: '🍽️ Serve' };
@@ -779,8 +819,20 @@ export function StaffDashBoardPage() {
   // ─── RESERVATIONS ───
   const renderReservations = () => {
     const reservations = data?.reservations || [];
-    const pending = reservations.filter(r => !r.allocated && r.status !== 'cancelled');
-    const confirmed = reservations.filter(r => r.allocated && r.status === 'confirmed');
+    const pending = reservations
+      .filter(r => !r.allocated && r.status !== 'cancelled')
+      .sort((a, b) => {
+        const dtA = parseReservationDateTime(a);
+        const dtB = parseReservationDateTime(b);
+        return (dtA?.getTime() || 0) - (dtB?.getTime() || 0);
+      });
+    const confirmed = reservations
+      .filter(r => r.allocated && r.status === 'confirmed')
+      .sort((a, b) => {
+        const dtA = parseReservationDateTime(a);
+        const dtB = parseReservationDateTime(b);
+        return (dtA?.getTime() || 0) - (dtB?.getTime() || 0);
+      });
     const availTables = data?.availableTables || [];
 
     return (
@@ -799,7 +851,8 @@ export function StaffDashBoardPage() {
           ) : (
             <div className="sd-res-list">
               {pending.map(r => {
-                const countdown = timeUntil(r.time);
+                const resDt = parseReservationDateTime(r);
+                const countdown = resDt ? timeUntil(resDt.toISOString()) : '';
                 const isOverdue = countdown.includes('overdue');
                 const isProc = processingId === `res-${r._id}`;
                 return (
@@ -807,7 +860,7 @@ export function StaffDashBoardPage() {
                     <div className="sd-res-left">
                       <div className="sd-res-name">{r.customerName || 'Guest'}</div>
                       <div className="sd-res-meta">
-                        <span><FaClock /> {new Date(r.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span><FaClock /> {formatReservationTime(r)}</span>
                         <span className="sd-res-dot">·</span>
                         <span><FaUsers /> {r.guests} guest{r.guests !== 1 ? 's' : ''}</span>
                       </div>
@@ -876,7 +929,7 @@ export function StaffDashBoardPage() {
                   {confirmed.map(r => (
                     <tr key={r._id}>
                       <td className="sd-cell-name">{r.customerName}</td>
-                      <td>{new Date(r.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                      <td>{formatReservationTime(r)}</td>
                       <td>{r.guests}</td>
                       <td><span className="sd-table-badge">T{r.table_id || r.tables?.[0] || '?'}</span></td>
                       <td>
@@ -1060,6 +1113,7 @@ export function StaffDashBoardPage() {
     reservations: 'Reservations',
     inventory: 'Inventory Status',
     tasks: 'Task Management',
+    support: 'Support & Contact Owner',
   };
 
   return (
@@ -1186,6 +1240,7 @@ export function StaffDashBoardPage() {
           {activeSection === 'reservations' && renderReservations()}
           {activeSection === 'inventory' && renderInventory()}
           {activeSection === 'tasks' && renderTasks()}
+          {activeSection === 'support' && <SupportChatPage mode="staff" />}
         </div>
       </main>
 

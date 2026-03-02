@@ -22,15 +22,16 @@ const CATEGORY_LABELS = {
 };
 
 const CATEGORY_ICONS = {
-  wrong_order: "ðŸ”„",
-  food_quality: "ðŸ½ï¸",
-  missing_items: "ðŸ“¦",
-  overcharged: "ðŸ’°",
-  long_wait: "â³",
-  staff_conduct: "ðŸ‘¤",
-  hygiene: "ðŸ§¹",
-  reservation_issue: "ðŸ“…",
-  other: "â“",
+  wrong_order: "\uD83D\uDD04",
+  food_quality: "\uD83C\uDF7D\uFE0F",
+  missing_items: "\uD83D\uDCE6",
+  overcharged: "\uD83D\uDCB0",
+  long_wait: "\u23F3",
+  staff_conduct: "\uD83D\uDC64",
+  hygiene: "\uD83E\uDDF9",
+  reservation_issue: "\uD83D\uDCC5",
+  web_issue: "\uD83C\uDF10",
+  other: "\u2753",
 };
 
 const formatTicket = (ticket) => ({
@@ -39,7 +40,7 @@ const formatTicket = (ticket) => ({
   subject: ticket.subject,
   category: ticket.category,
   categoryLabel: CATEGORY_LABELS[ticket.category] || ticket.category,
-  categoryIcon: CATEGORY_ICONS[ticket.category] || "â“",
+  categoryIcon: CATEGORY_ICONS[ticket.category] || "\u2753",
   priority: ticket.priority,
   status: ticket.status,
   createdBy: ticket.createdBy,
@@ -698,11 +699,23 @@ exports.ownerGetStats = async (req, res, next) => {
 
 /**
  * GET /api/admin/support/tickets?status=escalated&rest_id=XYZ
- * Admin can see ALL tickets across ALL restaurants
+ * Admin sees only tickets relevant to admin:
+ * - web_issue category (platform issues)
+ * - Tickets escalated to admin
+ * - Tickets assigned to admin
+ * - Tickets created by owner or staff (contacting admin)
+ * Excludes customer→owner tickets (e.g., food_quality, wrong_order, etc.)
  */
 exports.adminGetTickets = async (req, res, next) => {
   try {
-    const filter = {};
+    const filter = {
+      $or: [
+        { category: "web_issue" },
+        { status: "escalated" },
+        { assignedRole: "admin" },
+        { createdByRole: { $in: ["owner", "staff"] } },
+      ],
+    };
     const { status, priority, category, rest_id } = req.query;
     if (status && status !== "all") filter.status = status;
     if (priority && priority !== "all") filter.priority = priority;
@@ -711,12 +724,23 @@ exports.adminGetTickets = async (req, res, next) => {
 
     const tickets = await SupportTicket.find(filter).sort({ updatedAt: -1 }).limit(200);
 
+    // Stats should also reflect the admin-relevant scope
+    const adminScope = {
+      $or: [
+        { category: "web_issue" },
+        { status: "escalated" },
+        { assignedRole: "admin" },
+        { createdByRole: { $in: ["owner", "staff"] } },
+      ],
+    };
+
     const stats = {
-      total: await SupportTicket.countDocuments(),
-      open: await SupportTicket.countDocuments({ status: "open" }),
-      escalated: await SupportTicket.countDocuments({ status: "escalated" }),
-      resolved: await SupportTicket.countDocuments({ status: { $in: ["resolved", "closed"] } }),
+      total: await SupportTicket.countDocuments(adminScope),
+      open: await SupportTicket.countDocuments({ ...adminScope, status: "open" }),
+      escalated: await SupportTicket.countDocuments({ ...adminScope, status: "escalated" }),
+      resolved: await SupportTicket.countDocuments({ ...adminScope, status: { $in: ["resolved", "closed"] } }),
       urgent: await SupportTicket.countDocuments({
+        ...adminScope,
         priority: "urgent",
         status: { $nin: ["resolved", "closed"] },
       }),

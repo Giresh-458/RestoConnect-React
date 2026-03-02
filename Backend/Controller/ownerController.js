@@ -2043,7 +2043,7 @@ exports.editProductAPI = async (req, res) => {
   try {
     const { id } = req.params;
     const user = req.user;
-    const { name, price, description, serves, isAvailable } = req.body;
+    const { name, price, description, serves, isAvailable, category } = req.body;
 
     const dish = await Dish.findById(id);
     if (!dish) return res.status(404).json({ error: "Dish not found" });
@@ -2059,6 +2059,7 @@ exports.editProductAPI = async (req, res) => {
     if (description !== undefined) dish.description = description;
     if (serves !== undefined) dish.serves = parseInt(serves) || 1;
     if (isAvailable !== undefined) dish.isAvailable = isAvailable;
+    if (category !== undefined) dish.category = category;
     if (req.file) dish.image = req.file.filename;
 
     await dish.save();

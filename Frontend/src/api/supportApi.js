@@ -147,6 +147,9 @@ export const staffApi = {
   getTicket: (ticketId) =>
     fetch(`${BASE}/api/staff/support/tickets/${ticketId}`, opts("GET")).then(json),
 
+  createTicket: (data) =>
+    fetch(`${BASE}/api/staff/support/tickets`, opts("POST", data)).then(json),
+
   postMessage: (ticketId, message) =>
     fetch(
       `${BASE}/api/staff/support/tickets/${ticketId}/messages`,

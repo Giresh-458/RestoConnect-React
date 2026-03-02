@@ -52,6 +52,18 @@ export function MenuPage() {
   const { restaurant, dishes } = data;
   const restIdForCart = restaurant._id || restaurant.id;
 
+  // Auto-detect restaurant switch: if cart has items from a different restaurant,
+  // immediately show the switch warning so the user doesn't see stale cart data.
+  useEffect(() => {
+    if (
+      cartItems.length > 0 &&
+      currentRestId &&
+      currentRestId !== restIdForCart
+    ) {
+      setShowSwitchWarning(true);
+    }
+  }, [restIdForCart, currentRestId, cartItems.length]);
+
   // Filter dishes based on search and category
   const filteredDishes = dishes.filter((dish) => {
     const matchesSearch =
@@ -97,15 +109,15 @@ export function MenuPage() {
   };
 
   const handleConfirmSwitch = () => {
+    dispatch(clearcart());
+    dispatch(
+      setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
+    );
     if (pendingDish) {
-      dispatch(clearcart());
-      dispatch(
-        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
-      );
       dispatch(addItem({ ...pendingDish, amount: pendingDish.price }));
       setPendingDish(null);
-      setShowSwitchWarning(false);
     }
+    setShowSwitchWarning(false);
   };
 
   const handleCancelSwitch = () => {

@@ -17,6 +17,47 @@ const formatTicket = (ticket) => ({
   updatedAt: ticket.updatedAt,
 });
 
+exports.staffCreateTicket = async (req, res, next) => {
+  try {
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const rest_id = staffMember.rest_id;
+    if (!rest_id) return res.status(400).json({ error: "No restaurant assigned" });
+
+    const { subject, message, category, priority } = req.body;
+    if (!subject?.trim() || !message?.trim()) {
+      return res.status(400).json({ error: "Subject and message are required" });
+    }
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const restaurant = await Restaurant.findById(rest_id);
+
+    const ticket = new SupportTicket({
+      createdBy: staffMember.username,
+      createdByRole: "staff",
+      rest_id: String(rest_id),
+      restaurantName: restaurant ? restaurant.name : "",
+      category: category || "web_issue",
+      subject: subject.trim(),
+      priority: priority || "medium",
+      messages: [
+        {
+          senderRole: "staff",
+          senderName: staffMember.username,
+          text: message.trim(),
+        },
+      ],
+    });
+
+    await ticket.save();
+    res.status(201).json({ success: true, ticket: formatTicket(ticket) });
+  } catch (error) {
+    console.error("staffCreateTicket error:", error);
+    return next(error);
+  }
+};
+
 exports.staffGetTickets = async (req, res, next) => {
   try {
     const staffMember = req.user;
