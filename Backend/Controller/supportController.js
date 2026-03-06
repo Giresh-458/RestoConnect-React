@@ -1,12 +1,19 @@
-﻿const SupportTicket = require("../Model/SupportTicket_model");
+const SupportTicket = require("../Model/SupportTicket_model");
 const { Restaurant } = require("../Model/Restaurents_model");
 const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
 const { Dish } = require("../Model/Dishes_model_test");
 
 // Helper: resolve username from req.user (set by auth middleware) with session fallback
-const getUsername = (req) => req.user?.username || req.session?.username;
-const getRestId = (req) => req.user?.rest_id || req.session?.rest_id;
+const getUsername = (req) =>
+  (req.auth && req.auth.username) ||
+  (req.user && req.user.username) ||
+  null;
+
+const getRestId = (req) =>
+  (req.auth && req.auth.rest_id) ||
+  (req.user && req.user.rest_id) ||
+  null;
 
 const CATEGORY_LABELS = {
   wrong_order: "Wrong Order",

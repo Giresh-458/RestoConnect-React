@@ -15,7 +15,7 @@ exports.getMenu = async (req,res,next)=>{
         }
 
         // Set rest_id in session
-        req.session.rest_id = id;
+        // For stateless API flows, rest_id comes from route params or JWT; avoid storing in session.
 
         let dishes1 = [];
         for(let i=0 ;i<rest.dishes.length;i++){
@@ -96,7 +96,10 @@ exports.addDishToCart = async (req, res, next) => {
 exports.increaseDishQuantity = async (req, res, next) => {
     try {
         
-        const user = req.user?.username || req.session.username;
+        const user =
+          (req.auth && req.auth.username) ||
+          (req.user && req.user.username) ||
+          null;
        
         const dishName = req.body.dish;
        
@@ -132,7 +135,10 @@ exports.increaseDishQuantity = async (req, res, next) => {
 // Decrease dish quantity in cart
 exports.decreaseDishQuantity = async (req, res, next) => {
     try {
-        const user = req.user?.username || req.session.username;
+        const user =
+          (req.auth && req.auth.username) ||
+          (req.user && req.user.username) ||
+          null;
         
         const dishName = req.body.dish;
         if (!dishName) {
@@ -174,14 +180,12 @@ exports.orderCart = async (req, res, next) => {
         }
        
         const cart = person.cart || [];
-        const restaurantName = req.body.restaurant || req.session.rest_name || '';
-        const rest_id = req.body.rest_id || req.session.rest_id || '';
+        const restaurantName = req.body.restaurant || '';
+        const rest_id = req.body.rest_id || '';
 
       
         // Store cart and restaurant info in session for orderReservation page
-        req.session.temp_cart = cart;
-        req.session.rest_name = restaurantName;
-        req.session.rest_id = rest_id;
+        // Legacy session-based cart fields removed in favor of stateless flows / Cart model.
 
         // Redirect to orderReservation page
         res.redirect('/customer/order_reservation');

@@ -7,6 +7,7 @@ const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
 const { PromoCode } = require("../Model/PromoCode_model");
 const { User } = require("../Model/userRoleModel");
+const { Cart } = require("../Model/Cart_model");
 const {
   getImageUrl,
   getProfilePicUrl,
@@ -45,6 +46,17 @@ const formatRelativeTime = (targetDate) => {
     : format(diffDays, "day", "ago");
 };
 
+// Helper to resolve current authenticated user context (stateless first, then legacy session)
+const getCurrentUsername = (req) =>
+  (req.auth && req.auth.username) ||
+  (req.user && req.user.username) ||
+  null;
+
+const getCurrentRestId = (req) =>
+  (req.auth && req.auth.rest_id) ||
+  (req.user && req.user.rest_id) ||
+  null;
+
 // Validate reservation date/time
 exports.validateReservationDateTime = (date, time) => {
   const today = new Date();
@@ -70,7 +82,9 @@ exports.validateReservationDateTime = (date, time) => {
 exports.getCustomerDashboard = async (req, res, next) => {
   try {
     const customerName =
-      req.session.username || req.params.customerName || req.query.customerName;
+      getCurrentUsername(req) ||
+      req.params.customerName ||
+      req.query.customerName;
 
     if (!customerName) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -493,7 +507,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
 
 exports.reorderOrder = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     if (!customerName) {
       return res
         .status(401)
@@ -551,6 +565,24 @@ exports.reorderOrder = async (req, res, next) => {
       await person.save();
     }
 
+    // Persist cart using Cart model (stateless cart per user + restaurant)
+    if (order.rest_id) {
+      const cartItems = Object.keys(dishCounts).map((dishName) => ({
+        dish: dishName,
+        quantity: dishCounts[dishName],
+      }));
+      await Cart.findOneAndUpdate(
+        {
+          customerName,
+          restaurantId: String(order.rest_id),
+        },
+        {
+          $set: { items: cartItems },
+        },
+        { upsert: true, new: true }
+      );
+    }
+
     return res.json({
       success: true,
       restaurant: {
@@ -569,7 +601,7 @@ exports.reorderOrder = async (req, res, next) => {
 
 exports.updateEmailNotifications = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     if (!customerName) {
       return res
         .status(401)
@@ -607,7 +639,7 @@ exports.updateEmailNotifications = async (req, res, next) => {
 
 exports.getFeedBack = async (req, res, next) => {
   try {
-    const username = req.session.username;
+    const username = getCurrentUsername(req);
     console.log("=== getFeedBack called for username:", username);
 
     const user = await Person.findOne({ name: username });
@@ -775,7 +807,7 @@ exports.submitFeedback = async (req, res, next) => {
       orderRating,
       additionalFeedback,
     } = req.body;
-    const username = req.session.username;
+    const username = getCurrentUsername(req);
 
     if (!username) {
       return res.status(401).json({ error: "Unauthorized. Please login." });
@@ -854,31 +886,21 @@ exports.submitFeedback = async (req, res, next) => {
 // Orders and reservations
 exports.postOrderAndReservation = async (req, res, next) => {
   try {
-    let restaurantName, cart, rest_id;
-    console.log(req.session.cart);
-    if (req.body.restaurant) {
-      restaurantName = req.body.restaurant;
-      rest_id = req.body.rest_id;
-      cart = JSON.parse(req.body.order);
-      req.session.temp_cart = cart;
-      req.session.rest_name = restaurantName;
-      req.session.rest_id = rest_id;
-    } else {
-      rest_id = req.session.rest_id;
-      if (rest_id) {
-        const rest = await Restaurant.find_by_id(rest_id);
-        restaurantName = rest ? rest.name : "";
-        req.session.rest_name = restaurantName;
-      } else return res.redirect("/customer/customerDashboard");
+    // Legacy controller tied to EJS; keep it but remove session usage.
+    let restaurantName = req.body.restaurant || "";
+    let rest_id = req.body.rest_id || getCurrentRestId(req);
+    let cart = [];
 
-      const user = req.user;
-      if (user) {
-        const person = await Person.findOne({ email: user.email });
-        cart = person ? person.cart : [];
-      } else {
-        cart = req.session.temp_cart || [];
-      }
+    if (!rest_id && restaurantName) {
+      const rest = await Restaurant.findOne({ name: restaurantName });
+      if (rest) rest_id = rest._id;
     }
+
+    if (req.user?.email) {
+      const person = await Person.findOne({ email: req.user.email });
+      cart = person ? person.cart || [] : [];
+    }
+
     if (!cart) cart = [];
     res.render("orderReservation", { restaurantName, cart, rest_id });
   } catch (error) {
@@ -892,7 +914,7 @@ exports.postOrderAndReservation = async (req, res, next) => {
 // Customer support chat threads
 exports.getCustomerSupportThreads = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     const { rest_id } = req.query;
 
     if (!customerName) {
@@ -932,7 +954,7 @@ exports.getCustomerSupportThreads = async (req, res, next) => {
 
 exports.createCustomerSupportThread = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     const { rest_id, message } = req.body;
 
     if (!customerName) {
@@ -998,7 +1020,7 @@ exports.createCustomerSupportThread = async (req, res, next) => {
 
 exports.postCustomerSupportMessage = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     const { rest_id, message } = req.body;
     const { threadId } = req.params;
 
@@ -1055,7 +1077,7 @@ exports.postCustomerSupportMessage = async (req, res, next) => {
 
 exports.updateCustomerSupportStatus = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     const { rest_id, status } = req.body;
     const { threadId } = req.params;
 
@@ -1105,7 +1127,7 @@ exports.updateCustomerSupportStatus = async (req, res, next) => {
 
 exports.order = async (req, res, next) => {
   const { restaurant, specialRequests } = req.body;
-  const restId = req.session.rest_id;
+  const restId = getCurrentRestId(req);
   if (restId) {
     const restaurantDoc = await Restaurant.find_by_id(restId);
     if (!restaurantDoc || !restaurantDoc.isOpen) {
@@ -1118,23 +1140,14 @@ exports.order = async (req, res, next) => {
     specialRequests,
     status: "Pending",
   };
-  req.session.tempOrder = newOrder;
-  const dishes_temp = req.session.temp_cart || [];
-  let sum = 0;
-  for (let a of dishes_temp) {
-    const temp = await Dish.findByName(a.dish);
-    sum += parseInt(temp.price) * a.quantity;
-  }
-  req.session.bill = sum;
-  // If the request expects JSON (from SPA), respond with JSON instead of redirect
   const wantsJson =
     req.headers["content-type"]?.includes("application/json") ||
     req.headers["accept"]?.includes("application/json");
   if (wantsJson) {
     return res.json({
       success: true,
-      message: "Order stored in session",
-      bill: req.session.bill,
+      message: "Order received",
+      order: newOrder,
     });
   }
   res.redirect("/customer/payments");
@@ -1142,7 +1155,7 @@ exports.order = async (req, res, next) => {
 
 exports.reservation = async (req, res, next) => {
   const { restaurant, date, time, guests } = req.body;
-  const restId = req.session.rest_id;
+  const restId = getCurrentRestId(req);
   if (restId) {
     const restaurantDoc = await Restaurant.find_by_id(restId);
     if (!restaurantDoc || !restaurantDoc.isOpen) {
@@ -1151,21 +1164,20 @@ exports.reservation = async (req, res, next) => {
   }
   const newReservation = {
     id: Date.now(),
-    name: req.session.username,
+    name: getCurrentUsername(req),
     restaurant,
     date,
     time,
     guests,
   };
-  req.session.reservation = newReservation;
   const wantsJson =
     req.headers["content-type"]?.includes("application/json") ||
     req.headers["accept"]?.includes("application/json");
   if (wantsJson) {
     return res.json({
       success: true,
-      message: "Reservation stored in session",
-      reservation: req.session.reservation,
+      message: "Reservation received",
+      reservation: newReservation,
     });
   }
   res.redirect("/customer/payments");
@@ -1174,7 +1186,7 @@ exports.reservation = async (req, res, next) => {
 exports.postOrderAndReservationCombined = async (req, res, next) => {
   try {
     const { restaurant, specialRequests, date, time, guests } = req.body;
-    const restId = req.session.rest_id;
+    const restId = getCurrentRestId(req);
     if (restId) {
       const restaurantDoc = await Restaurant.find_by_id(restId);
       if (!restaurantDoc || !restaurantDoc.isOpen) {
@@ -1188,27 +1200,17 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
       specialRequests,
       status: "Pending",
     };
-    req.session.tempOrder = newOrder;
-
-    let dishes_temp = req.session.temp_cart || [];
-    let sum = 0;
-    for (let a of dishes_temp) {
-      const temp = await Dish.findByName(a.dish);
-      sum += parseInt(temp.price) * a.quantity;
-    }
-    req.session.bill = sum;
 
     const newReservation = {
       id: Date.now(),
-      name: req.session.username,
+      name: getCurrentUsername(req),
       restaurant,
       date,
       time,
       guests,
     };
-    req.session.reservation = newReservation;
 
-    const user = await Person.findOne({ name: req.session.username });
+    const user = await Person.findOne({ name: getCurrentUsername(req) });
     if (user) {
       user.cart = [];
       await user.save();
@@ -1219,8 +1221,8 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
     if (wantsJson) {
       return res.json({
         success: true,
-        message: "Order+Reservation stored in session",
-        bill: req.session.bill,
+        message: "Order+Reservation received",
+        data: { order: newOrder, reservation: newReservation },
       });
     }
     res.redirect("/customer/payments");
@@ -1233,24 +1235,24 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
 };
 
 exports.getPayments = (req, res) => {
-  res.render("payment", { bill_price: req.session.bill });
+  res.render("payment", { bill_price: 0 });
 };
 
 exports.postPaymentsSuccess = async (req, res, next) => {
   try {
-    const username = req.session.username;
+    const username = getCurrentUsername(req);
     const user = await Person.findOne({ name: username });
-    const rest_name = req.session.rest_name;
-    const rest_id = req.session.rest_id;
+    const rest_name = req.body.restaurant || "";
+    const rest_id = req.body.rest_id || null;
     const dishes = [];
 
-    if (req.session.reservation) {
+    if (req.body.reservation) {
       const tmp_rest = await Restaurant.find_by_id(rest_id);
-      tmp_rest.reservations.push(req.session.reservation);
+      tmp_rest.reservations.push(req.body.reservation);
       await tmp_rest.save();
     }
 
-    const dishes_temp = req.session.temp_cart || [];
+    const dishes_temp = Array.isArray(req.body.cart) ? req.body.cart : [];
     for (let i = 0; i < dishes_temp.length; i++) {
       dishes.push(dishes_temp[i].dish);
     }
@@ -1262,14 +1264,17 @@ exports.postPaymentsSuccess = async (req, res, next) => {
         restaurant: rest_name,
         rest_id,
         status: "waiting",
-        totalAmount: req.session.bill,
+        totalAmount: Number(req.body.totalAmount) || 0,
       });
       await newOrder.save();
 
       const tmp_rest = await Restaurant.find_by_id(rest_id);
       if (tmp_rest) {
         tmp_rest.orders.push(newOrder._id);
-        tmp_rest.payments.push({ amount: req.session.bill, date: new Date() });
+        tmp_rest.payments.push({
+          amount: Number(req.body.totalAmount) || 0,
+          date: new Date(),
+        });
         await tmp_rest.save();
       }
 
@@ -1277,13 +1282,6 @@ exports.postPaymentsSuccess = async (req, res, next) => {
         await user.add_order({ name: rest_name, items: dishes });
       }
     }
-
-    req.session.tempOrder = undefined;
-    req.session.temp_cart = undefined;
-    req.session.rest_name = undefined;
-    req.session.reservation = undefined;
-    req.session.rest_id = undefined;
-    req.session.bill = undefined;
 
     const wantsJson =
       req.headers["content-type"]?.includes("application/json") ||
@@ -1479,7 +1477,7 @@ exports.apiCheckoutPay = async (req, res, next) => {
         return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
       }
 
-      const username = req.session.username || null;
+      const username = getCurrentUsername(req) || null;
       const dishes = payload.items
         .map((i) => i.name || i.dish || i.id || "")
         .filter(Boolean);
@@ -1668,9 +1666,10 @@ exports.apiCheckoutPay = async (req, res, next) => {
       }
     }
 
-    // If user exists, add order to their history and clear cart
-    if (req.session.username) {
-      const person = await Person.findOne({ name: req.session.username });
+    // If user exists, add order to their history and clear cart (both legacy + Cart model)
+    const currentUsername = getCurrentUsername(req);
+    if (currentUsername) {
+      const person = await Person.findOne({ name: currentUsername });
       if (person) {
         await person.add_order({
           name: order.restaurant || "",
@@ -1679,6 +1678,12 @@ exports.apiCheckoutPay = async (req, res, next) => {
         person.cart = [];
         await person.save();
       }
+
+      // Clear Cart documents for this user (all restaurants or specific one if known)
+      const cartFilter = finalRestId
+        ? { customerName: currentUsername, restaurantId: String(finalRestId) }
+        : { customerName: currentUsername };
+      await Cart.deleteMany(cartFilter);
     }
 
     return res.json({
@@ -1710,10 +1715,11 @@ exports.getOrderById = async (req, res, next) => {
         .json({ success: false, message: "", error: "Order not found" });
     }
     // Optional: ensure current user owns the order
+    const currentUsername = getCurrentUsername(req);
     if (
-      req.session?.username &&
+      currentUsername &&
       order.customerName &&
-      order.customerName !== req.session.username
+      order.customerName !== currentUsername
     ) {
       return res
         .status(403)
@@ -1741,7 +1747,8 @@ exports.getOrderById = async (req, res, next) => {
 // Profile editing
 exports.getEditProfile = async (req, res, next) => {
   try {
-    const user = await Person.findOne({ name: req.session.username });
+    const currentUsername = getCurrentUsername(req);
+    const user = await Person.findOne({ name: currentUsername });
     if (!user) return res.status(404).send("User not found");
     res.render("editCustomerProfile", { user });
   } catch (error) {
@@ -1754,7 +1761,7 @@ exports.getEditProfile = async (req, res, next) => {
 
 exports.postEditProfile = async (req, res, next) => {
   try {
-    const currentUsername = req.session.username;
+    const currentUsername = getCurrentUsername(req);
     const { name, email, phone, newPassword, confirmPassword } = req.body;
     const profilePicFilename = req.file ? req.file.filename : null;
 
@@ -1868,11 +1875,6 @@ exports.postEditProfile = async (req, res, next) => {
       console.log(
         `✅ Updated all references from ${currentUsername} to ${name}`,
       );
-    }
-
-    // Update session if name changed
-    if (name && name !== currentUsername) {
-      req.session.username = name;
     }
 
     // Update person profile
@@ -2074,7 +2076,7 @@ exports.searchRestaurants = async (req, res, next) => {
 // Favourites functionality
 exports.addToFavourites = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     if (!customerName) {
       return res
         .status(401)
@@ -2134,7 +2136,7 @@ exports.addToFavourites = async (req, res, next) => {
 
 exports.removeFromFavourites = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     if (!customerName) {
       return res
         .status(401)
@@ -2182,7 +2184,7 @@ exports.removeFromFavourites = async (req, res, next) => {
 
 exports.getFavourites = async (req, res, next) => {
   try {
-    const customerName = req.session.username;
+    const customerName = getCurrentUsername(req);
     if (!customerName) {
       return res
         .status(401)

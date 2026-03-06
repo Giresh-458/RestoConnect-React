@@ -13,19 +13,21 @@ const auth_middleware = (role) => {
 
     let user = null;
 
-    // 1) Session valid (exists and not expired) → use session
-    if (req.session.username) {
-      const sessionExpired = req.session.cookie?._expires && new Date(req.session.cookie._expires) <= new Date();
-      if (!sessionExpired) {
-        user = await User.findOne({ username: req.session.username });
-      }
-    }
-
-    // 2) Session missing or expired: check JWT in cookie (must not be expired)
-    if (!user && req.cookies?.[AUTH_TOKEN_COOKIE]) {
+    // 1) Stateless auth: try JWT from HTTP-only cookie first
+    if (req.cookies?.[AUTH_TOKEN_COOKIE]) {
       const payload = verifyToken(req.cookies[AUTH_TOKEN_COOKIE]);
       if (payload?.username) {
         user = await User.findOne({ username: payload.username });
+      }
+    }
+
+    // 2) Legacy fallback: session-based auth (kept only for compatibility / csurf)
+    if (!user && req.session?.username) {
+      const sessionExpired =
+        req.session.cookie?._expires &&
+        new Date(req.session.cookie._expires) <= new Date();
+      if (!sessionExpired) {
+        user = await User.findOne({ username: req.session.username });
       }
     }
 
@@ -36,7 +38,13 @@ const auth_middleware = (role) => {
       return res.redirect("/loginPage");
     }
 
+    // Attach full user + lightweight auth context to the request
     req.user = user;
+    req.auth = {
+      username: user.username,
+      role: user.role,
+      rest_id: user.rest_id || null,
+    };
 
     if (roles.includes(user.role)) {
       return next();

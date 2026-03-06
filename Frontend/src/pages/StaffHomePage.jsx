@@ -309,6 +309,8 @@ export function StaffHomePage() {
     return () => clearInterval(timer);
   }, []);
 
+  const API_BASE = "http://localhost:3000/api/staff";
+
   // Data fetching
   const fetchData = useCallback(async (silent = false) => {
     try {
@@ -316,7 +318,7 @@ export function StaffHomePage() {
       else setRefreshing(true);
       setError(null);
 
-      const resp = await fetch("http://localhost:3000/staff/homepage", {
+      const resp = await fetch(`${API_BASE}/homepage`, {
         credentials: "include",
         headers: {
           Accept: "application/json",
@@ -324,7 +326,15 @@ export function StaffHomePage() {
         },
       });
 
-      if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        const msg = errBody?.error || errBody?.message || `Server error: ${resp.status}`;
+        if (resp.status === 401) {
+          window.location.href = "/login?message=Please log in again";
+          return;
+        }
+        throw new Error(msg);
+      }
       const contentType = resp.headers.get("content-type") || "";
       if (!contentType.includes("application/json"))
         throw new Error("Invalid response format");
@@ -349,19 +359,24 @@ export function StaffHomePage() {
   const handleOrderStatus = async (orderId, newStatus) => {
     setUpdatingOrder(orderId);
     try {
-      const resp = await fetch(
-        "http://localhost:3000/staff/Dashboard/update-order",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            orderId,
-            status: newStatus,
-          }),
+      const resp = await fetch(`${API_BASE}/Dashboard/update-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId,
+          status: newStatus,
+        }),
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 401) {
+          window.location.href = "/login?message=Please log in again";
+          return;
         }
-      );
-      if (!resp.ok) throw new Error("Failed to update order");
+        const msg = body?.error || body?.message || "Failed to update order";
+        throw new Error(msg);
+      }
       await fetchData(true);
     } catch (err) {
       toast.error(err.message);
@@ -375,21 +390,18 @@ export function StaffHomePage() {
     if (!tableNumber) return;
     setProcessingReservation(true);
     try {
-      const resp = await fetch(
-        "http://localhost:3000/staff/Dashboard/allocate-table",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            reservationId: String(reservationId),
-            tableNumber: String(tableNumber),
-          }),
-        }
-      );
+      const resp = await fetch(`${API_BASE}/Dashboard/allocate-table`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          reservationId: String(reservationId),
+          tableNumber: String(tableNumber),
+        }),
+      });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        throw new Error(err.message || err.error || "Failed to assign table");
+        throw new Error(err.error || err.message || "Failed to assign table");
       }
       await fetchData(true);
     } catch (err) {
@@ -403,16 +415,16 @@ export function StaffHomePage() {
   const handleTaskDone = async (taskId) => {
     setUpdatingTask(taskId);
     try {
-      const resp = await fetch(
-        `http://localhost:3000/staff/tasks/${taskId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ status: "Completed" }),
-        }
-      );
-      if (!resp.ok) throw new Error("Failed to update task");
+      const resp = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "Completed" }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body?.error || body?.message || "Failed to update task");
+      }
       await fetchData(true);
     } catch (err) {
       toast.error(err.message);

@@ -6,8 +6,10 @@ const bcrypt = require("bcrypt");
 // Dashboard Methods
 exports.getDashBoard = async (req, res, next) => {
   try {
-    let r_name = await Restaurant.findById(req.user.rest_id);
-    let rest = await Restaurant.findById(req.user.rest_id).populate(
+    const restId = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
+    if (!restId) return res.status(401).send("Not authenticated");
+    let r_name = await Restaurant.findById(restId);
+    let rest = await Restaurant.findById(restId).populate(
       "orders"
     );
     if (!rest) {
@@ -81,7 +83,15 @@ exports.getDashBoard = async (req, res, next) => {
 
 exports.postUpdateOrder = async (req, res, next) => {
   try {
+    const restId = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
+    if (!restId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
     const { orderId, status } = req.body;
+    if (!orderId || !status) {
+      return res.status(400).json({ error: "orderId and status are required" });
+    }
 
     const targetStatus = String(status || "").toLowerCase();
     const mustBeSeatedStatuses = ["served", "done", "completed"];
@@ -97,7 +107,7 @@ exports.postUpdateOrder = async (req, res, next) => {
       ).trim();
 
       if (orderTableNumber) {
-        const restForValidation = await Restaurant.findById(req.user.rest_id).lean();
+        const restForValidation = await Restaurant.findById(restId).lean();
         const tableForOrder = (restForValidation?.tables || []).find(
           (table) => String(table.number) === orderTableNumber
         );
@@ -110,11 +120,9 @@ exports.postUpdateOrder = async (req, res, next) => {
       }
     }
 
-    // Update order in the Order collection
-    const Order = require("../Model/Order_model").Order;
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
-      { status: status },
+      { $set: { status: String(status) } },
       { new: true }
     );
 
@@ -122,31 +130,12 @@ exports.postUpdateOrder = async (req, res, next) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Also update the order in the Restaurant's orders array
-    let rest = await Restaurant.findById(req.user.rest_id);
-    if (rest && rest.orders) {
-      // Find the order in the restaurant's orders array
-      const orderIndex = rest.orders.findIndex((order) => {
-        // Handle both object ID references and embedded order objects
-        if (order && order._id) {
-          return order._id.toString() === orderId;
-        }
-        return false;
-      });
-
-      if (orderIndex !== -1) {
-        // Update the status of the order in the restaurant's array
-        rest.orders[orderIndex].status = status;
-        await rest.save();
-      }
-    }
-
     res.json({ success: true, message: "Order status updated successfully", order: updatedOrder });
   } catch (error) {
     console.error("Error updating order:", error);
-    error.status = error.status || 500;
-    error.message = error.message || "Internal Server Error";
-    return next(error);
+    const status = error.status || 500;
+    const message = error.message || "Internal Server Error";
+    return res.status(status).json({ error: message });
   }
 };
 
@@ -966,11 +955,11 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log("------ STAFF DASHBOARD DEBUG START ------");
     // console.log("Session data:", req.session);
 
-    // Recover rest_id from req.user (set by auth middleware)
-    const rest_id = req.user?.rest_id;
+    // Recover rest_id from auth (set by auth middleware; stateless req.auth or req.user)
+    const rest_id = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
 
     if (!rest_id) {
-      return res.status(400).json({ error: "No restaurant ID found" });
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     // ✅ Fetch restaurant

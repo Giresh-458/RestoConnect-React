@@ -35,9 +35,10 @@ exports.getAdminDashboard = async (req, res, next) => {
     }, 0);
 
    
-    const currentAdminUsername = req.user
-      ? req.user.username
-      : req.session.username;
+    const currentAdminUsername =
+      (req.auth && req.auth.username) ||
+      (req.user && req.user.username) ||
+      null;
     let currentAdminProfile = null;
     if (currentAdminUsername) {
       currentAdminProfile = await User.findOne({
@@ -288,9 +289,10 @@ exports.unsuspendUser = async (req, res, next) => {
 // 🌟 FIX: Edit admin profile
 exports.editProfile = async (req, res, next) => {
   try {
-    const currentAdminUsername = req.user
-      ? req.user.username
-      : req.session.username;
+    const currentAdminUsername =
+      (req.auth && req.auth.username) ||
+      (req.user && req.user.username) ||
+      null;
     if (!currentAdminUsername) {
       if (expectsJson(req))
         return res.status(401).json({ error: "Unauthorized" });
@@ -348,7 +350,7 @@ exports.editProfile = async (req, res, next) => {
       { username: currentAdminUsername },
       { $set: updateData }
     );
-    if (username !== currentAdminUsername) req.session.username = username;
+    // Username is carried via JWT; no need to mutate session username.
 
     if (expectsJson(req))
       return res.status(200).json({ message: "Profile updated successfully" });
@@ -363,7 +365,10 @@ exports.editProfile = async (req, res, next) => {
 
 // 🌟 FIX: Change Admin Password
 exports.changePassword = async (req, res, next) => {
-  const currentAdminUsername = req.session.username; // Use session for identity
+  const currentAdminUsername =
+    (req.auth && req.auth.username) ||
+    (req.user && req.user.username) ||
+    null;
   if (!currentAdminUsername)
     return res.status(401).json({ error: "Unauthorized" });
 
@@ -403,7 +408,10 @@ exports.changePassword = async (req, res, next) => {
 
 // 🌟 FIX: Delete Admin Account
 exports.deleteAccount = async (req, res, next) => {
-  const currentAdminUsername = req.session.username; // Use session for identity
+  const currentAdminUsername =
+    (req.auth && req.auth.username) ||
+    (req.user && req.user.username) ||
+    null;
   if (!currentAdminUsername) {
     if (expectsJson(req))
       return res.status(401).json({ error: "Unauthorized" });

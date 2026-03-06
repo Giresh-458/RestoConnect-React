@@ -235,14 +235,9 @@ app.use((err, req, res, next) => {
   res.status(status).json({ message, url: req.originalUrl });
 });
 
-// Legacy /check-session: same logic as /api/auth/check-session (session then JWT)
+// Legacy /check-session: same logic as /api/auth/check-session (JWT first, then legacy session)
 app.get("/check-session", async (req, res) => {
   try {
-    if (req.session.username && req.session.cookie._expires > new Date()) {
-      const user = await User.findOne({ username: req.session.username }).select("role");
-      if (!user) return res.json({ valid: false });
-      return res.json({ valid: true, username: req.session.username, role: user.role });
-    }
     const token = req.cookies?.[AUTH_TOKEN_COOKIE];
     if (token) {
       const payload = verifyToken(token);
@@ -250,6 +245,11 @@ app.get("/check-session", async (req, res) => {
         const user = await User.findOne({ username: payload.username }).select("role");
         if (user) return res.json({ valid: true, username: payload.username, role: user.role });
       }
+    }
+    if (req.session?.username && req.session.cookie._expires > new Date()) {
+      const user = await User.findOne({ username: req.session.username }).select("role");
+      if (!user) return res.json({ valid: false });
+      return res.json({ valid: true, username: req.session.username, role: user.role });
     }
     res.json({ valid: false });
   } catch (err) {

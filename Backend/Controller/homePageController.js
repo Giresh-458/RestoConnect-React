@@ -5,7 +5,7 @@ const restaurantReq = require("../Model/restaurent_request_model");
 
 exports.getHomePage = async (req, res, next) => {
   try {
-    let login = req.session?.username ? true : false;
+    let login = !!(req.auth?.username || req.user?.username);
     const { city_option_home: loco, name_resaurent: name2 } = req.query;
 
     let query = {};
@@ -22,7 +22,9 @@ exports.getHomePage = async (req, res, next) => {
       arr = await Restaurant.find();
     }
 
-    let userRole = await User.findOne({ username: req.session?.username });
+    let userRole = await User.findOne({
+      username: req.auth?.username || req.user?.username,
+    });
     userRole = userRole?.role || null;
     const uniqueLocations = await Restaurant.distinct("location");
 
@@ -272,11 +274,13 @@ if (existingUsername) {
 
 exports.putHomePage = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.session?.username });
+    const user = await User.findOne({
+      username: req.auth?.username || req.user?.username,
+    });
     if (!user) return res.json({ valid: false });
 
     /* if (user.role === "owner" || user.role === "staff") {
-            req.session.rest_id = user.rest_id;
+            // For legacy flows, rest_id is now carried via JWT/req.auth; no need to store on session
             const redirectUrl = user.role === "owner" ? '/owner/' : '/staff/HomePage';
             return res.redirect(redirectUrl);
         }

@@ -83,11 +83,7 @@ const login = async (req, res, next) => {
             });
         }
 
-        // Set session
-        req.session.username = user.username;
-        req.session.role = user.role;
-
-        // Set JWT in httpOnly cookie (fallback when session expires; sent automatically with credentials)
+        // Stateless auth: set JWT in httpOnly cookie (used by authentication middleware)
         const token = signToken({ username: user.username, role: user.role });
         res.cookie(AUTH_TOKEN_COOKIE, token, {
             httpOnly: true,
@@ -239,38 +235,22 @@ const signup = async (req, res, next) => {
 
 // Logout Controller
 const logout = (req, res, next) => {
-    req.session.destroy(err => {
-        if (err) {
-            console.error('Logout error:', err);
-            err.status = err.status || 500;
-            err.message = err.message || 'Failed to logout';
-            return next(err);
-        }
-        res.clearCookie('connect.sid');
-        res.clearCookie(AUTH_TOKEN_COOKIE, { path: '/' });
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Logged out successfully' 
-        });
+    // Stateless logout: clear cookies; keep session only for csurf token if present.
+    if (req.session) {
+        req.session.destroy(() => {});
+    }
+    res.clearCookie('connect.sid');
+    res.clearCookie(AUTH_TOKEN_COOKIE, { path: '/' });
+    return res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
     });
 };
 
 // Check Session Controller: session first, then JWT from cookie (minimal frontend change)
 const checkSession = async (req, res, next) => {
     try {
-        // 1) Session valid (exists and not expired)
-        if (req.session.username && req.session.cookie._expires > new Date()) {
-            const user = await User.findOne({ username: req.session.username }).select("role");
-            if (!user) {
-                return res.json({ valid: false });
-            }
-            return res.json({
-                valid: true,
-                username: req.session.username,
-                role: user.role
-            });
-        }
-        // 2) Session expired/missing: check JWT in cookie (not expired)
+        // 1) JWT in cookie (preferred stateless check)
         const token = req.cookies?.[AUTH_TOKEN_COOKIE];
         if (token) {
             const payload = verifyToken(token);
@@ -285,6 +265,7 @@ const checkSession = async (req, res, next) => {
                 }
             }
         }
+        // 2) No valid JWT
         res.json({ valid: false });
     } catch (err) {
         console.error("Error in check-session:", err);
