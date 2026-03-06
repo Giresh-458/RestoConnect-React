@@ -9,6 +9,7 @@ const { connectDB } = require("./util/database");
 const cors = require("cors");
 const morgan = require("morgan");
 const rfs = require("rotating-file-stream");
+const mongoose = require("mongoose")
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
 const { Restaurant } = require("./Model/Restaurents_model.js");
@@ -44,6 +45,23 @@ app.use(
     },
   })
 );
+
+
+app.get("/schemas", (req, res) => {
+  const schemas = {};
+
+  Object.keys(mongoose.models).forEach((modelName) => {
+    const model = mongoose.models[modelName];
+    schemas[modelName] = {};
+
+    Object.keys(model.schema.paths).forEach((field) => {
+      schemas[modelName][field] =
+        model.schema.paths[field].instance;
+    });
+  });
+
+  res.json(schemas);
+});
 
 const csrfProtection = csrf();
 app.use(csrfProtection);

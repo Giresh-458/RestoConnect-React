@@ -33,8 +33,10 @@ export function Requests({ searchTerm }) {
   const firstRender = useRef(true);
   const [state, Dispatch] = useReducer(reducer, initialState);
   const [filteredRequests, setFilteredRequests] = useState([]);
+  const [csrfToken, setCsrfToken] = useState(null);
 
   useEffect(() => {
+    // Load pending requests
     let xhr = new XMLHttpRequest();
     xhr.open("GET", "http://localhost:3000/admin/requests", true);
     xhr.onload = function () {
@@ -45,6 +47,21 @@ export function Requests({ searchTerm }) {
     };
     xhr.withCredentials = true;
     xhr.send();
+
+    // Fetch CSRF token for subsequent POST requests
+    fetch("http://localhost:3000/api/csrf-token", {
+      method: "GET",
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.csrfToken) {
+          setCsrfToken(data.csrfToken);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch CSRF token for requests:", err);
+      });
   }, []);
 
   useEffect(() => {
@@ -68,6 +85,11 @@ export function Requests({ searchTerm }) {
       return;
     }
 
+    // Do not attempt POST without a CSRF token
+    if (!csrfToken) {
+      return;
+    }
+
     if (state.lastaction === "accept") {
       let xhr = new XMLHttpRequest();
       xhr.open(
@@ -76,6 +98,8 @@ export function Requests({ searchTerm }) {
         true
       );
       xhr.withCredentials = true;
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("X-CSRF-Token", csrfToken);
       xhr.send();
     } else if (state.lastaction === "reject") {
       let xhr = new XMLHttpRequest();
@@ -85,9 +109,11 @@ export function Requests({ searchTerm }) {
         true
       );
       xhr.withCredentials = true;
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("X-CSRF-Token", csrfToken);
       xhr.send();
     }
-  }, [state.lastaction]);
+  }, [state.lastaction, csrfToken]);
 
   return (
     <div className={styles.requestsContainer}>
