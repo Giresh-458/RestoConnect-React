@@ -49,8 +49,8 @@ export function Settings(props) {
     const body = changed ? { username, email, currentPassword } : { username, email };
 
     try {
-      const res = await fetch('http://localhost:3000/admin/edit_profile', {
-        method: 'POST',
+      const res = await fetch('http://localhost:3000/api/admin/profile', {
+        method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -81,8 +81,8 @@ export function Settings(props) {
     setSubmittingProfile(true);
     const { username, email } = formData;
     try {
-      const res = await fetch('http://localhost:3000/admin/edit_profile', {
-        method: 'POST',
+      const res = await fetch('http://localhost:3000/api/admin/profile', {
+        method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, currentPassword: modalPassword })
@@ -147,8 +147,8 @@ export function Settings(props) {
       return;
     }
 
-    fetch('http://localhost:3000/admin/change_password', {
-      method: 'POST',
+    fetch('http://localhost:3000/api/admin/password', {
+      method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword })
@@ -168,7 +168,7 @@ export function Settings(props) {
   function deleteAccount() {
     confirmDlg({ title: "Delete Account", message: "Are you sure you want to delete your account?", variant: "danger", confirmText: "Delete" }).then(ok => {
       if (!ok) return;
-      fetch('http://localhost:3000/admin/delete_account', {
+      fetch('http://localhost:3000/api/admin/account', {
         method: 'DELETE',
         credentials: 'include'
       }).then(async (res) => {

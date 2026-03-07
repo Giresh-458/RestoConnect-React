@@ -44,16 +44,10 @@ export function Restaurant({ searchTerm }) {
   const confirmDlg = useConfirm();
 
   useEffect(() => {
-    let xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:3000/admin/restaurants", true);
-    xhr.onload = function () {
-      if (this.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        Dispatch({ type: "load", payload: data });
-      }
-    };
-    xhr.withCredentials = true;
-    xhr.send();
+    fetch("http://localhost:3000/api/admin/restaurants", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : Promise.reject(res))
+      .then((data) => Dispatch({ type: "load", payload: data }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -74,24 +68,17 @@ export function Restaurant({ searchTerm }) {
     }
 
     if (state.lastaction === "delete") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "GET",
-        `http://localhost:3000/admin/delete_restaurant/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.send();
+      fetch(`http://localhost:3000/api/admin/restaurants/${state.lastpayload}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).catch(() => {});
     } else if (state.lastaction === "edit") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `http://localhost:3000/admin/edit_restaurant/${state.lastpayload._id}`,
-        true
-      );
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.withCredentials = true;
-      xhr.send(JSON.stringify(state.lastpayload));
+      fetch(`http://localhost:3000/api/admin/restaurants/${state.lastpayload._id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state.lastpayload),
+      }).catch(() => {});
     }
   }, [state.lastaction]);
 

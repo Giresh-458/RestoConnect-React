@@ -131,23 +131,59 @@ export function StaffDashBoardPage() {
     return () => clearInterval(timer);
   }, []);
 
+  const API_BASE = "http://localhost:3000/api/staff";
+  const opts = { credentials: "include", headers: { Accept: "application/json" } };
+
   const fetchData = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
 
-      const resp = await fetch("http://localhost:3000/staff/DashboardData", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
+      const [summaryRes, ordersRes, reservationsRes, tablesRes, inventoryRes, tasksRes, feedbackRes, announcementsRes] = await Promise.all([
+        fetch(`${API_BASE}/dashboard/summary`, opts),
+        fetch(`${API_BASE}/orders`, opts),
+        fetch(`${API_BASE}/reservations`, opts),
+        fetch(`${API_BASE}/tables`, opts),
+        fetch(`${API_BASE}/inventory`, opts),
+        fetch(`${API_BASE}/tasks`, opts),
+        fetch(`${API_BASE}/feedback`, opts),
+        fetch(`${API_BASE}/announcements`, opts),
+      ]);
+
+      const check = async (r, label) => {
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          throw new Error(errBody.error || `${label} failed: ${r.status}`);
+        }
+        return r.json();
+      };
+
+      const [summary, orders, reservations, allTables, inventoryStatus, staffTasks, feedback, announcements] = await Promise.all([
+        check(summaryRes, "Dashboard summary"),
+        check(ordersRes, "Orders"),
+        check(reservationsRes, "Reservations"),
+        check(tablesRes, "Tables"),
+        check(inventoryRes, "Inventory"),
+        check(tasksRes, "Tasks"),
+        check(feedbackRes, "Feedback"),
+        check(announcementsRes, "Announcements"),
+      ]);
+
+      const availableTables = (allTables || []).filter((t) => t.status === "Available");
+      const pendingTasksCount = (staffTasks || []).filter((t) => t.status === "Pending").length;
+
+      setData({
+        ...summary,
+        orders: orders || [],
+        reservations: reservations || [],
+        feedback: feedback || [],
+        inventoryStatus: inventoryStatus || [],
+        availableTables,
+        allTables: allTables || [],
+        staffTasks: staffTasks || [],
+        pendingTasksCount,
+        announcements: announcements || [],
       });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error: ${resp.status}`);
-      }
-
-      const json = await resp.json();
-      setData(json);
       setError(null);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -285,11 +321,11 @@ export function StaffDashBoardPage() {
   const handleOrderStatus = async (orderId, newStatus) => {
     setProcessingId(orderId);
     try {
-      const resp = await fetch("http://localhost:3000/staff/Dashboard/update-order", {
-        method: "POST",
+      const resp = await fetch(`http://localhost:3000/api/staff/orders/${orderId}/status`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ orderId, status: newStatus }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!resp.ok) throw new Error("Failed to update order");
       await fetchData(true);
@@ -300,7 +336,7 @@ export function StaffDashBoardPage() {
   const handleTableStatus = async (tableNumber, newStatus) => {
     setProcessingId(`table-${tableNumber}`);
     try {
-      const resp = await fetch("http://localhost:3000/staff/tables/status", {
+      const resp = await fetch("http://localhost:3000/api/staff/tables/status", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -320,11 +356,11 @@ export function StaffDashBoardPage() {
     if (!tableNumber) { toast.warn('Select a table first'); return; }
     setProcessingId(`res-${reservationId}`);
     try {
-      const resp = await fetch("http://localhost:3000/staff/Dashboard/allocate-table", {
-        method: "POST",
+      const resp = await fetch(`http://localhost:3000/api/staff/reservations/${reservationId}/allocate`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ reservationId: String(reservationId), tableNumber: String(tableNumber) }),
+        body: JSON.stringify({ tableNumber: String(tableNumber) }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -341,7 +377,7 @@ export function StaffDashBoardPage() {
     if (!ok) return;
     setProcessingId(`res-del-${id}`);
     try {
-      const resp = await fetch(`http://localhost:3000/staff/Dashboard/remove-reservation/${id}`, {
+      const resp = await fetch(`http://localhost:3000/api/staff/reservations/${id}`, {
         method: "DELETE", credentials: "include",
       });
       if (!resp.ok) throw new Error("Failed to remove reservation");
@@ -353,7 +389,7 @@ export function StaffDashBoardPage() {
   const handleTaskComplete = async (taskId) => {
     setProcessingId(`task-${taskId}`);
     try {
-      const resp = await fetch(`http://localhost:3000/staff/tasks/${taskId}`, {
+      const resp = await fetch(`http://localhost:3000/api/staff/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -369,7 +405,7 @@ export function StaffDashBoardPage() {
     if (!newTable.number || !newTable.capacity) { toast.warn('Enter table number and capacity'); return; }
     setProcessingId('add-table');
     try {
-      const resp = await fetch("http://localhost:3000/staff/add-table", {
+      const resp = await fetch("http://localhost:3000/api/staff/tables", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -388,7 +424,7 @@ export function StaffDashBoardPage() {
     if (!ok) return;
     setProcessingId(`del-table-${num}`);
     try {
-      const resp = await fetch(`http://localhost:3000/staff/tables/${num}`, {
+      const resp = await fetch(`http://localhost:3000/api/staff/tables/${num}`, {
         method: "DELETE", credentials: "include",
       });
       if (!resp.ok) throw new Error("Failed to delete table");
@@ -401,7 +437,7 @@ export function StaffDashBoardPage() {
     if (!passwords.old || !passwords.new) { toast.warn('Fill in all fields'); return; }
     if (passwords.new !== passwords.confirm) { toast.warn('Passwords do not match'); return; }
     try {
-      const resp = await fetch('http://localhost:3000/staff/change-password', {
+      const resp = await fetch('http://localhost:3000/api/staff/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

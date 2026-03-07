@@ -33,36 +33,36 @@ export const fetchUsers = () =>
   fetch(`${BASE}/users`, opts("GET")).then(json);
 
 export const deleteUser = (id) =>
-  fetch(`${BASE}/delete_user/${id}`, opts("POST")).then(json);
+  fetch(`${BASE}/users/${id}`, opts("DELETE")).then(json);
 
 export const suspendUser = (id, data) =>
-  fetch(`${BASE}/suspend_user/${id}`, opts("POST", data)).then(json);
+  fetch(`${BASE}/users/${id}/suspension`, opts("PATCH", data)).then(json);
 
 export const unsuspendUser = (id) =>
-  fetch(`${BASE}/unsuspend_user/${id}`, opts("POST")).then(json);
+  fetch(`${BASE}/users/${id}/suspension/clear`, opts("PATCH")).then(json);
 
 // Restaurants
 export const fetchRestaurants = () =>
   fetch(`${BASE}/restaurants`, opts("GET")).then(json);
 
 export const deleteRestaurant = (id) =>
-  fetch(`${BASE}/delete_restaurant/${id}`, opts("DELETE")).then(json);
+  fetch(`${BASE}/restaurants/${id}`, opts("DELETE")).then(json);
 
 export const suspendRestaurant = (id, data) =>
-  fetch(`${BASE}/suspend_restaurant/${id}`, opts("POST", data)).then(json);
+  fetch(`${BASE}/restaurants/${id}/suspension`, opts("PATCH", data)).then(json);
 
 export const unsuspendRestaurant = (id) =>
-  fetch(`${BASE}/unsuspend_restaurant/${id}`, opts("POST")).then(json);
+  fetch(`${BASE}/restaurants/${id}/suspension/clear`, opts("PATCH")).then(json);
 
 // Requests
 export const fetchRequests = () =>
-  fetch(`${BASE}/requests`, opts("GET")).then(json);
+  fetch(`${BASE}/restaurant-requests`, opts("GET")).then(json);
 
 export const acceptRequest = (ownerUsername) =>
-  fetch(`${BASE}/accept_request/${ownerUsername}`, opts("POST")).then(json);
+  fetch(`${BASE}/restaurant-requests/${ownerUsername}/accept`, opts("POST")).then(json);
 
 export const rejectRequest = (ownerUsername) =>
-  fetch(`${BASE}/reject_request/${ownerUsername}`, opts("POST")).then(json);
+  fetch(`${BASE}/restaurant-requests/${ownerUsername}/reject`, opts("POST")).then(json);
 
 // Orders
 export const fetchOrders = (params = {}) => {
@@ -99,7 +99,7 @@ export const fetchAnalytics = () =>
 
 // Employee management
 export const addEmployee = (data) =>
-  fetch(`${BASE}/add-employee`, opts("POST", data)).then(json);
+  fetch(`${BASE}/employees`, opts("POST", data)).then(json);
 
 // Insights
 export const fetchEmployeePerformance = () =>
@@ -123,10 +123,10 @@ export const fetchRevenueChart = (period = "monthly") =>
 
 // Profile
 export const editProfile = (data) =>
-  fetch(`${BASE}/edit_profile`, opts("POST", data)).then(json);
+  fetch(`${BASE}/profile`, opts("PUT", data)).then(json);
 
 export const changePassword = (data) =>
-  fetch(`${BASE}/change_password`, opts("POST", data)).then(json);
+  fetch(`${BASE}/password`, opts("PUT", data)).then(json);
 
 export const deleteAccount = () =>
-  fetch(`${BASE}/delete_account`, { method: "DELETE", credentials: "include" }).then(json);
+  fetch(`${BASE}/account`, { method: "DELETE", credentials: "include" }).then(json);

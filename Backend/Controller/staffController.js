@@ -935,6 +935,247 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
+// ─── REST-style dashboard endpoints (broken into parts) ───
+
+const getRestId = (req) => (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
+
+exports.getStaffDashboardSummary = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Order } = require("../Model/Order_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const rest = await Restaurant.findById(rest_id).populate("orders").lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let orders = rest.orders || [];
+    if (!orders.length) orders = await Order.find({ rest_id }).lean();
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const staffInfo = req.user ? { name: req.user.username, role: req.user.role || "staff" } : { name: "Staff", role: "staff" };
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = orders.filter((o) => {
+      const d = new Date(o.date || o.createdAt);
+      return d >= startOfDay && d <= endOfDay;
+    });
+    const completedToday = todaysOrders.filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase()));
+    const activeToday = todaysOrders.filter((o) => ["pending", "active", "waiting", "preparing", "ready"].includes((o.status || "").toLowerCase()));
+    const todayRevenue = completedToday.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const todayReservations = reservations.filter((r) => {
+      const d = new Date(r.date);
+      return d >= startOfDay && d <= endOfDay;
+    });
+    const totalGuests = todayReservations
+      .filter((r) => r.allocated && ["confirmed", "completed"].includes(r.status || ""))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    const avgServeTime = completedToday.length > 0
+      ? Math.round(completedToday.reduce((sum, o) => {
+          if (o.orderTime && o.completionTime) return sum + (new Date(o.completionTime) - new Date(o.orderTime)) / 60000;
+          return sum + 15;
+        }, 0) / completedToday.length)
+      : 0;
+
+    res.json({
+      rest_name: rest.name,
+      staff: staffInfo,
+      todayStats: {
+        totalOrders: todaysOrders.length,
+        activeOrders: activeToday.length,
+        completedOrders: completedToday.length,
+        revenue: todayRevenue,
+        totalGuests,
+        avgServeTime,
+        totalReservations: todayReservations.length,
+        pendingReservations: todayReservations.filter((r) => !r.allocated && r.status !== "cancelled").length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getStaffDashboardSummary:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffOrders = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Order } = require("../Model/Order_model");
+
+    const rest = await Restaurant.findById(rest_id).populate("orders").lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let orders = rest.orders || [];
+    if (!orders.length) orders = await Order.find({ rest_id }).lean();
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error in getStaffOrders:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffReservations = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error in getStaffReservations:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffTables = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const allocatedReservations = reservations.filter((r) => r.allocated && r.status === "confirmed");
+    const allocatedTableNumbers = new Set();
+    allocatedReservations.forEach((r) => {
+      if (Array.isArray(r.tables)) r.tables.forEach((t) => allocatedTableNumbers.add(String(t)));
+      if (r.table_id) allocatedTableNumbers.add(String(r.table_id));
+    });
+
+    let tables = rest.tables || [];
+    let tablesUpdated = false;
+    tables.forEach((t) => {
+      if (t.status === "Allocated" && !allocatedTableNumbers.has(String(t.number))) {
+        t.status = "Available";
+        tablesUpdated = true;
+      }
+    });
+    if (tablesUpdated) await Restaurant.findByIdAndUpdate(rest._id, { tables });
+
+    const allTables = tables.map((t) => ({
+      number: String(t.number || ""),
+      seats: Number(t.seats || 4),
+      status: t.status || "Available",
+    }));
+
+    res.json(allTables);
+  } catch (error) {
+    console.error("Error in getStaffTables:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffInventory = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const inventoryStatus = [];
+    if (rest.inventoryData?.labels?.length) {
+      for (let i = 0; i < rest.inventoryData.labels.length; i++) {
+        const quantity = rest.inventoryData.values?.[i] ?? 0;
+        const minStock = rest.inventoryData.minStocks?.[i] ?? 0;
+        const unit = rest.inventoryData.units?.[i] ?? "pieces";
+        let status = "Available";
+        if (quantity <= 0) status = "Out of Stock";
+        else if (quantity <= minStock) status = "Low Stock";
+        inventoryStatus.push({ item: rest.inventoryData.labels[i], quantity: `${quantity} ${unit}`, quantityValue: quantity, minStock, status });
+      }
+    }
+
+    res.json(inventoryStatus);
+  } catch (error) {
+    console.error("Error in getStaffInventory:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffTasks = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const currentUsername = (req.user && req.user.username) || (req.auth && req.auth.username) || "";
+    const staffTasks = (rest.staffTasks || [])
+      .filter((t) => Array.isArray(t.assignedTo) && t.assignedTo.includes(currentUsername))
+      .map((t) => ({ id: t._id, name: t.description, status: t.status, priority: t.priority, assignedTo: t.assignedTo }));
+
+    res.json(staffTasks);
+  } catch (error) {
+    console.error("Error in getStaffTasks:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffFeedback = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const Feedback = require("../Model/feedback");
+
+    const feedback = await Feedback.find({ rest_id }).sort({ createdAt: -1 }).limit(10).lean();
+    res.json(feedback.map((f) => ({ ...f, rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0 })));
+  } catch (error) {
+    console.error("Error in getStaffFeedback:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffAnnouncements = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const announcements = (rest.announcements || [])
+      .filter((a) => a.active)
+      .map((a) => ({ id: a._id, text: a.message, priority: a.priority }));
+
+    res.json(announcements);
+  } catch (error) {
+    console.error("Error in getStaffAnnouncements:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
 exports.getDashBoardData = async (req, res, next) => {
    console.log("==============================================================")
   // console.log("🚀🚀🚀 getDashBoardData function called!");

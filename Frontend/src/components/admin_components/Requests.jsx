@@ -36,32 +36,15 @@ export function Requests({ searchTerm }) {
   const [csrfToken, setCsrfToken] = useState(null);
 
   useEffect(() => {
-    // Load pending requests
-    let xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:3000/admin/requests", true);
-    xhr.onload = function () {
-      if (this.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        Dispatch({ type: "load", payload: data });
-      }
-    };
-    xhr.withCredentials = true;
-    xhr.send();
+    fetch("http://localhost:3000/api/admin/restaurant-requests", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : Promise.reject(res))
+      .then((data) => Dispatch({ type: "load", payload: data }))
+      .catch(() => {});
 
-    // Fetch CSRF token for subsequent POST requests
-    fetch("http://localhost:3000/api/csrf-token", {
-      method: "GET",
-      credentials: "include",
-    })
+    fetch("http://localhost:3000/api/csrf-token", { method: "GET", credentials: "include" })
       .then((res) => res.json())
-      .then((data) => {
-        if (data && data.csrfToken) {
-          setCsrfToken(data.csrfToken);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch CSRF token for requests:", err);
-      });
+      .then((data) => data?.csrfToken && setCsrfToken(data.csrfToken))
+      .catch((err) => console.error("Failed to fetch CSRF token for requests:", err));
   }, []);
 
   useEffect(() => {
@@ -91,27 +74,17 @@ export function Requests({ searchTerm }) {
     }
 
     if (state.lastaction === "accept") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `http://localhost:3000/admin/accept_request/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.setRequestHeader("X-CSRF-Token", csrfToken);
-      xhr.send();
+      fetch(`http://localhost:3000/api/admin/restaurant-requests/${state.lastpayload}/accept`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      }).catch(() => {});
     } else if (state.lastaction === "reject") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `http://localhost:3000/admin/reject_request/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.setRequestHeader("X-CSRF-Token", csrfToken);
-      xhr.send();
+      fetch(`http://localhost:3000/api/admin/restaurant-requests/${state.lastpayload}/reject`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      }).catch(() => {});
     }
   }, [state.lastaction, csrfToken]);
 

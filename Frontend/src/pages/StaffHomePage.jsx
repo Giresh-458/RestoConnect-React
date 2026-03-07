@@ -359,14 +359,11 @@ export function StaffHomePage() {
   const handleOrderStatus = async (orderId, newStatus) => {
     setUpdatingOrder(orderId);
     try {
-      const resp = await fetch(`${API_BASE}/Dashboard/update-order`, {
-        method: "POST",
+      const resp = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          orderId,
-          status: newStatus,
-        }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok) {
@@ -390,14 +387,11 @@ export function StaffHomePage() {
     if (!tableNumber) return;
     setProcessingReservation(true);
     try {
-      const resp = await fetch(`${API_BASE}/Dashboard/allocate-table`, {
-        method: "POST",
+      const resp = await fetch(`${API_BASE}/reservations/${reservationId}/allocate`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          reservationId: String(reservationId),
-          tableNumber: String(tableNumber),
-        }),
+        body: JSON.stringify({ tableNumber: String(tableNumber) }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));

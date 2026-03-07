@@ -10,6 +10,9 @@ const cors = require("cors");
 const morgan = require("morgan");
 const rfs = require("rotating-file-stream");
 const mongoose = require("mongoose")
+// Swagger imports
+const swaggerUi = require('swagger-ui-express');
+const { swaggerSpec } = require('./swagger');
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
 const { Restaurant } = require("./Model/Restaurents_model.js");
@@ -63,8 +66,38 @@ app.get("/schemas", (req, res) => {
   res.json(schemas);
 });
 
+// Swagger docs (before CSRF - must be publicly readable without JWT/CSRF)
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.send(swaggerSpec);
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: `
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info .title { font-size: 2.5em; }
+    .swagger-ui .info .description { font-size: 1.1em; line-height: 1.6; }
+  `,
+  customSiteTitle: 'RestoConnect API Documentation',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'list',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+  }
+}));
+
 const csrfProtection = csrf();
-app.use(csrfProtection);
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api-docs')) return next();
+  // Auth endpoints that establish session - no CSRF (user not logged in yet)
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/signup') return next();
+  if (req.path.startsWith('/api/auth/forgot-password')) return next();
+  return csrfProtection(req, res, next);
+});
 
 const authRoutes = require("./routes/authRoutes.js");
 const loginPage = require("./routes/loginPage.js");
@@ -106,6 +139,33 @@ app.use(morgan('combined', { stream: programLogStream }));
 // Mount auth routes
 app.use("/api/auth", authRoutes);
 
+/**
+ * @swagger
+ * /api/csrf-token:
+ *   get:
+ *     summary: Get CSRF token for protected endpoints
+ *     tags: [Authentication]
+ *     description: |
+ *       This endpoint returns a CSRF token that must be included in the
+ *       X-CSRF-Token header for all state-changing requests (POST, PUT, DELETE).
+ *       
+ *       **How to use:**
+ *       1. First call this endpoint to get a CSRF token
+ *       2. Include the token in your request header: X-CSRF-Token: {token}
+ *       3. Make your state-changing request
+ *       
+ *       **Note:** The CSRF token is automatically handled when using the
+ *       "Authorize" button in Swagger UI with session-based authentication.
+ *     responses:
+ *       200:
+ *         description: CSRF token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *             example:
+ *               csrfToken: "abc123def456..."
+ */
 // CSRF token endpoint
 app.get("/api/csrf-token", (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
@@ -284,3 +344,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
