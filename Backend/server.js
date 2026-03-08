@@ -90,8 +90,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   }
 }));
 
-const csrfProtection = csrf();
+const csrfProtection = csrf({
+  cookie: true
+});
 app.use((req, res, next) => {
+
+  // cookie sent by browser
+  console.log("Cookie header:", req.headers.cookie);
+
+  // csrf token sent by client
+  console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
+
   if (req.path.startsWith('/api-docs')) return next();
   // Auth endpoints that establish session - no CSRF (user not logged in yet)
   if (req.path === '/api/auth/login' || req.path === '/api/auth/signup') return next();

@@ -197,7 +197,9 @@ const options = {
       }
     },
     security: [{
-      bearerAuth: []
+       bearerAuth: [],
+    cookieAuth: [],
+    csrfHeader: []
     }]
   },
   apis: ['./routes/*.js', './server.js']
