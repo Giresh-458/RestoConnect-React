@@ -10,43 +10,10 @@ const staffController = require("../Controller/staffController");
 
 /**
  * @swagger
- * /api/staff/DashboardData:
- *   get:
- *     summary: Get staff dashboard data (legacy)
- *     tags: [Staff]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Dashboard data
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
-// Dashboard data (JSON) - legacy single endpoint
-router.get("/DashboardData", staffController.getDashBoardData);
-
-/**
- * @swagger
- * /api/staff/dashboard:
- *   get:
- *     summary: Get staff dashboard
- *     tags: [Staff]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Dashboard data
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
-router.get('/dashboard', staffController.getDashBoardData);
-
-/**
- * @swagger
  * /api/staff/dashboard/summary:
  *   get:
  *     summary: Get staff dashboard summary
- *     tags: [Staff]
+ *     tags: [Staff - Dashboard]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -86,33 +53,6 @@ router.get('/orders', staffController.getStaffOrders);
 
 /**
  * @swagger
- * /api/staff/orders/status:
- *   post:
- *     summary: Update order status (legacy)
- *     tags: [Staff - Orders]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               orderId:
- *                 type: string
- *               status:
- *                 type: string
- *     responses:
- *       200:
- *         description: Order updated
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
-router.post('/orders/status', staffController.postUpdateOrder);
-
-/**
- * @swagger
  * /api/staff/orders/{orderId}/status:
  *   patch:
  *     summary: Update order status by ID
@@ -148,9 +88,6 @@ router.patch('/orders/:orderId/status', (req, res, next) => {
   return staffController.postUpdateOrder(req, res, next);
 });
 
-// Legacy order/reservation endpoints
-router.post("/Dashboard/update-order", staffController.postUpdateOrder);
-
 // ===========================================
 // RESERVATIONS ROUTES
 // ===========================================
@@ -176,33 +113,6 @@ router.post("/Dashboard/update-order", staffController.postUpdateOrder);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.get('/reservations', staffController.getStaffReservations);
-
-/**
- * @swagger
- * /api/staff/reservations/allocate:
- *   post:
- *     summary: Allocate table to reservation (legacy)
- *     tags: [Staff - Reservations]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               reservationId:
- *                 type: string
- *               tableNumber:
- *                 type: string
- *     responses:
- *       200:
- *         description: Table allocated
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- */
-router.post('/reservations/allocate', staffController.postAllocateTable);
 
 /**
  * @swagger
@@ -240,8 +150,6 @@ router.patch('/reservations/:reservationId/allocate', (req, res, next) => {
   return staffController.postAllocateTable(req, res, next);
 });
 
-router.post("/Dashboard/allocate-table", staffController.postAllocateTable);
-
 /**
  * @swagger
  * /api/staff/reservations/{id}:
@@ -263,11 +171,6 @@ router.post("/Dashboard/allocate-table", staffController.postAllocateTable);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.delete('/reservations/:id', staffController.postRemoveReservation);
-
-router.delete(
-  "/Dashboard/remove-reservation/:id",
-  staffController.postRemoveReservation
-);
 
 // ===========================================
 // TABLES ROUTES
@@ -371,8 +274,6 @@ router.put('/tables/status', staffController.postUpdateTableStatus);
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.delete('/tables/:tableNumber', staffController.postDeleteTable);
-
-router.post("/add-table", staffController.postAddTable);
 
 // ===========================================
 // INVENTORY ROUTES
@@ -506,34 +407,120 @@ router.get('/feedback', staffController.getStaffFeedback);
 router.get('/announcements', staffController.getStaffAnnouncements);
 
 // ===========================================
-// HOMEPAGE ROUTES
+// HOMEPAGE ROUTES (REST-style, broken into parts)
 // ===========================================
 
 /**
  * @swagger
- * /api/staff/homepage:
+ * /api/staff/homepage/summary:
  *   get:
- *     summary: Get staff homepage data
- *     tags: [Staff]
+ *     summary: Get staff homepage summary
+ *     tags: [Staff - Homepage]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Homepage data with staff info, announcements, tasks, etc.
+ *         description: Staff info, performance stats, table stats
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  */
-router.get("/homepage", async (req, res, next) => {
-  try {
-    await staffController.getStaffHomepageData(req, res);
-  } catch (error) {
-    console.error("  Error stack:", error.stack);
-    if (!res.headersSent) {
-      return res.status(500).json({ error: "Internal server error", details: error.message });
-    }
-    next(error);
-  }
-});
+router.get("/homepage/summary", staffController.getStaffHomepageSummary);
+
+/**
+ * @swagger
+ * /api/staff/homepage/orders:
+ *   get:
+ *     summary: Get today's active orders (homepage)
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's active orders
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/orders", staffController.getStaffHomepageOrders);
+
+/**
+ * @swagger
+ * /api/staff/homepage/reservations:
+ *   get:
+ *     summary: Get today's reservations (homepage)
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's reservations
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/reservations", staffController.getStaffHomepageReservations);
+
+/**
+ * @swagger
+ * /api/staff/homepage/shifts:
+ *   get:
+ *     summary: Get staff's today shifts
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's assigned shifts
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/shifts", staffController.getStaffHomepageShifts);
+
+/**
+ * @swagger
+ * /api/staff/homepage/alerts:
+ *   get:
+ *     summary: Get homepage alerts (low stock, reservations, delayed orders)
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Alerts list
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/alerts", staffController.getStaffHomepageAlerts);
+
+/**
+ * @swagger
+ * /api/staff/homepage/support-messages:
+ *   get:
+ *     summary: Get staff support messages
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Support messages and tickets
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/support-messages", staffController.getStaffHomepageSupportMessages);
+
+/**
+ * @swagger
+ * /api/staff/homepage/feedback:
+ *   get:
+ *     summary: Get recent feedback (homepage)
+ *     tags: [Staff - Homepage]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Recent feedback (limit 5)
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get("/homepage/feedback", staffController.getStaffHomepageFeedback);
 
 // ===========================================
 // PASSWORD & PROFILE ROUTES
@@ -730,9 +717,6 @@ router.post("/support/tickets/:ticketId/messages", staffSupportController.staffP
  *         $ref: '#/components/responses/Unauthorized'
  */
 router.patch("/support/tickets/:ticketId/status", staffSupportController.staffUpdateStatus);
-
-// Legacy dashboard view (EJS) - kept for compatibility
-router.get("/Dashboard", staffController.getDashBoard);
 
 module.exports = router;
 

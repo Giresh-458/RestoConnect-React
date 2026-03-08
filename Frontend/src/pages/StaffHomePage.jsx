@@ -310,36 +310,65 @@ export function StaffHomePage() {
   }, []);
 
   const API_BASE = "http://localhost:3000/api/staff";
+  const opts = { credentials: "include", headers: { Accept: "application/json" } };
 
-  // Data fetching
   const fetchData = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       setError(null);
 
-      const resp = await fetch(`${API_BASE}/homepage`, {
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
+      const [summaryRes, ordersRes, reservationsRes, tablesRes, announcementsRes, tasksRes, shiftsRes, alertsRes, supportRes, feedbackRes] = await Promise.all([
+        fetch(`${API_BASE}/homepage/summary`, opts),
+        fetch(`${API_BASE}/homepage/orders`, opts),
+        fetch(`${API_BASE}/homepage/reservations`, opts),
+        fetch(`${API_BASE}/tables`, opts),
+        fetch(`${API_BASE}/announcements`, opts),
+        fetch(`${API_BASE}/tasks`, opts),
+        fetch(`${API_BASE}/homepage/shifts`, opts),
+        fetch(`${API_BASE}/homepage/alerts`, opts),
+        fetch(`${API_BASE}/homepage/support-messages`, opts),
+        fetch(`${API_BASE}/homepage/feedback`, opts),
+      ]);
 
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({}));
-        const msg = errBody?.error || errBody?.message || `Server error: ${resp.status}`;
-        if (resp.status === 401) {
-          window.location.href = "/login?message=Please log in again";
-          return;
+      const check = async (r, label) => {
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          const msg = errBody?.error || errBody?.message || `${label} failed: ${r.status}`;
+          if (r.status === 401) window.location.href = "/login?message=Please log in again";
+          throw new Error(msg);
         }
-        throw new Error(msg);
-      }
-      const contentType = resp.headers.get("content-type") || "";
-      if (!contentType.includes("application/json"))
-        throw new Error("Invalid response format");
+        return r.json();
+      };
 
-      setData(await resp.json());
+      const [summary, orders, reservations, tables, announcements, tasks, shifts, alerts, supportMessages, recentFeedback] = await Promise.all([
+        check(summaryRes, "Homepage summary"),
+        check(ordersRes, "Orders"),
+        check(reservationsRes, "Reservations"),
+        check(tablesRes, "Tables"),
+        check(announcementsRes, "Announcements"),
+        check(tasksRes, "Tasks"),
+        check(shiftsRes, "Shifts"),
+        check(alertsRes, "Alerts"),
+        check(supportRes, "Support messages"),
+        check(feedbackRes, "Feedback"),
+      ]);
+
+      const availableTables = (tables || []).filter((t) => t.status === "Available");
+
+      setData({
+        ...summary,
+        orders: orders || [],
+        reservations: reservations || [],
+        tables: tables || [],
+        availableTables,
+        announcements: announcements || [],
+        tasks: tasks || [],
+        shifts: shifts || [],
+        alerts: alerts || [],
+        supportMessages: supportMessages || [],
+        recentFeedback: recentFeedback || [],
+      });
     } catch (err) {
       console.error("Fetch error:", err);
       if (!silent) setError(err.message);

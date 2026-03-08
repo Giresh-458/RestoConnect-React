@@ -3,84 +3,6 @@ const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
 const bcrypt = require("bcrypt");
 
-// Dashboard Methods
-exports.getDashBoard = async (req, res, next) => {
-  try {
-    const restId = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
-    if (!restId) return res.status(401).send("Not authenticated");
-    let r_name = await Restaurant.findById(restId);
-    let rest = await Restaurant.findById(restId).populate(
-      "orders"
-    );
-    if (!rest) {
-      return res.status(404).send("Restaurant not found");
-    }
-
-    // Process orders data
-    const orders = rest.orders || [];
-    const orderStatusCount = {};
-    orders.forEach((order) => {
-      const status = order.status || "Unknown";
-      orderStatusCount[status] = (orderStatusCount[status] || 0) + 1;
-    });
-    const ordersData = Object.entries(orderStatusCount).map(
-      ([label, value]) => ({ label, value })
-    );
-
-    // Process inventory data - FIXED: Use the correct structure
-    let inventoryItems = [];
-    let inventoryDataForTable = { labels: [], values: [] }; // For the table
-    let inventoryDataForChart = []; // For the chart
-
-    if (
-      rest.inventoryData &&
-      rest.inventoryData.labels &&
-      rest.inventoryData.values
-    ) {
-      inventoryItems = rest.inventoryData.labels.map((label, index) => {
-        return {
-          name: label,
-          quantity: rest.inventoryData.values[index] || 0,
-        };
-      });
-
-      // Data for the chart
-      inventoryDataForChart = inventoryItems.map((item) => ({
-        label: item.name,
-        value: item.quantity,
-      }));
-
-      // Data for the table - use the same structure as restaurant.inventoryData
-      inventoryDataForTable = {
-        labels: rest.inventoryData.labels,
-        values: rest.inventoryData.values,
-      };
-    }
-
-    // Get recent reservations (last 10)
-    const recentReservations = rest.reservations.slice(-10);
-
-    res.render("staffDashboard", {
-      orders: orders,
-      reservations: recentReservations,
-      inventory: inventoryItems.filter((item) => {
-        const minStock = (rest.inventoryData.minStocks && rest.inventoryData.minStocks[inventoryItems.indexOf(item)]) || 0;
-        return minStock > 0 && item.quantity <= minStock;
-      }), // Show only low stock items
-      ordersData,
-      inventoryData: inventoryDataForChart, // For the chart
-      inventoryDataForTable: inventoryDataForTable, // For the table
-      restaurant: rest,
-      rest_name: r_name.name,
-    });
-  } catch (error) {
-    console.error("Error in getDashBoard:", error);
-    error.status = error.status || 500;
-    error.message = error.message || "Internal Server Error";
-    return next(error);
-  }
-};
-
 exports.postUpdateOrder = async (req, res, next) => {
   try {
     const restId = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
@@ -1173,6 +1095,315 @@ exports.getStaffAnnouncements = async (req, res, next) => {
   } catch (error) {
     console.error("Error in getStaffAnnouncements:", error);
     return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+// ─── REST-style homepage endpoints (broken into parts) ───
+
+exports.getStaffHomepageSummary = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) {
+      return res.json({
+        staff: { name: staffMember.username, role: staffMember.role, branch: "Unassigned" },
+        performance: { ordersServed: 0, avgRating: 0, avgServeTime: 0, efficiencyScore: 0 },
+        tableStats: { total: 0, occupied: 0, available: 0, guests: 0 },
+      });
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const staffOrders = todaysOrders.filter((o) => o.assignedStaff && o.assignedStaff.includes(staffMember.username));
+    const completedToday = todaysOrders.filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase())).length;
+    const activeCount = todaysOrders.filter((o) => ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase())).length;
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+    const todayReservations = reservations.filter((r) => {
+      const rDate = new Date(r.date);
+      return rDate >= startOfDay && rDate <= endOfDay;
+    });
+    const totalGuests = todayReservations
+      .filter((r) => r.allocated && (r.status === "confirmed" || r.status === "seated"))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    const tables = restaurant.tables || [];
+    const total = tables.length;
+    const occupied = tables.filter((t) => t.status !== "Available").length;
+
+    const performance = {
+      ordersServed: staffOrders.length > 0 ? staffOrders.length : completedToday,
+      avgRating: calculateAverageRating(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      avgServeTime: calculateAverageServeTime(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      efficiencyScore: calculateEfficiencyScore(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      totalOrdersToday: todaysOrders.length,
+      completedOrders: completedToday,
+      activeOrderCount: activeCount,
+      totalRevenue: todaysOrders
+        .filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase()))
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+    };
+
+    res.json({
+      staff: { name: staffMember.username, role: staffMember.role, branch: restaurant.name },
+      performance,
+      tableStats: { total, occupied, available: total - occupied, guests: totalGuests },
+    });
+  } catch (error) {
+    console.error("Error in getStaffHomepageSummary:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageOrders = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const active = todaysOrders
+      .filter((o) => ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase()))
+      .map((o) => ({
+        _id: o._id,
+        dishes: o.dishes || [],
+        customerName: o.customerName || "Walk-in",
+        tableNumber: o.tableNumber || o.table_id || "N/A",
+        status: o.status,
+        totalAmount: o.totalAmount || 0,
+        orderTime: o.orderTime || o.date,
+        estimatedTime: o.estimatedTime || 0,
+      }));
+
+    res.json(active);
+  } catch (error) {
+    console.error("Error in getStaffHomepageOrders:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageReservations = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const todayRes = reservations
+      .filter((r) => {
+        const rDate = new Date(r.date);
+        return rDate >= startOfDay && rDate <= endOfDay;
+      })
+      .map((r) => ({
+        _id: r._id,
+        customerName: r.customerName || "Guest",
+        time: r.time,
+        guests: r.guests || 1,
+        status: r.status,
+        allocated: r.allocated || false,
+        table_id: r.table_id || null,
+        tables: r.tables || [],
+      }))
+      .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    res.json(todayRes);
+  } catch (error) {
+    console.error("Error in getStaffHomepageReservations:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageShifts = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const shifts = (restaurant.staffShifts || [])
+      .filter((shift) => {
+        const shiftDate = shift.date instanceof Date ? shift.date : new Date(shift.date);
+        const isToday = shiftDate.toDateString() === today.toDateString();
+        const isAssigned = Array.isArray(shift.assignedStaff) && shift.assignedStaff.includes(staffMember.username);
+        return isToday && isAssigned;
+      })
+      .map((shift) => ({
+        id: shift._id,
+        name: shift.name,
+        time: `${shift.startTime} - ${shift.endTime}`,
+        staff: shift.assignedStaff,
+      }));
+
+    res.json(shifts);
+  } catch (error) {
+    console.error("Error in getStaffHomepageShifts:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageAlerts = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const activeOrders = todaysOrders.filter((o) =>
+      ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase())
+    );
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+    const todayRes = reservations.filter((r) => {
+      const rDate = new Date(r.date);
+      return rDate >= startOfDay && rDate <= endOfDay;
+    });
+
+    const alerts = [];
+    const now = Date.now();
+
+    if (restaurant.inventoryData?.labels) {
+      for (let i = 0; i < restaurant.inventoryData.labels.length; i++) {
+        const qty = restaurant.inventoryData.values?.[i] ?? 0;
+        const minStock = restaurant.inventoryData.minStocks?.[i] ?? 0;
+        if (minStock > 0 && qty <= minStock && qty > 0) {
+          alerts.push({ type: "low-stock", icon: "inventory", message: `${restaurant.inventoryData.labels[i]} is running low (${qty} left)`, severity: "warning" });
+        } else if (qty <= 0 && minStock > 0) {
+          alerts.push({ type: "out-of-stock", icon: "inventory", message: `${restaurant.inventoryData.labels[i]} is out of stock!`, severity: "critical" });
+        }
+      }
+    }
+
+    todayRes.forEach((r) => {
+      if (!r.allocated && (r.status === "pending" || r.status === "confirmed")) {
+        const rTime = new Date(r.time).getTime();
+        const minutesAway = Math.round((rTime - now) / 60000);
+        if (minutesAway > 0 && minutesAway <= 30) {
+          alerts.push({ type: "reservation-soon", icon: "reservation", message: `${r.customerName || "Guest"} (${r.guests || 1} guests) arriving in ${minutesAway} min — no table assigned`, severity: "warning" });
+        } else if (minutesAway <= 0 && minutesAway >= -15) {
+          alerts.push({ type: "reservation-overdue", icon: "reservation", message: `${r.customerName || "Guest"} (${r.guests || 1} guests) reservation was ${Math.abs(minutesAway)} min ago — no table assigned`, severity: "critical" });
+        }
+      }
+    });
+
+    activeOrders.forEach((o) => {
+      if (o.orderTime && o.estimatedTime) {
+        const elapsed = (now - new Date(o.orderTime).getTime()) / 60000;
+        if (elapsed > o.estimatedTime + 10) {
+          alerts.push({ type: "order-delayed", icon: "order", message: `Order #${String(o._id).slice(-4)} at Table ${o.tableNumber || o.table_id || "?"} is ${Math.round(elapsed - o.estimatedTime)} min overdue`, severity: "critical" });
+        }
+      }
+    });
+
+    res.json(alerts.sort((a, b) => (a.severity === "critical" ? -1 : 1)));
+  } catch (error) {
+    console.error("Error in getStaffHomepageAlerts:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageSupportMessages = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const SupportTicket = require("../Model/SupportTicket_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const embedded = (restaurant.supportMessages || [])
+      .filter((msg) => msg.from === staffMember.username)
+      .map((msg) => ({ id: msg._id, message: msg.message, timestamp: msg.timestamp, status: msg.status, source: "embedded" }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    const tickets = await SupportTicket.find({
+      createdBy: staffMember.username,
+      createdByRole: "staff",
+      rest_id,
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+      .catch(() => []);
+
+    const ticketMsgs = (tickets || []).map((t) => ({
+      id: t._id,
+      ticketNumber: t.ticketNumber,
+      message: t.subject,
+      timestamp: t.createdAt,
+      status: t.status,
+      source: "ticket",
+    }));
+
+    res.json([...embedded, ...ticketMsgs].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)));
+  } catch (error) {
+    console.error("Error in getStaffHomepageSupportMessages:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageFeedback = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const Feedback = require("../Model/feedback");
+    const feedback = await Feedback.find({ rest_id }).sort({ createdAt: -1 }).limit(5).lean().catch(() => []);
+    res.json(
+      (feedback || []).map((f) => ({
+        customerName: f.customerName,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
+        feedback: f.additionalFeedback || f.feedback,
+        createdAt: f.createdAt,
+      }))
+    );
+  } catch (error) {
+    console.error("Error in getStaffHomepageFeedback:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 };
 
