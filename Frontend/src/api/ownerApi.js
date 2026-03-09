@@ -1,3 +1,5 @@
+import { getCsrfToken } from "../util/csrf";
+
 const BASE = "http://localhost:3000/api/owner";
 const opts = { credentials: "include" };
 
@@ -15,13 +17,18 @@ export const fetchRecentOrders = () => fetch(`${BASE}/orders/recent`, opts).then
 export const fetchReports = () => fetch(`${BASE}/reports`, opts).then(json);
 
 // Restaurant Status
-export const toggleRestaurantStatus = (isOpen) =>
-  fetch(`${BASE}/settings`, {
+export const toggleRestaurantStatus = async (isOpen) => {
+  const csrfToken = await getCsrfToken();
+  return fetch(`${BASE}/settings`, {
     ...opts,
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "X-CSRF-Token": csrfToken,
+    },
     body: JSON.stringify({ isOpen }),
   }).then(json);
+};
 
 // Orders
 export const fetchOrders = () => fetch(`${BASE}/orders`, opts).then(json);

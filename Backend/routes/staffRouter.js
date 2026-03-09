@@ -59,6 +59,7 @@ router.get('/orders', staffController.getStaffOrders);
  *     tags: [Staff - Orders]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -122,6 +123,7 @@ router.get('/reservations', staffController.getStaffReservations);
  *     tags: [Staff - Reservations]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: reservationId
@@ -158,6 +160,7 @@ router.patch('/reservations/:reservationId/allocate', (req, res, next) => {
  *     tags: [Staff - Reservations]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -200,6 +203,7 @@ router.delete('/reservations/:id', staffController.postRemoveReservation);
  *     tags: [Staff - Tables]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -231,6 +235,7 @@ router.post('/tables', staffController.postAddTable);
  *     tags: [Staff - Tables]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -261,6 +266,7 @@ router.put('/tables/status', staffController.postUpdateTableStatus);
  *     tags: [Staff - Tables]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: tableNumber
@@ -331,6 +337,7 @@ router.get('/tasks', staffController.getStaffTasks);
  *     tags: [Staff - Tasks]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -534,6 +541,7 @@ router.get("/homepage/feedback", staffController.getStaffHomepageFeedback);
  *     tags: [Staff - Profile]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -570,6 +578,7 @@ router.post('/change-password', staffController.changePassword);
  *     tags: [Staff - Support]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -612,6 +621,7 @@ const staffSupportController = require("../Controller/staffSupportController");
  *     tags: [Staff - Support]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -664,6 +674,7 @@ router.get("/support/tickets/:ticketId", staffSupportController.staffGetTicket);
  *     tags: [Staff - Support]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: ticketId
@@ -695,6 +706,7 @@ router.post("/support/tickets/:ticketId/messages", staffSupportController.staffP
  *     tags: [Staff - Support]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: ticketId

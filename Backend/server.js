@@ -72,7 +72,7 @@ app.get('/api-docs.json', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.send(swaggerSpec);
 });
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerSpec, {
   customCss: `
     .swagger-ui .topbar { display: none }
     .swagger-ui .info .title { font-size: 2.5em; }
@@ -91,7 +91,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 const csrfProtection = csrf({
-  cookie: true
+  cookie: true,
+  value: (req) => req.headers['x-csrf-token']
 });
 app.use((req, res, next) => {
 

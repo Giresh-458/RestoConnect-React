@@ -63,6 +63,7 @@ router.get('/restaurants', admincontroller.getAllRestaurants); // admin use
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -102,6 +103,7 @@ router.post('/add_restaurant', admincontroller.postAddRestaurent);
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -135,6 +137,7 @@ router.post('/restaurants', admincontroller.postAddRestaurent);
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -171,6 +174,7 @@ router.post('/edit_restaurant/:id', admincontroller.postEditRestaurent);
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -194,6 +198,7 @@ router.delete('/delete_restaurant/:id',admincontroller.postDeleteRestaurent);
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -230,6 +235,7 @@ router.post('/suspend_restaurant/:id', admincontroller.suspendRestaurant);
  *     tags: [Admin - Restaurants]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -296,6 +302,7 @@ router.get('/users', admincontroller.getAllUsers);
  *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -319,6 +326,7 @@ router.post('/delete_user/:id', admincontroller.deleteUser);
  *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -355,6 +363,7 @@ router.post('/suspend_user/:id', admincontroller.suspendUser);
  *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -378,6 +387,7 @@ router.post('/unsuspend_user/:id', admincontroller.unsuspendUser);
  *     tags: [Admin - Profile]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -410,6 +420,7 @@ router.post('/edit_profile', admincontroller.editProfile);
  *     tags: [Admin - Profile]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
@@ -441,6 +452,7 @@ router.post('/change_password', admincontroller.changePassword);
  *     tags: [Admin - Profile]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     responses:
  *       200:
  *         description: Account deleted
@@ -496,6 +508,7 @@ router.get('/restaurant-requests', admincontroller.getAllRequests);
  *     tags: [Admin - Requests]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: owner_username
@@ -519,6 +532,7 @@ router.post('/restaurant-requests/:owner_username/accept', admincontroller.getac
  *     tags: [Admin - Requests]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     parameters:
  *       - in: path
  *         name: owner_username
@@ -654,6 +668,7 @@ router.get('/analytics', admincontroller.getAnalytics);
  *     tags: [Admin - Employees]
  *     security:
  *       - bearerAuth: []
+ *       - csrfHeader: []
  *     requestBody:
  *       required: true
  *       content:
