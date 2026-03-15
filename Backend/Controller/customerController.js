@@ -48,14 +48,10 @@ const formatRelativeTime = (targetDate) => {
 
 // Helper to resolve current authenticated user context (stateless first, then legacy session)
 const getCurrentUsername = (req) =>
-  (req.auth && req.auth.username) ||
-  (req.user && req.user.username) ||
-  null;
+  (req.auth && req.auth.username) || (req.user && req.user.username) || null;
 
 const getCurrentRestId = (req) =>
-  (req.auth && req.auth.rest_id) ||
-  (req.user && req.user.rest_id) ||
-  null;
+  (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id) || null;
 
 // Validate reservation date/time
 exports.validateReservationDateTime = (date, time) => {
@@ -239,12 +235,16 @@ exports.getCustomerDashboard = async (req, res, next) => {
 
     // =================== RESERVATIONS ===================
     // Read from the standalone Reservation collection for up-to-date status
-    const customerReservations = await Reservation.find({ customerName }).lean();
+    const customerReservations = await Reservation.find({
+      customerName,
+    }).lean();
     const allReservations = [];
 
     for (const reservation of customerReservations) {
       // Look up the restaurant name for display
-      const restaurant = await Restaurant.findById(reservation.rest_id).select('name').lean();
+      const restaurant = await Restaurant.findById(reservation.rest_id)
+        .select("name")
+        .lean();
 
       // Create proper datetime by combining date and time
       let reservationDateTime = new Date(reservation.date);
@@ -579,7 +579,7 @@ exports.reorderOrder = async (req, res, next) => {
         {
           $set: { items: cartItems },
         },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
     }
 
@@ -886,7 +886,7 @@ exports.submitFeedback = async (req, res, next) => {
 // Orders and reservations
 exports.postOrderAndReservation = async (req, res, next) => {
   try {
-    // Legacy controller tied to EJS; keep it but remove session usage.
+    // REST API endpoint - returns JSON instead of rendering EJS
     let restaurantName = req.body.restaurant || "";
     let rest_id = req.body.rest_id || getCurrentRestId(req);
     let cart = [];
@@ -896,13 +896,22 @@ exports.postOrderAndReservation = async (req, res, next) => {
       if (rest) rest_id = rest._id;
     }
 
+    // Fetch user's cart if authenticated
     if (req.user?.email) {
       const person = await Person.findOne({ email: req.user.email });
       cart = person ? person.cart || [] : [];
     }
 
     if (!cart) cart = [];
-    res.render("orderReservation", { restaurantName, cart, rest_id });
+
+    // Return JSON response for React frontend
+    res.json({
+      restaurantName,
+      cart,
+      rest_id,
+      success: true,
+      message: "Order and reservation data retrieved",
+    });
   } catch (error) {
     console.error("Error in postOrderAndReservation:", error);
     error.status = error.status || 500;
@@ -926,7 +935,8 @@ exports.getCustomerSupportThreads = async (req, res, next) => {
     }
 
     const restaurant = await Restaurant.findById(rest_id);
-    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
 
     const threads = (restaurant.customerSupportThreads || [])
       .filter((thread) => thread.customerName === customerName)
@@ -970,7 +980,8 @@ exports.createCustomerSupportThread = async (req, res, next) => {
     }
 
     const restaurant = await Restaurant.findById(rest_id);
-    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
 
     if (!restaurant.customerSupportThreads) {
       restaurant.customerSupportThreads = [];
@@ -995,9 +1006,10 @@ exports.createCustomerSupportThread = async (req, res, next) => {
     restaurant.customerSupportThreads.push(newThread);
     await restaurant.save();
 
-    const createdThread = restaurant.customerSupportThreads[
-      restaurant.customerSupportThreads.length - 1
-    ];
+    const createdThread =
+      restaurant.customerSupportThreads[
+        restaurant.customerSupportThreads.length - 1
+      ];
 
     res.json({
       success: true,
@@ -1037,7 +1049,8 @@ exports.postCustomerSupportMessage = async (req, res, next) => {
     }
 
     const restaurant = await Restaurant.findById(rest_id);
-    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
 
     const thread = restaurant.customerSupportThreads?.id(threadId);
     if (!thread || thread.customerName !== customerName) {
@@ -1094,7 +1107,8 @@ exports.updateCustomerSupportStatus = async (req, res, next) => {
     }
 
     const restaurant = await Restaurant.findById(rest_id);
-    if (!restaurant) return res.status(404).json({ error: "Restaurant not found" });
+    if (!restaurant)
+      return res.status(404).json({ error: "Restaurant not found" });
 
     const thread = restaurant.customerSupportThreads?.id(threadId);
     if (!thread || thread.customerName !== customerName) {
@@ -1126,61 +1140,69 @@ exports.updateCustomerSupportStatus = async (req, res, next) => {
 };
 
 exports.order = async (req, res, next) => {
-  const { restaurant, specialRequests } = req.body;
-  const restId = getCurrentRestId(req);
-  if (restId) {
-    const restaurantDoc = await Restaurant.find_by_id(restId);
-    if (!restaurantDoc || !restaurantDoc.isOpen) {
-      return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+  try {
+    const { restaurant, specialRequests } = req.body;
+    const restId = getCurrentRestId(req);
+    if (restId) {
+      const restaurantDoc = await Restaurant.find_by_id(restId);
+      if (!restaurantDoc || !restaurantDoc.isOpen) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Restaurant is currently closed" });
+      }
     }
-  }
-  const newOrder = {
-    id: Date.now(),
-    restaurant,
-    specialRequests,
-    status: "Pending",
-  };
-  const wantsJson =
-    req.headers["content-type"]?.includes("application/json") ||
-    req.headers["accept"]?.includes("application/json");
-  if (wantsJson) {
+    const newOrder = {
+      id: Date.now(),
+      restaurant,
+      specialRequests,
+      status: "Pending",
+    };
+    // Always return JSON for REST API
     return res.json({
       success: true,
       message: "Order received",
       order: newOrder,
     });
+  } catch (error) {
+    console.error("Error in order:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
-  res.redirect("/customer/payments");
 };
 
 exports.reservation = async (req, res, next) => {
-  const { restaurant, date, time, guests } = req.body;
-  const restId = getCurrentRestId(req);
-  if (restId) {
-    const restaurantDoc = await Restaurant.find_by_id(restId);
-    if (!restaurantDoc || !restaurantDoc.isOpen) {
-      return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+  try {
+    const { restaurant, date, time, guests } = req.body;
+    const restId = getCurrentRestId(req);
+    if (restId) {
+      const restaurantDoc = await Restaurant.find_by_id(restId);
+      if (!restaurantDoc || !restaurantDoc.isOpen) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Restaurant is currently closed" });
+      }
     }
-  }
-  const newReservation = {
-    id: Date.now(),
-    name: getCurrentUsername(req),
-    restaurant,
-    date,
-    time,
-    guests,
-  };
-  const wantsJson =
-    req.headers["content-type"]?.includes("application/json") ||
-    req.headers["accept"]?.includes("application/json");
-  if (wantsJson) {
+    const newReservation = {
+      id: Date.now(),
+      name: getCurrentUsername(req),
+      restaurant,
+      date,
+      time,
+      guests,
+    };
+    // Always return JSON for REST API
     return res.json({
       success: true,
       message: "Reservation received",
       reservation: newReservation,
     });
+  } catch (error) {
+    console.error("Error in reservation:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
   }
-  res.redirect("/customer/payments");
 };
 
 exports.postOrderAndReservationCombined = async (req, res, next) => {
@@ -1190,7 +1212,9 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
     if (restId) {
       const restaurantDoc = await Restaurant.find_by_id(restId);
       if (!restaurantDoc || !restaurantDoc.isOpen) {
-        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Restaurant is currently closed" });
       }
     }
 
@@ -1215,17 +1239,12 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
       user.cart = [];
       await user.save();
     }
-    const wantsJson =
-      req.headers["content-type"]?.includes("application/json") ||
-      req.headers["accept"]?.includes("application/json");
-    if (wantsJson) {
-      return res.json({
-        success: true,
-        message: "Order+Reservation received",
-        data: { order: newOrder, reservation: newReservation },
-      });
-    }
-    res.redirect("/customer/payments");
+    // Always return JSON for REST API
+    return res.json({
+      success: true,
+      message: "Order+Reservation received",
+      data: { order: newOrder, reservation: newReservation },
+    });
   } catch (error) {
     console.error("Error in postOrderAndReservationCombined:", error);
     error.status = error.status || 500;
@@ -1235,7 +1254,12 @@ exports.postOrderAndReservationCombined = async (req, res, next) => {
 };
 
 exports.getPayments = (req, res) => {
-  res.render("payment", { bill_price: 0 });
+  // Return JSON response with payment data for React frontend
+  res.json({
+    bill_price: 0,
+    success: true,
+    message: "Payment data retrieved",
+  });
 };
 
 exports.postPaymentsSuccess = async (req, res, next) => {
@@ -1283,16 +1307,11 @@ exports.postPaymentsSuccess = async (req, res, next) => {
       }
     }
 
-    const wantsJson =
-      req.headers["content-type"]?.includes("application/json") ||
-      req.headers["accept"]?.includes("application/json");
-    if (wantsJson) {
-      return res.json({
-        success: true,
-        message: "Payment successful, order/reservation completed",
-      });
-    }
-    res.redirect("/customer/feedback");
+    // Always return JSON for REST API
+    return res.json({
+      success: true,
+      message: "Payment successful, order/reservation completed",
+    });
   } catch (error) {
     console.error("Error in postPaymentsSuccess:", error);
     error.status = error.status || 500;
@@ -1324,10 +1343,18 @@ exports.apiCheckout = async (req, res, next) => {
 
     const rest = await Restaurant.find_by_id(rest_id);
     if (!rest) {
-      return res.status(404).json({ success: false, message: "", error: "Restaurant not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "", error: "Restaurant not found" });
     }
     if (!rest.isOpen) {
-      return res.status(400).json({ success: false, message: "", error: "Restaurant is currently closed" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "",
+          error: "Restaurant is currently closed",
+        });
     }
 
     // Calculate final amount with promo discount
@@ -1394,7 +1421,9 @@ exports.apiCheckoutPay = async (req, res, next) => {
 
       const restDoc = await Restaurant.find_by_id(rest_id || order.rest_id);
       if (!restDoc || !restDoc.isOpen) {
-        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Restaurant is currently closed" });
       }
 
       if (order.paymentStatus === "paid") {
@@ -1415,9 +1444,9 @@ exports.apiCheckoutPay = async (req, res, next) => {
           const restForReservation = await Restaurant.find_by_id(orderRestId);
           if (restForReservation) {
             // Check if reservation already exists in restaurant's reservations array
-            const reservationExists = (restForReservation.reservations || []).some(
-              (r) => String(r.id) === String(existingReservation._id),
-            );
+            const reservationExists = (
+              restForReservation.reservations || []
+            ).some((r) => String(r.id) === String(existingReservation._id));
             if (!reservationExists) {
               restForReservation.reservations =
                 restForReservation.reservations || [];
@@ -1471,10 +1500,14 @@ exports.apiCheckoutPay = async (req, res, next) => {
 
       const restDoc = await Restaurant.find_by_id(payload.rest_id);
       if (!restDoc) {
-        return res.status(404).json({ success: false, error: "Restaurant not found" });
+        return res
+          .status(404)
+          .json({ success: false, error: "Restaurant not found" });
       }
       if (!restDoc.isOpen) {
-        return res.status(400).json({ success: false, error: "Restaurant is currently closed" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Restaurant is currently closed" });
       }
 
       const username = getCurrentUsername(req) || null;
@@ -1499,11 +1532,18 @@ exports.apiCheckoutPay = async (req, res, next) => {
           rest_id: payload.rest_id,
         });
         if (!promoCodeDoc) {
-          return res.status(400).json({ success: false, error: "Invalid promo code" });
+          return res
+            .status(400)
+            .json({ success: false, error: "Invalid promo code" });
         }
         const promoValidation = promoCodeDoc.isValid(baseAmount);
         if (!promoValidation.valid) {
-          return res.status(400).json({ success: false, error: promoValidation.error || "Invalid promo code" });
+          return res
+            .status(400)
+            .json({
+              success: false,
+              error: promoValidation.error || "Invalid promo code",
+            });
         }
         promoDiscount = promoCodeDoc.calculateDiscount(baseAmount);
         resolvedPromoCode = promoCodeDoc.code;
@@ -1536,7 +1576,9 @@ exports.apiCheckoutPay = async (req, res, next) => {
           : [];
         return (
           existingDishes.length === sortedDishes.length &&
-          existingDishes.every((dishName, idx) => dishName === sortedDishes[idx])
+          existingDishes.every(
+            (dishName, idx) => dishName === sortedDishes[idx],
+          )
         );
       });
 
@@ -1646,7 +1688,10 @@ exports.apiCheckoutPay = async (req, res, next) => {
     if (!wasAlreadyPaid && order.promoCode) {
       try {
         await PromoCode.updateOne(
-          { code: String(order.promoCode).toUpperCase().trim(), rest_id: order.rest_id },
+          {
+            code: String(order.promoCode).toUpperCase().trim(),
+            rest_id: order.rest_id,
+          },
           { $inc: { usedCount: 1 } },
         );
       } catch (e) {
@@ -1749,8 +1794,19 @@ exports.getEditProfile = async (req, res, next) => {
   try {
     const currentUsername = getCurrentUsername(req);
     const user = await Person.findOne({ name: currentUsername });
-    if (!user) return res.status(404).send("User not found");
-    res.render("editCustomerProfile", { user });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Return JSON response with user profile for React frontend
+    res.json({
+      success: true,
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        img_url: getProfilePicUrl(req, user.img_url),
+      },
+      message: "User profile retrieved",
+    });
   } catch (error) {
     console.error("Error fetching user for edit profile:", error);
     error.status = error.status || 500;
@@ -1888,24 +1944,17 @@ exports.postEditProfile = async (req, res, next) => {
     }
     await person.save();
 
-    // Check if request wants JSON response (from React frontend)
-    const wantsJson =
-      req.headers["content-type"]?.includes("application/json") ||
-      req.get("content-type")?.includes("formdata");
-    if (wantsJson || req.method === "POST") {
-      return res.status(200).json({
-        success: true,
-        message: "Profile updated successfully",
-        data: {
-          name: person.name,
-          email: person.email,
-          phone: person.phone,
-          img_url: getProfilePicUrl(req, person.img_url),
-        },
-      });
-    }
-
-    res.redirect("/customer/customerDashboard");
+    // Always return JSON for REST API
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        name: person.name,
+        email: person.email,
+        phone: person.phone,
+        img_url: getProfilePicUrl(req, person.img_url),
+      },
+    });
   } catch (error) {
     console.error("Error updating user profile:", error);
     error.status = error.status || 500;
@@ -2379,7 +2428,9 @@ exports.getAvailablePromoCodes = async (req, res, next) => {
   try {
     const { rest_id } = req.query;
     if (!rest_id) {
-      return res.status(400).json({ success: false, error: "Restaurant ID is required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Restaurant ID is required" });
     }
 
     const now = new Date();
@@ -2395,7 +2446,9 @@ exports.getAvailablePromoCodes = async (req, res, next) => {
       ],
     })
       .sort({ validUntil: 1 })
-      .select("code description discountType discountValue minAmount maxDiscount validUntil");
+      .select(
+        "code description discountType discountValue minAmount maxDiscount validUntil",
+      );
 
     return res.json({ success: true, data: promos });
   } catch (error) {
