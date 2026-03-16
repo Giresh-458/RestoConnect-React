@@ -13,9 +13,13 @@ const mongoose = require("mongoose")
 // Swagger imports
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./swagger');
+const { graphqlHTTP } = require('express-graphql');
+const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLList, GraphQLID, GraphQLFloat, GraphQLNonNull } = require('graphql');
+const { Restaurant } = require("./Model/Restaurents_model.js");
+
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
-const { Restaurant } = require("./Model/Restaurents_model.js");
+
 const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
 const app = express();
@@ -90,7 +94,77 @@ app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerS
   }
 }));
 
+// === NEW GRAPHQL ENDPOINT (NO AUTH) ===
+const LeftoverType = new GraphQLObjectType({
+  name: 'Leftover',
+  fields: {
+    _id: { type: GraphQLID },
+    itemName: { type: GraphQLNonNull(GraphQLString) },
+    quantity: { type: GraphQLFloat },
+    expiryDate: { type: GraphQLString }, // ISO string
+    createdAt: { type: GraphQLString }
+  }
+});
+
+const RestaurantType = new GraphQLObjectType({
+  name: 'Restaurant',
+  fields: {
+    _id: { type: GraphQLID },
+    id: { 
+      type: GraphQLID,
+      resolve: (parent) => parent._id 
+    },
+    name: { type: GraphQLNonNull(GraphQLString) },
+    city: { type: GraphQLString },
+    image: { type: GraphQLString },
+    leftovers: { 
+      type: new GraphQLList(LeftoverType),
+      resolve: async (parent) => {
+        const restaurant = await Restaurant.findById(parent._id);
+        if (!restaurant.leftovers || restaurant.leftovers.length === 0) return [];
+        
+        // Sort by expiryDate ASC (soonest first), filter future dates only
+        return restaurant.leftovers
+          .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
+          .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
+          .map(item => ({
+            ...item,
+            expiryDate: item.expiryDate.toISOString()
+          }));
+      }
+    }
+  }
+});
+
+const RootQueryType = new GraphQLObjectType({
+  name: 'Query',
+  fields: {
+    publicRestaurants: {
+      type: new GraphQLList(RestaurantType),
+      description: 'Get all restaurants with their leftover items and expiry dates (public, no auth)',
+      async resolve() {
+        const restaurants = await Restaurant.find({}).lean();
+        return restaurants.map(r => ({
+          ...r,
+          _id: r._id.toString()
+        }));
+      }
+    }
+  }
+});
+
+const schema = new GraphQLSchema({
+  query: RootQueryType
+});
+
+// Mount GraphQL **BEFORE** auth middleware (public, no auth required)
+app.use('/graphql', graphqlHTTP({
+  schema: schema,
+  graphiql: true // GraphiQL playground enabled
+}));
+
 const csrfProtection = csrf({
+
   cookie: true,
   value: (req) => req.headers['x-csrf-token']
 });
