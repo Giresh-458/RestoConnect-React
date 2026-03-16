@@ -97,10 +97,10 @@ const csrfProtection = csrf({
 app.use((req, res, next) => {
 
   // cookie sent by browser
-  console.log("Cookie header:", req.headers.cookie);
+  //console.log("Cookie header:", req.headers.cookie);
 
   // csrf token sent by client
-  console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
+  //console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
 
   if (req.path.startsWith('/api-docs')) return next();
   // Auth endpoints that establish session - no CSRF (user not logged in yet)

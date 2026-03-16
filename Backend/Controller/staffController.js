@@ -1653,3 +1653,220 @@ exports.getDashBoardData = async (req, res, next) => {
 };
 
 
+// ===========================================
+// LEFTOVERS MANAGEMENT ROUTES
+// ===========================================
+
+/**
+ * Get all leftovers for the restaurant
+ * GET /api/staff/leftovers
+ */
+exports.getLeftovers = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const leftovers = rest.leftovers || [];
+    
+    // Sort by expiry date (soonest first)
+    leftovers.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
+    res.json(leftovers);
+  } catch (error) {
+    console.error("Error in getLeftovers:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Add a new leftover item
+ * POST /api/staff/leftovers
+ * Body: { itemName: string, quantity: number, expiryDate: string (ISO date) }
+ */
+exports.addLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { itemName, quantity, expiryDate } = req.body;
+
+    // Validation
+    if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
+      return res.status(400).json({ error: "Item name is required" });
+    }
+
+    if (quantity === undefined || quantity === null || isNaN(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: "Quantity must be a positive number" });
+    }
+
+    if (!expiryDate || isNaN(new Date(expiryDate).getTime())) {
+      return res.status(400).json({ error: "Valid expiry date is required" });
+    }
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Create new leftover item
+    const newLeftover = {
+      itemName: itemName.trim(),
+      quantity: Number(quantity),
+      expiryDate: new Date(expiryDate),
+    };
+
+    if (!rest.leftovers) {
+      rest.leftovers = [];
+    }
+
+    rest.leftovers.push(newLeftover);
+    await rest.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Leftover item added successfully",
+      leftover: newLeftover,
+    });
+  } catch (error) {
+    console.error("Error in addLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Update an existing leftover item
+ * PUT /api/staff/leftovers/:id
+ * Body: { itemName?: string, quantity?: number, expiryDate?: string }
+ */
+exports.updateLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { id } = req.params;
+    const { itemName, quantity, expiryDate } = req.body;
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.status(404).json({ error: "No leftovers found" });
+    }
+
+    // Find the leftover item by _id
+    const leftoverIndex = rest.leftovers.findIndex(item => String(item._id) === String(id));
+    if (leftoverIndex === -1) {
+      return res.status(404).json({ error: "Leftover item not found" });
+    }
+
+    // Update fields if provided
+    if (itemName !== undefined && typeof itemName === 'string' && itemName.trim() !== '') {
+      rest.leftovers[leftoverIndex].itemName = itemName.trim();
+    }
+
+    if (quantity !== undefined && quantity !== null && !isNaN(quantity) && quantity > 0) {
+      rest.leftovers[leftoverIndex].quantity = Number(quantity);
+    }
+
+    if (expiryDate !== undefined && expiryDate !== null && !isNaN(new Date(expiryDate).getTime())) {
+      rest.leftovers[leftoverIndex].expiryDate = new Date(expiryDate);
+    }
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: "Leftover item updated successfully",
+      leftover: rest.leftovers[leftoverIndex],
+    });
+  } catch (error) {
+    console.error("Error in updateLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Delete a leftover item
+ * DELETE /api/staff/leftovers/:id
+ */
+exports.deleteLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { id } = req.params;
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.status(404).json({ error: "No leftovers found" });
+    }
+
+    const initialLength = rest.leftovers.length;
+    rest.leftovers = rest.leftovers.filter(item => String(item._id) !== String(id));
+
+    if (rest.leftovers.length === initialLength) {
+      return res.status(404).json({ error: "Leftover item not found" });
+    }
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: "Leftover item deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Delete expired leftovers (utility endpoint)
+ * DELETE /api/staff/leftovers/expired
+ */
+exports.deleteExpiredLeftovers = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.json({ success: true, message: "No leftovers to clean up", deletedCount: 0 });
+    }
+
+    const now = new Date();
+    const initialLength = rest.leftovers.length;
+    
+    rest.leftovers = rest.leftovers.filter(item => new Date(item.expiryDate) > now);
+    const deletedCount = initialLength - rest.leftovers.length;
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} expired leftover item(s)`,
+      deletedCount,
+      remainingCount: rest.leftovers.length,
+    });
+  } catch (error) {
+    console.error("Error in deleteExpiredLeftovers:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+

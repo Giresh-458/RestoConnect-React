@@ -730,5 +730,143 @@ router.post("/support/tickets/:ticketId/messages", staffSupportController.staffP
  */
 router.patch("/support/tickets/:ticketId/status", staffSupportController.staffUpdateStatus);
 
+// ===========================================
+// LEFTOVERS MANAGEMENT ROUTES
+// ===========================================
+
+/**
+ * @swagger
+ * /api/staff/leftovers:
+ *   get:
+ *     summary: Get all leftover food items
+ *     tags: [Staff - Leftovers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of leftover items sorted by expiry date
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   itemName:
+ *                     type: string
+ *                   quantity:
+ *                     type: number
+ *                   expiryDate:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *   post:
+ *     summary: Add a new leftover food item
+ *     tags: [Staff - Leftovers]
+ *     security:
+ *       - bearerAuth: []
+ *       - csrfHeader: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - itemName
+ *               - quantity
+ *               - expiryDate
+ *             properties:
+ *               itemName:
+ *                 type: string
+ *               quantity:
+ *                 type: number
+ *               expiryDate:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       201:
+ *         description: Leftover item added successfully
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.get('/leftovers', staffController.getLeftovers);
+router.post('/leftovers', staffController.addLeftover);
+
+/**
+ * @swagger
+ * /api/staff/leftovers/expired:
+ *   delete:
+ *     summary: Delete all expired leftover items
+ *     tags: [Staff - Leftovers]
+ *     security:
+ *       - bearerAuth: []
+ *       - csrfHeader: []
+ *     responses:
+ *       200:
+ *         description: Expired items deleted
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.delete('/leftovers/expired', staffController.deleteExpiredLeftovers);
+
+/**
+ * @swagger
+ * /api/staff/leftovers/{id}:
+ *   put:
+ *     summary: Update a leftover food item
+ *     tags: [Staff - Leftovers]
+ *     security:
+ *       - bearerAuth: []
+ *       - csrfHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               itemName:
+ *                 type: string
+ *               quantity:
+ *                 type: number
+ *               expiryDate:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Leftover item updated
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *   delete:
+ *     summary: Delete a leftover food item
+ *     tags: [Staff - Leftovers]
+ *     security:
+ *       - bearerAuth: []
+ *       - csrfHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Leftover item deleted
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+router.put('/leftovers/:id', staffController.updateLeftover);
+router.delete('/leftovers/:id', staffController.deleteLeftover);
+
 module.exports = router;
 

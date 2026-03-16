@@ -37,6 +37,7 @@ import { SupportChatPage } from "./pages/SupportChatPage";
 import { StaffNav } from "./components/StaffNav";
 import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePage";
 import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/StaffDashBoardPage";
+import StaffLeftoversPage from "./pages/StaffLeftoversPage";
 
 
 import { AdminPage, loader as adminLoader } from "./pages/AdminPage";
@@ -95,7 +96,8 @@ const router = createBrowserRouter([
     element: <StaffNav></StaffNav>,
     children: [
       { index: true, element: <StaffHomePage></StaffHomePage>,loader:StaffHomePageLoader},
-      { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader}
+      { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader},
+      { path: "leftovers", element: <StaffLeftoversPage /> }
     ],
     loader:staffLoader
   },
