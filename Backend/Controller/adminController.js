@@ -1,11 +1,14 @@
 // Controller/adminController.js
+// At the top of adminController.js, replace existing imports with:
 const path = require("path");
 const bcrypt = require("bcrypt");
 const { User } = require("../Model/userRoleModel");
-const { Restaurant } = require("../Model/Restaurents_model"); // ✅ Correct spelling
-const RestaurantRequest = require("../Model/restaurent_request_model"); // ✅ Correct spelling
+const { Restaurant } = require("../Model/Restaurents_model");
+const RestaurantRequest = require("../Model/restaurent_request_model");
 const { Dish } = require("../Model/Dishes_model_test");
-
+const { Order } = require("../Model/Order_model");           // ✅ Add this
+const { Reservation } = require("../Model/Reservation_model"); // ✅ Add this
+const Feedback = require("../Model/feedback");                // ✅ Add this
 // Admin Dashboard
 exports.getAdminDashboard = async (req, res, next) => {
   try {
@@ -719,7 +722,7 @@ exports.getPublicRestaurants = async (req, res, next) => {
 // ── Admin: Get all orders across all restaurants ──
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const Order = require("../Model/Order_model");
+    const {Order} = require("../Model/Order_model");
     const { status, restaurant, date, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (status && status !== "all") filter.status = status;

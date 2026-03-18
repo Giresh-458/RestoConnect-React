@@ -94,7 +94,7 @@ app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerS
   }
 }));
 
-// === NEW GRAPHQL ENDPOINT (NO AUTH) ===
+
 const LeftoverType = new GraphQLObjectType({
   name: 'Leftover',
   fields: {
@@ -157,7 +157,7 @@ const schema = new GraphQLSchema({
   query: RootQueryType
 });
 
-// Mount GraphQL **BEFORE** auth middleware (public, no auth required)
+
 app.use('/graphql', graphqlHTTP({
   schema: schema,
   graphiql: true // GraphiQL playground enabled
