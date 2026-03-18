@@ -95,6 +95,7 @@ router.get('/restaurants', admincontroller.getAllRestaurants); // admin use
  */
 router.post('/add_restaurant', admincontroller.postAddRestaurent);
 
+
 /**
  * @swagger
  * /api/admin/restaurants:
