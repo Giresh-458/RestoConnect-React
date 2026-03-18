@@ -124,17 +124,22 @@ const RestaurantType = new GraphQLObjectType({
     image: { type: GraphQLString },
     leftovers: { 
       type: new GraphQLList(LeftoverType),
-      resolve: async (parent) => {
-        const restaurant = await Restaurant.findById(parent._id);
-        if (!restaurant.leftovers || restaurant.leftovers.length === 0) return [];
+      resolve: (parent) => {                         // ✅ no async, no extra DB call
+        if (!parent.leftovers || parent.leftovers.length === 0) return [];
         
-        // Sort by expiryDate ASC (soonest first), filter future dates only
-        return restaurant.leftovers
+        return parent.leftovers
           .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
           .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
           .map(item => ({
-            ...item,
-            expiryDate: item.expiryDate.toISOString()
+            _id: item._id?.toString(),             // ✅ explicitly map each field
+            itemName: item.itemName,
+            quantity: item.quantity,
+            expiryDate: item.expiryDate instanceof Date  // ✅ handle both Date and string
+              ? item.expiryDate.toISOString()
+              : item.expiryDate,
+            createdAt: item.createdAt instanceof Date
+              ? item.createdAt.toISOString()
+              : item.createdAt,
           }));
       }
     }
