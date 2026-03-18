@@ -1,10 +1,73 @@
-
 import styles from "./PaymentPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearcart, setPromoCode, clearPromoCode } from '../store/CartSlice';
+
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
+
+
+export function StripeCheckout({ grandTotal, onSuccess, onError, disabled }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleStripePay = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+    setError(null);
+    try {
+      if (!stripe || !elements) {
+        throw new Error('Stripe is not ready yet. Please try again.');
+      }
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) {
+        throw new Error('Card element not found. Please refresh and try again.');
+      }
+      // Create PaymentIntent on backend
+      const resp = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(grandTotal * 100), currency: 'inr' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.clientSecret) throw new Error(data.error || 'Failed to create payment intent');
+
+      const result = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: {
+          card: cardEl,
+        },
+      });
+      if (result.error) {
+        setError(result.error.message);
+        onError && onError(result.error.message);
+      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+        onSuccess && onSuccess(result.paymentIntent);
+      }
+    } catch (err) {
+      setError(err.message);
+      onError && onError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleStripePay} style={{ marginTop: 16 }}>
+      <CardElement options={{ hidePostalCode: true }} />
+      {error && <div style={{ color: '#d32f2f', marginTop: 8 }}>{error}</div>}
+      <button type="submit" disabled={!stripe || processing || disabled} style={{ marginTop: 16 }}>
+        {processing ? 'Processing...' : 'Pay with Card (Stripe)'}
+      </button>
+    </form>
+  );
+}
 
 export function PaymentPage() {
   const location = useLocation();
@@ -111,136 +174,6 @@ export function PaymentPage() {
     setPromoCodeError(null);
   };
 
-  const handlePay = async () => {
-    setProcessing(true);
-    setError(null);
-    if (!method) {
-      setProcessing(false);
-      setError('Please select a payment method.');
-      return;
-    }
-
-    // Card validation
-    if (method === 'card') {
-      const digits = cardNumber.replace(/\s/g, '');
-      if (!/^\d{16}$/.test(digits)) {
-        setProcessing(false);
-        setError('Please enter a valid 16-digit card number.');
-        return;
-      }
-      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(cardExpiry)) {
-        setProcessing(false);
-        setError('Please enter a valid expiry date (MM/YY).');
-        return;
-      }
-      // Check expiry is not in the past
-      const [mm, yy] = cardExpiry.split('/').map(Number);
-      const now = new Date();
-      const expiryDate = new Date(2000 + yy, mm);
-      if (expiryDate <= now) {
-        setProcessing(false);
-        setError('Card has expired. Please use a different card.');
-        return;
-      }
-      if (!/^\d{3,4}$/.test(cardCvv)) {
-        setProcessing(false);
-        setError('Please enter a valid CVV (3 or 4 digits).');
-        return;
-      }
-    }
-
-    // Validate required data
-    if (!restIdEffective) {
-      setProcessing(false);
-      setError('Restaurant information is missing. Please go back and try again.');
-      return;
-    }
-
-    if (!items || items.length === 0) {
-      setProcessing(false);
-      setError('No items in cart. Please add items before payment.');
-      return;
-    }
-
-    try {
-      let resp, data;
-      if (orderId) {
-        resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          credentials: 'include',
-          body: JSON.stringify({ orderId, rest_id: restIdEffective })
-        });
-        data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(data.error || data.message || 'Payment failed');
-        }
-      } else {
-        // Ensure items have the correct structure
-        const formattedItems = items.map(item => ({
-          name: item.name || item.dish || item.id || '',
-          quantity: item.quantity || 1,
-          price: item.price || item.amount || 0,
-          dish: item.dish || item.name || item.id || '',
-          id: item.id || item._id || ''
-        })).filter(item => item.name || item.dish);
-
-        if (formattedItems.length === 0) {
-          throw new Error('No valid items found. Please check your cart.');
-        }
-
-        const bodyPayload = {
-          ...srcPayload,
-          items: formattedItems,
-          rest_id: srcPayload.rest_id || restIdEffective,
-          totalAmount: subtotalWithTaxes,
-          restaurantName: srcPayload.restaurantName || '',
-          promoCode: promoCode || null,
-          promoDiscount: finalDiscount || 0,
-        };
-
-        // Only include reservation if it has required fields (date and time - table_id is optional)
-        if (bodyPayload.reservation && (!bodyPayload.reservation.date || !bodyPayload.reservation.time)) {
-          // Remove incomplete reservation data
-          delete bodyPayload.reservation;
-        }
-
-        // One-step payment to prevent duplicate order/reservation creation on retry paths
-        const payResp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          credentials: 'include',
-          body: JSON.stringify({ payload: bodyPayload })
-        });
-        const payData = await payResp.json();
-        if (!payResp.ok) {
-          throw new Error(payData.error || payData.message || 'Payment failed');
-        }
-        data = payData;
-      }
-
-      // Extract orderId in a tolerant way
-      const newOrderId = (data && data.data && data.data.orderId) || data.orderId || (data && data.data && data.data.order?._id) || (data && data.data && data.data.order?.id);
-      if (!newOrderId) {
-        throw new Error('Missing orderId in response');
-      }
-
-      try { 
-        dispatch(clearcart()); 
-      } catch (e) {
-        console.warn('Failed to clear cart:', e);
-      }
-      
-      const destRest = restIdEffective;
-      navigate('/customer/order-placed', { state: { restId: destRest, orderId: newOrderId } });
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(`Payment failed. ${err?.message || 'Server error. Please try again.'}`);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   return (
     <div className={styles.paymentPage}>
       <CheckoutSteps current="payment" />
@@ -263,60 +196,57 @@ export function PaymentPage() {
 
           <section className={styles.paymentMethods}>
             <div className={styles.methodGroup}>
-              <h2>💳 Pay with Card</h2>
-              <div className={styles.fieldRow}>
-                <label>
-                  Card number
-                  <input
-                    type="text"
-                    placeholder="1234 5678 9012 3456"
-                    value={cardNumber}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-                      const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
-                      setCardNumber(formatted);
-                      setMethod('card');
+              <h2>💳 Pay with Card (Stripe)</h2>
+              {stripePromise ? (
+                <Elements stripe={stripePromise}>
+                  <StripeCheckout
+                    grandTotal={grandTotal}
+                    onSuccess={async (paymentIntent) => {
+                      try {
+                        setProcessing(true);
+                        setError(null);
+
+                        const resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            rest_id: restIdEffective,
+                            payload: {
+                              rest_id: restIdEffective,
+                              restaurant: srcPayload.restaurantName || srcPayload.restaurant || null,
+                              items,
+                              totalAmount: subtotalWithTaxes,
+                              reservation: srcPayload.reservation || null,
+                              promoCode: promoCode || null,
+                              // helpful for debugging/auditing if you later store it server-side
+                              stripePaymentIntentId: paymentIntent?.id || null,
+                            },
+                          }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || data.message || 'Failed to create order');
+
+                        const createdOrderId = data?.data?.orderId || data?.orderId || null;
+                        if (!createdOrderId) throw new Error('Order created but orderId missing from response');
+
+                        dispatch(clearcart());
+                        navigate('/customer/order-placed', { state: { restId: restIdEffective, orderId: createdOrderId } });
+                      } catch (e) {
+                        setError(e.message || 'Failed to finalize order after payment');
+                      } finally {
+                        setProcessing(false);
+                      }
                     }}
-                    onFocus={() => setMethod('card')}
-                    maxLength={19}
+                    onError={setError}
+                    disabled={processing}
                   />
-                  {method === 'card' && cardNumber && !/^\d{16}$/.test(cardNumber.replace(/\s/g, '')) && (
-                    <small style={{ color: '#d32f2f', fontSize: '0.75rem' }}>Must be 16 digits</small>
-                  )}
-                </label>
-              </div>
-              <div className={styles.fieldRowTwoCols}>
-                <label>
-                  Expiry
-                  <input
-                    type="text"
-                    placeholder="MM/YY"
-                    value={cardExpiry}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/[^\d/]/g, '');
-                      if (val.length === 2 && !val.includes('/') && cardExpiry.length < 3) val += '/';
-                      setCardExpiry(val.slice(0, 5));
-                      setMethod('card');
-                    }}
-                    onFocus={() => setMethod('card')}
-                    maxLength={5}
-                  />
-                </label>
-                <label>
-                  CVV
-                  <input
-                    type="password"
-                    placeholder="***"
-                    value={cardCvv}
-                    onChange={(e) => {
-                      setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4));
-                      setMethod('card');
-                    }}
-                    onFocus={() => setMethod('card')}
-                    maxLength={4}
-                  />
-                </label>
-              </div>
+                </Elements>
+              ) : (
+                <div className={styles.paymentError}>
+                  Stripe is not configured. Set <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> in your Frontend <code>.env</code>.
+                </div>
+              )}
             </div>
 
             <div className={styles.methodGroup}>
@@ -397,9 +327,7 @@ export function PaymentPage() {
               <span>Total</span>
               <strong>₹ {grandTotal.toFixed(2)}</strong>
             </div>
-            <button className={styles.payBtn} type="button" onClick={handlePay} disabled={processing || !method}>
-              {processing ? 'Processing...' : 'Pay & Place Order'}
-            </button>
+            {/* Stripe handles payment button above. Remove legacy pay button. */}
           </footer>
         </div>
       </div>

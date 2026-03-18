@@ -31,14 +31,16 @@ import Promotions from "./pages/Promotions";
 import OwnerSettings from "./pages/OwnerSettings";
 import StaffManagement from "./pages/StaffManagement";
 import { SupportChatPage } from "./pages/SupportChatPage";
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 
-
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 import { StaffNav } from "./components/StaffNav";
 import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePage";
 import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/StaffDashBoardPage";
 import StaffLeftoversPage from "./pages/StaffLeftoversPage";
-
 
 import { AdminPage, loader as adminLoader } from "./pages/AdminPage";
 import { EmployeePage, loader as employeeLoader } from "./pages/EmployeePage";
@@ -145,16 +147,21 @@ const router = createBrowserRouter([
 
 function App() {
   return (
-    <>
-      <Provider store={store}>
-        <ToastProvider>
-          <ConfirmProvider>
-            <RouterProvider router={router} />
-          </ConfirmProvider>
-        </ToastProvider>
-      </Provider>
-    </>
-  )
+    <Provider store={store}>
+      <ToastProvider>
+        <ConfirmProvider>
+          {stripePromise ? (
+            <Elements stripe={stripePromise}>
+              <RouterProvider router={router} future={{ v7_startTransition: true }} />
+            </Elements>
+          ) : (
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          )}
+        </ConfirmProvider>
+      </ToastProvider>
+    </Provider>
+  );
 }
 
 export default App
+

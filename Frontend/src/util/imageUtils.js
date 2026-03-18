@@ -26,12 +26,12 @@ export function getImageUrl(imagePath) {
  * Provides a fallback placeholder image
  */
 export function handleImageError(e) {
-  e.target.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
+  e.target.src = "/images/image-not-found.jpg";
 }
 
 /**
  * Event handler for thumbnail/small image errors
  */
 export function handleSmallImageError(e) {
-  e.target.src = "https://via.placeholder.com/60x60?text=Dish";
+  e.target.src = "/images/image-not-found-small.jpg";
 }

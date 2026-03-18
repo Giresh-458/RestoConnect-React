@@ -1,6 +1,7 @@
 // server.js
 const express = require("express");
 const path = require("path");
+require("dotenv").config();
 const bodyparser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
@@ -22,6 +23,7 @@ const RestaurantRequest = require("./Model/restaurent_request_model.js");
 
 const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
+const stripeRoutes = require("./routes/stripe");
 const app = express();
 
 app.use(bodyparser.urlencoded({ extended: false }));
@@ -37,6 +39,9 @@ app.use(
 app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", "views");
+
+// Stripe payment API route
+app.use("/api", stripeRoutes);
 
 app.use(
   session({
