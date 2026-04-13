@@ -2,6 +2,7 @@ import { Form, useActionData } from "react-router-dom";
 import "./RestaurantApplication.css";
 import { useEffect, useState } from "react";
 import { toast } from "../components/common/Toast";
+import { apiFetch } from "../config/fetch";
 
 export function RestaurantApplication() {
   const actionData = useActionData();
@@ -10,7 +11,7 @@ export function RestaurantApplication() {
     useEffect(() => {
         const fetchCuisines = async () => {
             try {
-            const res = await fetch(
+            const res = await apiFetch(
                 "/api/customer/restaurants/public-cuisines"
             );
             const data = await res.json();
@@ -359,9 +360,8 @@ export async function action({ request }) {
       submitFormData.append("restaurantImage", restaurantImage);
     }
 
-    const response = await fetch("/req_res", {
+    const response = await apiFetch("/req_res", {
       method: "POST",
-      credentials: "include",
       // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
       body: submitFormData,
     });

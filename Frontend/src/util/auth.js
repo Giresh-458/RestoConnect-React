@@ -1,11 +1,11 @@
 import { redirect } from "react-router-dom";
+import { apiFetch } from "../config/fetch";
 
 export async function logout() {
   sessionStorage.clear();
   localStorage.clear();
-  await fetch("/api/auth/logout", {
+  await apiFetch("/api/auth/logout", {
     method: "get",
-    credentials: "include",
   });
   // Clear the session cookie to ensure it's removed client-side
   document.cookie =
@@ -15,9 +15,8 @@ export async function logout() {
 
 export async function isLogin() {
   try {
-    const res = await fetch("/api/auth/check-session", {
+    const res = await apiFetch("/api/auth/check-session", {
       method: "get",
-      credentials: "include",
     });
 
     if (!res.ok) {

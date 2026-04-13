@@ -3,6 +3,7 @@ import { Form, useActionData, useNavigate, useSearchParams } from 'react-router-
 import './AuthPage.css';
 import { useToast } from '../components/common/Toast';
 import { toast as imperativeToast } from '../components/common/Toast';
+import { apiFetch } from '../config/fetch';
 
 export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
@@ -59,9 +60,8 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('/api/auth/forgot-password/send-code', {
+            const response = await apiFetch('/api/auth/forgot-password/send-code', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -97,9 +97,8 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('/api/auth/forgot-password/verify-code', {
+            const response = await apiFetch('/api/auth/forgot-password/verify-code', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -145,9 +144,8 @@ export function AuthPage() {
 
         try {
             console.log('Resetting password for:', resetEmail, 'with code:', resetCode);
-            const response = await fetch('/api/auth/forgot-password/reset', {
+            const response = await apiFetch('/api/auth/forgot-password/reset', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -187,9 +185,8 @@ export function AuthPage() {
         setForgotPasswordSuccess('');
 
         try {
-            const response = await fetch('/api/auth/forgot-password/resend-code', {
+            const response = await apiFetch('/api/auth/forgot-password/resend-code', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -663,9 +660,8 @@ export async function action({ request }) {
 
         // Login logic
         try {
-            const response = await fetch('/api/auth/login', {
+            const response = await apiFetch('/api/auth/login', {
                 method: 'POST',
-                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -741,9 +737,8 @@ export async function action({ request }) {
                 signupFormData.append('profilePicture', profileFile);
             }
 
-            const response = await fetch('/api/auth/signup', {
+            const response = await apiFetch('/api/auth/signup', {
                 method: 'POST',
-                credentials: 'include',
                 body: signupFormData
             });
 

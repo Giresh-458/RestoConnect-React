@@ -28,10 +28,14 @@ const config = {
   mongoUri: (process.env.MONGODB_URI || "").trim(),
   redisUrl: (process.env.REDIS_URL || "").trim(),
   clientUrl: normalizeUrl(process.env.CLIENT_URL),
-  corsAllowedOrigins: Array.from(
-    new Set([normalizeUrl(process.env.CLIENT_URL), ...parseCsv(process.env.CORS_ALLOWED_ORIGINS)]),
-  ),
   publicApiUrl: normalizeUrl(process.env.PUBLIC_API_URL),
+  corsAllowedOrigins: Array.from(
+    new Set([
+      normalizeUrl(process.env.CLIENT_URL),
+      normalizeUrl(process.env.PUBLIC_API_URL),
+      ...parseCsv(process.env.CORS_ALLOWED_ORIGINS),
+    ]),
+  ),
   sessionSecret: (process.env.SESSION_SECRET || "").trim(),
   sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS || 1000 * 60 * 60 * 24 * 30),
   jwtSecret: (process.env.JWT_SECRET || "").trim(),
