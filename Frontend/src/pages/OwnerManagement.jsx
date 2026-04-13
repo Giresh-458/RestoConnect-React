@@ -4,6 +4,7 @@ import { redirect } from "react-router-dom";
 import * as api from "../api/ownerApi";
 import { useToast } from "../components/common/Toast";
 import { useConfirm } from "../components/common/ConfirmDialog";
+import { toBackendAssetUrl } from "../config/api";
 import styles from "./OwnerManagement.module.css";
 
 const CATEGORIES = ["Starters", "Main Course", "Desserts", "Beverages", "Sides", "Specials"];
@@ -103,10 +104,9 @@ export function OwnerManagement() {
     if (item.imageUrl) return item.imageUrl;
     if (item.image) {
       if (item.image.startsWith("http")) return item.image;
-      if (item.image.startsWith("/")) return `http://localhost:3000${item.image}`;
-      return `http://localhost:3000/uploads/${item.image}`;
+      return toBackendAssetUrl(item.image, "uploads");
     }
-    return "http://localhost:3000/images/default-dish.jpg";
+    return "/images/image-not-found.jpg";
   };
 
   const fmt = (n) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
@@ -226,7 +226,7 @@ export function OwnerManagement() {
                   <img
                     src={getImageUrl(item)}
                     alt={item.name}
-                    onError={(e) => { e.target.src = "http://localhost:3000/images/default-dish.jpg"; }}
+                    onError={(e) => { e.target.src = "/images/image-not-found.jpg"; }}
                   />
                   {item.isAvailable === false && <div className={styles.unavailBanner}>Unavailable</div>}
                 </div>

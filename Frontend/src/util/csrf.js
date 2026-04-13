@@ -1,5 +1,6 @@
-const BACKEND_BASE_URL = 'http://localhost:3000';
-const CSRF_ENDPOINT = `${BACKEND_BASE_URL}/api/csrf-token`;
+import { toApiUrl } from "../config/api";
+
+const CSRF_ENDPOINT = toApiUrl("/api/csrf-token");
 
 let csrfTokenPromise = null;
 
@@ -56,5 +57,5 @@ export const fetchWithCSRF = async (url, options = {}) => {
     options.credentials = 'include';
   }
   
-  return fetch(url, options);
+  return fetch(toApiUrl(url), options);
 };

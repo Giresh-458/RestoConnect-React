@@ -39,7 +39,7 @@ export function OrderPlacedPage() {
       try {
         if (!orderId) throw new Error("Missing orderId");
         const resp = await fetch(
-          `http://localhost:3000/api/customer/orders/${orderId}`,
+          `/api/customer/orders/${orderId}`,
           {
             method: "GET",
             credentials: "include",

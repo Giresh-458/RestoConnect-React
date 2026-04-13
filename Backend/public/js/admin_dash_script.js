@@ -73,7 +73,7 @@ document.getElementById("totalUsersCount").innerText=users.length;
 }
 }
 
-xhr.open("GET", "http://localhost:3000/admin/users", true);
+xhr.open("GET", "/admin/users", true);
 xhr.send();
 
 
@@ -118,7 +118,7 @@ if (!user) {
         };
 
         let xhr = new XMLHttpRequest();
-        xhr.open("post","http://localhost:3000/admin/suspend_user/"+user._id,true);
+        xhr.open("post","/admin/suspend_user/"+user._id,true);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send(JSON.stringify(suspensionData));
 
@@ -137,7 +137,7 @@ if (!user) {
       document.getElementById("remove1").addEventListener("click",function(){
         if (confirm("Are you sure you want to delete this user?")) {
           let xhr = new XMLHttpRequest();
-          xhr.open("post", "http://localhost:3000/admin/delete_user/" + user._id, true);
+          xhr.open("post", "/admin/delete_user/" + user._id, true);
 
           xhr.setRequestHeader("Content-Type", "application/json");
           xhr.send();
@@ -173,7 +173,7 @@ function callAllRestaurants() {
     }
   };
 
-  xhr.open("GET", "http://localhost:3000/admin/restaurants", true);
+  xhr.open("GET", "/admin/restaurants", true);
   xhr.send();
 }
 
@@ -212,7 +212,7 @@ document.getElementById("seerest").addEventListener("click", function () {
     };
 
     let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/suspend_restaurant/" + rest._id, true);
+    xhr.open("POST", "/admin/suspend_restaurant/" + rest._id, true);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.send(JSON.stringify(suspensionData));
 
@@ -230,7 +230,7 @@ document.getElementById("seerest").addEventListener("click", function () {
   document.getElementById("remove-restaurant").addEventListener("click", function () {
     if (confirm("Are you sure you want to delete this restaurant?")) {
       let xhr = new XMLHttpRequest();
-      xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
+      xhr.open("POST", "/admin/delete_restaurant/" + rest._id, true);
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.send();
 
@@ -251,7 +251,7 @@ async function getAllReq() {
   if (!container) return;
   container.innerHTML = '<p>Loading requests...</p>';
   try {
-    const res = await fetch("http://localhost:3000/admin/requests", { headers: { 'Accept': 'application/json' } });
+    const res = await fetch("/admin/requests", { headers: { 'Accept': 'application/json' } });
     if (!res.ok) throw new Error(`Failed to load requests (${res.status})`);
     const reqs = await res.json();
 
@@ -303,7 +303,7 @@ async function getAllReq() {
 async function acceptRequest(username, btnEl) {
   try {
     if (btnEl) btnEl.disabled = true;
-    const res = await fetch(`http://localhost:3000/admin/accept_request/${encodeURIComponent(username)}`, {
+    const res = await fetch(`/admin/accept_request/${encodeURIComponent(username)}`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
@@ -320,7 +320,7 @@ async function acceptRequest(username, btnEl) {
 async function rejectRequest(username, btnEl) {
   try {
     if (btnEl) btnEl.disabled = true;
-    const res = await fetch(`http://localhost:3000/admin/reject_request/${encodeURIComponent(username)}`, {
+    const res = await fetch(`/admin/reject_request/${encodeURIComponent(username)}`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });

@@ -1,18 +1,25 @@
 const nodemailer = require('nodemailer');
+const config = require('../config/env');
 
 
 const createTransporter = () => {
-  const emailUser = process.env.EMAIL_USER || 'restoconnect.wbd@gmail.com';
-  const emailPass = process.env.EMAIL_PASS || 'tcwpoluxajgyynfj';
+  if (!config.emailUser || !config.emailPass) {
+    throw new Error('Email service is not configured. Set EMAIL_USER and EMAIL_PASS to enable password reset emails.');
+  }
+
+  const transportOptions = config.smtpService
+    ? { service: config.smtpService }
+    : {
+        host: config.smtpHost,
+        port: config.smtpPort,
+        secure: config.smtpSecure,
+      };
 
   return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, 
+    ...transportOptions,
     auth: {
-      user: emailUser,
-      pass: emailPass
+      user: config.emailUser,
+      pass: config.emailPass
     },
     tls: {
       rejectUnauthorized: false
@@ -45,9 +52,8 @@ const sendPasswordResetCode = async (email, code) => {
       console.warn('⚠️ Email verification error (non-blocking):', verifyError.message);
     }
     
-    const emailUser = process.env.EMAIL_USER || 'restoconnect.wbd@gmail.com';
     const mailOptions = {
-      from: `RestoConnect <${emailUser}>`,
+      from: config.emailFrom || `RestoConnect <${config.emailUser}>`,
       to: email,
       subject: 'Password Reset Code - RestoConnect',
       html: `

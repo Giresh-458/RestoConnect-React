@@ -11,7 +11,7 @@ export function Reports() {
 
   const fetchReportsData = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/owner/reports", {
+      const response = await fetch("/api/owner/reports", {
         credentials: "include",
       });
       if (response.ok) {

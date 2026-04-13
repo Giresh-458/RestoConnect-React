@@ -1,4 +1,4 @@
-const BASE = "http://localhost:3000/api/superadmin";
+const BASE = "/api/superadmin";
 
 const json = async (res) => {
   if (!res.ok) {

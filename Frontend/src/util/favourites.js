@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:3000/api/customer";
+const API_BASE_URL = "/api/customer";
 
 export const getFavourites = async () => {
   try {

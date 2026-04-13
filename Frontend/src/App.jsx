@@ -34,7 +34,7 @@ import { SupportChatPage } from "./pages/SupportChatPage";
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 import { StaffNav } from "./components/StaffNav";

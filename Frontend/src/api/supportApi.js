@@ -1,4 +1,4 @@
-const BASE = "http://localhost:3000";
+const BASE = "";
 
 const json = (res) => {
   if (!res.ok) throw new Error(`Request failed (${res.status})`);

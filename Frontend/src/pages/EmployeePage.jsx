@@ -148,12 +148,12 @@ export async function loader() {
   if (role !== "employee" && role !== "admin") return redirect("/login");
 
   // Employee uses the same admin API endpoints
-  const res = await fetch("http://localhost:3000/api/employee/dashboard", {
+  const res = await fetch("/api/employee/dashboard", {
     credentials: "include",
   });
   if (!res.ok) {
     // Fallback to admin endpoint
-    const fallback = await fetch("http://localhost:3000/api/admin/dashboard", {
+    const fallback = await fetch("/api/admin/dashboard", {
       credentials: "include",
     });
     if (!fallback.ok) return redirect("/login");

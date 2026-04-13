@@ -1,4 +1,5 @@
 const swaggerJsdoc = require('swagger-jsdoc');
+const config = require('./config/env');
 
 const options = {
   definition: {
@@ -6,7 +7,7 @@ const options = {
     info: {
       title: 'RestoConnect API',
       version: '1.0.0',
-      description: 'API documentation for RestoConnect - Restaurant Management System\n\n**Docs are publicly viewable** — no JWT or CSRF needed to browse. Auth is required only when executing protected endpoints.\n\n## User Roles\n- **Super Admin**: Platform-wide analytics and management\n- **Admin**: Restaurant management and user oversight\n- **Employee**: Similar to admin but with employee role\n- **Staff**: Day-to-day restaurant operations\n- **Owner**: Restaurant-specific management\n- **Customer**: End-user functionality\n\n## To Try Protected Endpoints\n1. **Login** to get JWT: POST /api/auth/login\n2. **Get CSRF token** (for POST/PUT/DELETE): GET /api/csrf-token\n3. Click **Authorize** and enter: Bearer {your_jwt}\n4. Add header: X-CSRF-Token: {csrf_token} for state-changing requests',
+      description: 'API documentation for RestoConnect - Restaurant Management System\n\n**Docs are publicly viewable** — no JWT or CSRF needed to browse. Auth is required only when executing protected endpoints.\n\n## User Roles\n- **Super Admin**: Platform-wide analytics and management\n-  **Employee**: Similar to admin but with employee role\n- **Staff**: Day-to-day restaurant operations\n- **Owner**: Restaurant-specific management\n- **Customer**: End-user functionality\n\n## To Try Protected Endpoints\n1. **Login** to get JWT: POST /api/auth/login\n2. **Get CSRF token** (for POST/PUT/DELETE): GET /api/csrf-token\n3. Click **Authorize** and enter: Bearer {your_jwt}\n4. Add header: X-CSRF-Token: {csrf_token} for state-changing requests',
       contact: {
         name: 'API Support',
         email: 'support@restoconnect.com'
@@ -14,8 +15,8 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Development server'
+        url: config.publicApiUrl || '/',
+        description: config.publicApiUrl ? 'Configured public API endpoint' : 'Current origin'
       }
     ],
     components: {

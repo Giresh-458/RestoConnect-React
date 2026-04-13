@@ -2,13 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const Stripe = require('stripe');
+const config = require('../config/env');
 
-if (!process.env.STRIPE_SECRET_KEY) {
+if (!config.stripeSecretKey) {
   // Fail fast: running with a placeholder key makes debugging impossible and is unsafe.
   throw new Error('Missing STRIPE_SECRET_KEY in environment');
 }
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = Stripe(config.stripeSecretKey);
 
 // POST /api/create-payment-intent
 router.post('/create-payment-intent', async (req, res) => {

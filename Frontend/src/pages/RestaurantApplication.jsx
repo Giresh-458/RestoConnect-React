@@ -11,7 +11,7 @@ export function RestaurantApplication() {
         const fetchCuisines = async () => {
             try {
             const res = await fetch(
-                "http://localhost:3000/api/customer/restaurants/public-cuisines"
+                "/api/customer/restaurants/public-cuisines"
             );
             const data = await res.json();
             setCuisines(data.cuisines || []);
@@ -359,7 +359,7 @@ export async function action({ request }) {
       submitFormData.append("restaurantImage", restaurantImage);
     }
 
-    const response = await fetch("http://localhost:3000/req_res", {
+    const response = await fetch("/req_res", {
       method: "POST",
       credentials: "include",
       // Don't set Content-Type header - let browser set it with boundary for multipart/form-data

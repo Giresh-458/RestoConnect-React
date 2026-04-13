@@ -3,7 +3,7 @@ import { redirect } from "react-router-dom";
 export async function logout() {
   sessionStorage.clear();
   localStorage.clear();
-  await fetch("http://localhost:3000/api/auth/logout", {
+  await fetch("/api/auth/logout", {
     method: "get",
     credentials: "include",
   });
@@ -15,7 +15,7 @@ export async function logout() {
 
 export async function isLogin() {
   try {
-    const res = await fetch("http://localhost:3000/api/auth/check-session", {
+    const res = await fetch("/api/auth/check-session", {
       method: "get",
       credentials: "include",
     });

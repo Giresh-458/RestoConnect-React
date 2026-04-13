@@ -7,7 +7,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearcart, setPromoCode, clearPromoCode } from '../store/CartSlice';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 
@@ -109,7 +109,7 @@ export function PaymentPage() {
     const loadPromos = async () => {
       if (!restIdEffective) return;
       try {
-        const response = await fetch(`http://localhost:3000/api/customer/promo/available?rest_id=${encodeURIComponent(restIdEffective)}`, {
+        const response = await fetch(`/api/customer/promo/available?rest_id=${encodeURIComponent(restIdEffective)}`, {
           credentials: 'include',
         });
         const data = await response.json();
@@ -133,7 +133,7 @@ export function PaymentPage() {
     setPromoCodeLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/customer/promo/validate', {
+      const response = await fetch('/api/customer/promo/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -206,7 +206,7 @@ export function PaymentPage() {
                         setProcessing(true);
                         setError(null);
 
-                        const resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
+                        const resp = await fetch('/api/customer/checkout/pay', {
                           method: 'POST',
                           credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },

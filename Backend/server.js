@@ -1,7 +1,6 @@
 // server.js
 const express = require("express");
 const path = require("path");
-require("dotenv").config();
 const bodyparser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
@@ -17,6 +16,9 @@ const { swaggerSpec } = require('./swagger');
 const { graphqlHTTP } = require('express-graphql');
 const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLList, GraphQLID, GraphQLFloat, GraphQLNonNull } = require('graphql');
 const { Restaurant } = require("./Model/Restaurents_model.js");
+const config = require("./config/env");
+const { getClearCookieOptions, getCsrfCookieOptions, getSessionCookieOptions } = require("./util/cookies");
+const { createSessionStoreManager } = require("./util/sessionStore");
 
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
@@ -25,6 +27,11 @@ const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
 const stripeRoutes = require("./routes/stripe");
 const app = express();
+const sessionStoreManager = createSessionStoreManager();
+
+if (config.trustProxy) {
+  app.set("trust proxy", 1);
+}
 
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
@@ -32,7 +39,13 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || config.corsAllowedOrigins.length === 0 || config.corsAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -45,18 +58,23 @@ app.use("/api", stripeRoutes);
 
 app.use(
   session({
-    secret: "session",
+    store: sessionStoreManager.store,
+    secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     rolling: true,
-    cookie: {
-      httpOnly: true,
-      secure: false,
-      maxAge: 1000 * 60 * 30 * 24,
-      sameSite: "lax",
-    },
+    proxy: config.trustProxy,
+    cookie: getSessionCookieOptions(),
   })
 );
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    environment: config.nodeEnv,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 
 app.get("/schemas", (req, res) => {
@@ -106,7 +124,7 @@ const LeftoverType = new GraphQLObjectType({
     _id: { type: GraphQLID },
     itemName: { type: GraphQLNonNull(GraphQLString) },
     quantity: { type: GraphQLFloat },
-    expiryDate: { type: GraphQLString }, // ISO string
+    expiryDate: { type: GraphQLString }, 
     createdAt: { type: GraphQLString }
   }
 });
@@ -124,17 +142,17 @@ const RestaurantType = new GraphQLObjectType({
     image: { type: GraphQLString },
     leftovers: { 
       type: new GraphQLList(LeftoverType),
-      resolve: (parent) => {                         // ✅ no async, no extra DB call
+      resolve: (parent) => {                         // no async, no extra DB call
         if (!parent.leftovers || parent.leftovers.length === 0) return [];
         
         return parent.leftovers
           .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
           .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
           .map(item => ({
-            _id: item._id?.toString(),             // ✅ explicitly map each field
+            _id: item._id?.toString(),             //  explicitly map each field
             itemName: item.itemName,
             quantity: item.quantity,
-            expiryDate: item.expiryDate instanceof Date  // ✅ handle both Date and string
+            expiryDate: item.expiryDate instanceof Date  //  handle both Date and string
               ? item.expiryDate.toISOString()
               : item.expiryDate,
             createdAt: item.createdAt instanceof Date
@@ -174,8 +192,7 @@ app.use('/graphql', graphqlHTTP({
 }));
 
 const csrfProtection = csrf({
-
-  cookie: true,
+  cookie: getCsrfCookieOptions(),
   value: (req) => req.headers['x-csrf-token']
 });
 app.use((req, res, next) => {
@@ -213,8 +230,6 @@ const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
 const { verifyToken, AUTH_TOKEN_COOKIE } = require("./util/jwtHelper.js");
 const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
-
-connectDB()
 
 // Logging setup
 const programLogStream = rfs.createStream('programlog.txt', {
@@ -268,7 +283,8 @@ app.get("/api/csrf-token", (req, res) => {
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) console.log(err);
-    res.clearCookie(AUTH_TOKEN_COOKIE, { path: "/" });
+    res.clearCookie("connect.sid", getClearCookieOptions());
+    res.clearCookie(AUTH_TOKEN_COOKIE, getClearCookieOptions());
     res.redirect("/");
   });
 });
@@ -431,9 +447,19 @@ app.get("/api/restaurants", async (req, res) => {
   }
 });
 
+const startServer = async () => {
+  await sessionStoreManager.connect();
+  await connectDB();
+
+  app.listen(config.port, () => {
+    console.log(`Server running on port ${config.port}`);
+  });
+};
+
 if (require.main === module) {
-  app.listen(3000, () => {
-    console.log("Server running at http://localhost:3000");
+  startServer().catch((error) => {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   });
 }
 

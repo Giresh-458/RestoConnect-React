@@ -43,7 +43,7 @@ export default function User() {
 
   useEffect(() => {
     const xhr = new XMLHttpRequest();
-    xhr.open("get", "http://localhost:3000/api/admin/users", true);
+    xhr.open("get", "/api/admin/users", true);
     xhr.onload = function () {
       if (this.status === 200) {
         const data = JSON.parse(xhr.responseText);
@@ -61,7 +61,7 @@ export default function User() {
     }
 
     if (state.lastaction === "delete") {
-      fetch(`http://localhost:3000/api/admin/users/${state.lastpayload}`, {
+      fetch(`/api/admin/users/${state.lastpayload}`, {
         method: "DELETE",
         credentials: "include",
       }).catch(() => {});
@@ -124,7 +124,7 @@ export default function User() {
     };
 
     try {
-      const resp = await fetch(`http://localhost:3000/api/admin/users/${modalUser._id}/suspension`, {
+      const resp = await fetch(`/api/admin/users/${modalUser._id}/suspension`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -153,7 +153,7 @@ export default function User() {
     const ok = await confirmDlg({ title: "Unsuspend User", message: `Unsuspend user '${user.username}'?`, variant: "warning", confirmText: "Unsuspend" });
     if (!ok) return;
     try {
-      const resp = await fetch(`http://localhost:3000/api/admin/users/${user._id}/suspension/clear`, {
+      const resp = await fetch(`/api/admin/users/${user._id}/suspension/clear`, {
         method: 'PATCH',
         credentials: 'include'
       });

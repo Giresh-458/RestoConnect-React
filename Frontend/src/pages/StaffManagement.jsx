@@ -52,13 +52,13 @@ const StaffManagement = () => {
 
       // Fetch staff list, support messages, and announcements in parallel
       const [staffResponse, messagesResponse, announcementsResponse] = await Promise.all([
-        fetch('http://localhost:3000/api/owner/staffManagement', {
+        fetch('/api/owner/staffManagement', {
           credentials: 'include'
         }),
-        fetch('http://localhost:3000/api/owner/support-messages', {
+        fetch('/api/owner/support-messages', {
           credentials: 'include'
         }),
-        fetch('http://localhost:3000/api/owner/announcements', {
+        fetch('/api/owner/announcements', {
           credentials: 'include'
         })
       ]);
@@ -85,7 +85,7 @@ const StaffManagement = () => {
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-task', {
+      const response = await fetch('/api/owner/add-task', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ const StaffManagement = () => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:3000/api/owner/staffManagement/api/add', {
+      const response = await fetch('/api/owner/staffManagement/api/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ const StaffManagement = () => {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/api/${staffId}`, {
+      const response = await fetch(`/api/owner/staffManagement/api/${staffId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -181,7 +181,7 @@ const StaffManagement = () => {
   const handleAnnouncementSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-announcement', {
+      const response = await fetch('/api/owner/add-announcement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ const StaffManagement = () => {
       return;
     }
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-shift', {
+      const response = await fetch('/api/owner/add-shift', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ const StaffManagement = () => {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/announcements/${announcementId}`, {
+      const response = await fetch(`/api/owner/announcements/${announcementId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -299,7 +299,7 @@ const StaffManagement = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/tasks/${staffId}`, {
+      const response = await fetch(`/api/owner/staffManagement/tasks/${staffId}`, {
         credentials: 'include'
       });
 
@@ -320,7 +320,7 @@ const StaffManagement = () => {
     if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/tasks/${taskId}`, {
+      const response = await fetch(`/api/owner/staffManagement/tasks/${taskId}`, {
         method: 'DELETE',
         credentials: 'include'
       });

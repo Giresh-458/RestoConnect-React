@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const { getProfilePicUrl } = require('../util/fileUpload');
 const { sendPasswordResetCode } = require('../util/emailService');
 const { signToken, verifyToken, AUTH_TOKEN_COOKIE } = require('../util/jwtHelper');
+const { getAuthCookieOptions, getClearCookieOptions } = require('../util/cookies');
 
 // Validation helper functions
 const validateEmail = (email) => {
@@ -85,13 +86,7 @@ const login = async (req, res, next) => {
 
         // Stateless auth: set JWT in httpOnly cookie (used by authentication middleware)
         const token = signToken({ username: user.username, role: user.role });
-        res.cookie(AUTH_TOKEN_COOKIE, token, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 1000 * 60 * 60 * 24 * 30 // 30 days, match session
-        });
+        res.cookie(AUTH_TOKEN_COOKIE, token, getAuthCookieOptions());
 
         return res.status(200).json({
             valid: true,
@@ -239,8 +234,8 @@ const logout = (req, res, next) => {
     if (req.session) {
         req.session.destroy(() => {});
     }
-    res.clearCookie('connect.sid');
-    res.clearCookie(AUTH_TOKEN_COOKIE, { path: '/' });
+    res.clearCookie('connect.sid', getClearCookieOptions());
+    res.clearCookie(AUTH_TOKEN_COOKIE, getClearCookieOptions());
     return res.status(200).json({
         success: true,
         message: 'Logged out successfully'

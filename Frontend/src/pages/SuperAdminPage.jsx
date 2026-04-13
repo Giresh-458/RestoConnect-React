@@ -860,7 +860,7 @@ export async function loader() {
   let role = await isLogin();
   if (role !== "admin") return redirect("/login");
 
-  const res = await fetch("http://localhost:3000/api/superadmin/dashboard", {
+  const res = await fetch("/api/superadmin/dashboard", {
     credentials: "include",
   });
   if (!res.ok) return redirect("/login");

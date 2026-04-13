@@ -42,7 +42,7 @@ export function OwnerDashBoard() {
     try {
       setStatsLoading(true);
       setStatsError("");
-      const response = await fetch("http://localhost:3000/api/owner/dashboard/summary", {
+      const response = await fetch("/api/owner/dashboard/summary", {
         credentials: "include",
       });
       const contentType = response.headers.get("content-type") || "";

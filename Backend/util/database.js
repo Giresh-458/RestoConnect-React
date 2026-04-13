@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
-
-const uri = "mongodb://127.0.0.1:27017/test";
+const config = require('../config/env');
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(uri);
+    await mongoose.connect(config.mongoUri);
     console.log('MongoDB connected via Mongoose');
   } catch (err) {
     console.error('MongoDB connection error:', err);

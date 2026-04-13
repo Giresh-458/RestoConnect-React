@@ -47,7 +47,7 @@ for(let i=0;i<users.length;i++){
 }
 }
 
-xhr.open("GET", "http://localhost:3000/admin/users", true);
+xhr.open("GET", "/admin/users", true);
 xhr.send();
 
 
@@ -92,7 +92,7 @@ if (!user) {
         };
 
         let xhr = new XMLHttpRequest();
-        xhr.open("post","http://localhost:3000/admin/edit_user"+user._id,true);
+        xhr.open("post","/admin/edit_user"+user._id,true);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send(JSON.stringify(updatedUser));
 
@@ -107,7 +107,7 @@ if (!user) {
 
 
         let xhr = new XMLHttpRequest();
-        xhr.open("post", "http://localhost:3000/admin/users/" + user._id, true);
+        xhr.open("post", "/admin/users/" + user._id, true);
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.send();
 
@@ -139,7 +139,7 @@ function callAllRestaurants() {
     }
   };
 
-  xhr.open("GET", "http://localhost:3000/admin/restaurants", true);
+  xhr.open("GET", "/admin/restaurants", true);
   xhr.send();
 }
 
@@ -178,7 +178,7 @@ document.getElementById("seerest").addEventListener("click", function () {
     };
 
     let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/edit_restaurant/" + rest._id, true);
+    xhr.open("POST", "/admin/edit_restaurant/" + rest._id, true);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.send(JSON.stringify(updatedRest));
 
@@ -193,7 +193,7 @@ document.getElementById("seerest").addEventListener("click", function () {
   document.getElementById("remove-restaurant").addEventListener("click", function () {
    
     let xhr = new XMLHttpRequest();
-    xhr.open("POST", "http://localhost:3000/admin/delete_restaurant/" + rest._id, true);
+    xhr.open("POST", "/admin/delete_restaurant/" + rest._id, true);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.send();
 
@@ -212,7 +212,7 @@ function getAllReq(){
 
 let xhr = new XMLHttpRequest();
 
- xhr.open("GET", "http://localhost:3000/admin/requests", true);
+ xhr.open("GET", "/admin/requests", true);
  xhr.send();
 
     xhr.onload = function () {
@@ -248,7 +248,7 @@ let xhr = new XMLHttpRequest();
 
 function acceptRequest(username) {
   let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/accept_request/${username}`, true);
+  xhr.open("GET", `/admin/accept_request/${username}`, true);
   xhr.onload = function () {
     getAllReq();
   };
@@ -257,7 +257,7 @@ function acceptRequest(username) {
 
 function rejectRequest(username) {
   let xhr = new XMLHttpRequest();
-  xhr.open("GET", `http://localhost:3000/admin/reject_request/${username}`, true);
+  xhr.open("GET", `/admin/reject_request/${username}`, true);
   xhr.onload = function () {
     if (this.status === 200) {
       getAllReq();

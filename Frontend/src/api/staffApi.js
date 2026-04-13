@@ -1,6 +1,6 @@
 import { getCsrfToken } from "../util/csrf";
 
-const BASE = "http://localhost:3000/api/staff";
+const BASE = "/api/staff";
 const opts = { credentials: "include" };
 
 const json = async (res) => {
