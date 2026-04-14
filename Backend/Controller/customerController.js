@@ -111,7 +111,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
       .sort({ date: -1 })
       .limit(10);
 
-    // Batch-fetch all dish documents upfront instead of per-order N+1 queries
+    // Fetch all dish docs at once for the orders below
     const allDishIdentifiers = [
       ...new Set(orders.flatMap((o) => o.dishes || [])),
     ];
@@ -211,7 +211,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
       customerName,
     }).lean();
 
-    // Batch-fetch all restaurant names instead of per-reservation lookups
+    // Get restaurant names for the reservation list
     const reservationRestIds = [
       ...new Set(customerReservations.map((r) => r.rest_id).filter(Boolean)),
     ];
@@ -273,7 +273,7 @@ exports.getCustomerDashboard = async (req, res, next) => {
       weeklySpending[adjustedIndex] += order.totalAmount;
     });
 
-    // =================== USER STATS (aggregation instead of full fetch) ===================
+    // =================== USER STATS ===================
     const [userStatsResult] = await Order.aggregate([
       { $match: { customerName } },
       {
@@ -2037,7 +2037,7 @@ exports.searchRestaurants = async (req, res, next) => {
       };
     });
 
-    // Avoid loading all restaurant documents to build cuisine filter options.
+    // Get unique cuisines for the filter dropdown
     const allCuisines = await Restaurant.distinct("cuisine");
 
     res.json({
@@ -2391,8 +2391,7 @@ exports.getAvailablePromoCodes = async (req, res, next) => {
 
 exports.getPublicCuisines = async (req, res, next) => {
   try {
-    // Use distinct() to get unique cuisine values directly from DB
-    // instead of loading all restaurant docs into memory
+    // Get unique cuisine values from the DB directly
     const allCuisines = await Restaurant.distinct("cuisine");
 
     res.json({

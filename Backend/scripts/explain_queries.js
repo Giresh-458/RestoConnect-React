@@ -5,7 +5,7 @@
  */
 const mongoose = require("mongoose");
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
+const MONGO_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/test";
 
 function findStage(planNode, stageName) {
   if (!planNode || typeof planNode !== "object") return null;

@@ -6,7 +6,7 @@ const { Reservation } = require("../Model/Reservation_model");
 const Feedback = require("../Model/feedback");
 const RestaurantRequest = require("../Model/restaurent_request_model");
 
-// ── SuperAdmin Dashboard Overview ──
+// SuperAdmin Dashboard Overview
 exports.getDashboard = async (req, res) => {
   try {
     const currentAdmin = req.user;
@@ -58,8 +58,7 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
-// ── Employee Performance Analytics ──
-// Tracks how many requests each employee approved/rejected and average response time
+// Employee Performance Analytics
 exports.getEmployeePerformance = async (req, res) => {
   try {
     const [employees, restaurants, orderStats] = await Promise.all([
@@ -137,8 +136,7 @@ exports.getEmployeePerformance = async (req, res) => {
   }
 };
 
-// ── Restaurant Revenue Analytics ──
-// Which restaurant gives highest platform fee / revenue
+// Restaurant Revenue Analytics
 exports.getRestaurantRevenue = async (req, res) => {
   try {
     const { period = "all" } = req.query;
@@ -227,8 +225,7 @@ exports.getRestaurantRevenue = async (req, res) => {
   }
 };
 
-// ── Category & Dish Trends ──
-// Which category/dish is trending up or down over specific periods
+// Category & Dish Trends
 exports.getDishTrends = async (req, res) => {
   try {
     const { Dish } = require("../Model/Dishes_model_test");
@@ -428,8 +425,7 @@ exports.getDishTrends = async (req, res) => {
   }
 };
 
-// ── Top Customers Analytics ──
-// Which customer buys most, spends most revenue
+// Top Customers Analytics
 exports.getTopCustomers = async (req, res) => {
   try {
     const { period = "all" } = req.query;
@@ -521,7 +517,7 @@ exports.getTopCustomers = async (req, res) => {
   }
 };
 
-// ── Revenue Over Time (for charts) ──
+// Revenue Over Time (for charts)
 exports.getRevenueOverTime = async (req, res) => {
   try {
     const { period = "monthly" } = req.query;
@@ -544,7 +540,7 @@ exports.getRevenueOverTime = async (req, res) => {
     let data = [];
 
     if (period === "daily") {
-      // Last 30 days – use aggregation with $dateToString grouping
+      // Last 30 days
       const thirtyDaysAgo = new Date(now);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       thirtyDaysAgo.setHours(0, 0, 0, 0);
@@ -573,7 +569,7 @@ exports.getRevenueOverTime = async (req, res) => {
         });
       }
     } else if (period === "yearly") {
-      // Last 5 years – use aggregation with $year grouping
+      // Last 5 years
       const fiveYearsAgo = new Date(now.getFullYear() - 4, 0, 1);
       const yearlyAgg = await Order.aggregate([
         { $match: { date: { $gte: fiveYearsAgo } } },
@@ -598,7 +594,7 @@ exports.getRevenueOverTime = async (req, res) => {
         });
       }
     } else {
-      // Monthly (default) – last 12 months – use aggregation with $year+$month grouping
+      // Monthly (default) - last 12 months
       const twelveMonthsAgo = new Date(
         now.getFullYear(),
         now.getMonth() - 11,
