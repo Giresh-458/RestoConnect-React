@@ -615,7 +615,7 @@ exports.postDeleteRestaurent = async (req, res, next) => {
 exports.getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
-    // Batch-fetch all owners in one query instead of N+1 individual lookups
+    // Fetch all owners at once to avoid per-restaurant queries
     const restIds = restaurants.map((r) => r._id);
     const owners = await User.find({
       rest_id: { $in: restIds },
@@ -738,7 +738,7 @@ exports.getAllOrders = async (req, res, next) => {
       Order.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
       Order.countDocuments(filter),
     ]);
-    // stats – use aggregation instead of loading all orders into memory
+    // stats via aggregation pipeline
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const [statsResult] = await Order.aggregate([
@@ -816,7 +816,7 @@ exports.getAllReservations = async (req, res, next) => {
         .limit(parseInt(limit)),
       Reservation.countDocuments(filter),
     ]);
-    // stats – use aggregation instead of loading all reservations into memory
+    // stats via aggregation pipeline
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const [resStats] = await Reservation.aggregate([
@@ -878,7 +878,7 @@ exports.getAllFeedback = async (req, res, next) => {
         .limit(parseInt(limit)),
       Feedback.countDocuments(filter),
     ]);
-    // Use aggregation instead of loading all feedback into memory
+    // feedback stats via aggregation
     const [fbStats] = await Feedback.aggregate([
       {
         $facet: {
@@ -921,7 +921,7 @@ exports.getAllFeedback = async (req, res, next) => {
   }
 };
 
-// ── Admin: Analytics endpoint (DB-aggregated) ──
+// Admin: Analytics overview
 exports.getAnalytics = async (req, res, next) => {
   try {
     const now = new Date();
@@ -1252,7 +1252,7 @@ exports.addEmployee = async (req, res) => {
   }
 };
 
-// ── Restaurant Revenue / Platform Fee Analytics (DB-aggregated) ──
+// Restaurant Revenue / Platform Fee Analytics
 exports.getRestaurantRevenue = async (req, res) => {
   try {
     const { period = "all" } = req.query;
@@ -1519,7 +1519,7 @@ exports.getDishTrends = async (req, res) => {
   }
 };
 
-// ── Top Customers Analytics (DB-aggregated) ──
+// Top Customers Analytics
 exports.getTopCustomers = async (req, res) => {
   try {
     const { period = "all" } = req.query;
@@ -1601,7 +1601,7 @@ exports.getTopCustomers = async (req, res) => {
   }
 };
 
-// ── Admin Overview Dashboard (DB-aggregated) ──
+// Admin Overview Dashboard
 exports.getAdminOverview = async (req, res) => {
   try {
     const [
@@ -1646,7 +1646,7 @@ exports.getAdminOverview = async (req, res) => {
   }
 };
 
-// ── Revenue Over Time (DB-aggregated) ──
+// Revenue Over Time
 exports.getRevenueOverTime = async (req, res) => {
   try {
     const { period = "monthly" } = req.query;

@@ -24,9 +24,18 @@ app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
 app.use(cookieParser());
+// Trust proxy when behind Render/Heroku reverse proxy (needed for secure cookies)
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+  : ["http://localhost:5173"];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -36,15 +45,15 @@ app.set("views", "views");
 
 app.use(
   session({
-    secret: "session",
+    secret: process.env.SESSION_SECRET || "session",
     resave: false,
     saveUninitialized: false,
     rolling: true,
     cookie: {
       httpOnly: true,
-      secure: false,
-      maxAge: 1000 * 60 * 30 * 24,
-      sameSite: "lax",
+      secure: process.env.COOKIE_SECURE === "true",
+      maxAge: parseInt(process.env.SESSION_MAX_AGE_MS) || 1000 * 60 * 30 * 24,
+      sameSite: process.env.COOKIE_SAME_SITE || "lax",
     },
   })
 );
@@ -330,16 +339,15 @@ app.get("/check-session", async (req, res) => {
 
 app.get("/api/restaurants", async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({});
-    
-    // Get unique cities for the dropdown
-    const uniqueCities = [
-      ...new Set(restaurants.map((r) => r.city).filter(Boolean)),
-    ].sort();
+    // Run both queries in parallel — distinct avoids loading all docs just for city names
+    const [restaurants, uniqueCities] = await Promise.all([
+      Restaurant.find({}),
+      Restaurant.distinct("city"),
+    ]);
 
     res.json({
       restaurants: restaurants,
-      cities: ["All", ...uniqueCities], // Include "All" option
+      cities: ["All", ...(uniqueCities || []).filter(Boolean).sort()],
     });
   } catch (err) {
     console.error("Error fetching restaurants:", err);
