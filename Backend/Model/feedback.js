@@ -30,4 +30,8 @@ const feedbackSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Indexes for common query patterns
+feedbackSchema.index({ rest_id: 1, createdAt: -1 });       // Owner/staff feedback queries sorted by date
+feedbackSchema.index({ customerName: 1, createdAt: -1 });   // Customer feedback history
+
 module.exports = mongoose.model("Feedback", feedbackSchema);

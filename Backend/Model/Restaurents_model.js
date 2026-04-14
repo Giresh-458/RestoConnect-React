@@ -184,6 +184,11 @@ const restaurantSchema = new mongoose.Schema({
   ],
 });
 
+// Indexes for common query patterns
+restaurantSchema.index({ city: 1 });       // Homepage city filter
+restaurantSchema.index({ cuisine: 1 });    // Homepage cuisine filter
+restaurantSchema.index({ isOpen: 1 });     // Open status filter
+
 // Instance method to add restaurant
 restaurantSchema.methods.addRestaurant = async function () {
   return this.save();

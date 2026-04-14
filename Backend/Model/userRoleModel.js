@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
   suspensionReason: { type: String, default: null }
 });
 
+// Indexes for common query patterns
+userSchema.index({ role: 1 });              // Admin queries filtering by role
+userSchema.index({ rest_id: 1, role: 1 });  // Staff lookups per restaurant
+
 // Pre-save hook to hash password
 userSchema.pre('save', function(next) {
   if (this.isModified('password')) {
