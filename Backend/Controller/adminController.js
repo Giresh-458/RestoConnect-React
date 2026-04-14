@@ -2,8 +2,8 @@
 const path = require("path");
 const bcrypt = require("bcrypt");
 const { User } = require("../Model/userRoleModel");
-const { Restaurant } = require("../Model/Restaurents_model"); // ✅ Correct spelling
-const RestaurantRequest = require("../Model/restaurent_request_model"); // ✅ Correct spelling
+const { Restaurant } = require("../Model/Restaurents_model");
+const RestaurantRequest = require("../Model/restaurent_request_model");
 const { Dish } = require("../Model/Dishes_model_test");
 const { Order } = require("../Model/Order_model");
 const { Reservation } = require("../Model/Reservation_model");
@@ -294,7 +294,7 @@ exports.unsuspendUser = async (req, res, next) => {
   }
 };
 
-// 🌟 FIX: Edit admin profile
+//  FIX: Edit admin profile
 exports.editProfile = async (req, res, next) => {
   try {
     const currentAdminUsername =
@@ -1186,43 +1186,35 @@ exports.addEmployee = async (req, res) => {
 
     // Validate required fields
     if (!username || !email || !password) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Username, email, and password are required",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Username, email, and password are required",
+      });
     }
 
     // Validate username: 3-20 chars, letters/numbers/underscores
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error:
-            "Username must be 3-20 characters (letters, numbers, underscores only)",
-        });
+      return res.status(400).json({
+        success: false,
+        error:
+          "Username must be 3-20 characters (letters, numbers, underscores only)",
+      });
     }
 
     // Validate email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Please provide a valid email address",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid email address",
+      });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Password must be at least 6 characters long",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 6 characters long",
+      });
     }
 
     // Check if username or email already exists

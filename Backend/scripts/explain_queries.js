@@ -84,9 +84,13 @@ async function runAggExplain(coll, pipeline) {
 }
 
 async function run() {
-  console.log("===============================================================");
+  console.log(
+    "===============================================================",
+  );
   console.log("  RestoConnect - Explain Query Verification");
-  console.log("===============================================================\n");
+  console.log(
+    "===============================================================\n",
+  );
 
   await mongoose.connect(MONGO_URI);
   const db = mongoose.connection.db;
