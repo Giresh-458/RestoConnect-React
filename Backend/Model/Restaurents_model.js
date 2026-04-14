@@ -182,6 +182,14 @@ const restaurantSchema = new mongoose.Schema({
       ],
     },
   ],
+  leftovers: [
+    {
+      itemName: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      expiryDate: { type: Date, required: true },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 // Indexes for common query patterns

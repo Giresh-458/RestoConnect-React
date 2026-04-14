@@ -36,12 +36,12 @@ export function Requests({ searchTerm }) {
   const [csrfToken, setCsrfToken] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/admin/restaurant-requests", { credentials: "include" })
+    fetch("/api/admin/restaurant-requests", { credentials: "include" })
       .then((res) => res.ok ? res.json() : Promise.reject(res))
       .then((data) => Dispatch({ type: "load", payload: data }))
       .catch(() => {});
 
-    fetch("http://localhost:3000/api/csrf-token", { method: "GET", credentials: "include" })
+    fetch("/api/csrf-token", { method: "GET", credentials: "include" })
       .then((res) => res.json())
       .then((data) => data?.csrfToken && setCsrfToken(data.csrfToken))
       .catch((err) => console.error("Failed to fetch CSRF token for requests:", err));
@@ -74,13 +74,13 @@ export function Requests({ searchTerm }) {
     }
 
     if (state.lastaction === "accept") {
-      fetch(`http://localhost:3000/api/admin/restaurant-requests/${state.lastpayload}/accept`, {
+      fetch(`/api/admin/restaurant-requests/${state.lastpayload}/accept`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
       }).catch(() => {});
     } else if (state.lastaction === "reject") {
-      fetch(`http://localhost:3000/api/admin/restaurant-requests/${state.lastpayload}/reject`, {
+      fetch(`/api/admin/restaurant-requests/${state.lastpayload}/reject`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },

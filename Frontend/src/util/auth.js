@@ -1,9 +1,12 @@
 import { redirect } from "react-router-dom";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const authUrl = (path) => `${API_BASE_URL}${path}`;
+
 export async function logout() {
   sessionStorage.clear();
   localStorage.clear();
-  await fetch("http://localhost:3000/api/auth/logout", {
+  await fetch(authUrl("/api/auth/logout"), {
     method: "get",
     credentials: "include",
   });
@@ -15,7 +18,7 @@ export async function logout() {
 
 export async function isLogin() {
   try {
-    const res = await fetch("http://localhost:3000/api/auth/check-session", {
+    const res = await fetch(authUrl("/api/auth/check-session"), {
       method: "get",
       credentials: "include",
     });

@@ -590,7 +590,7 @@ export async function loader({ request, params }) {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/api/customer/menu/${params.id || params.restid}`,
+      `/api/customer/menu/${params.id || params.restid}`,
       {
         credentials: "include",
       },

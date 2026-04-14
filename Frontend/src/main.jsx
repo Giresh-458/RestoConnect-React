@@ -2,14 +2,17 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { toApiUrl } from './config/api.js'
 
-const BACKEND_BASE_URL = 'http://localhost:3000'
-const CSRF_ENDPOINT = `${BACKEND_BASE_URL}/api/csrf-token`
+const CSRF_ENDPOINT = toApiUrl('/api/csrf-token')
 let csrfTokenPromise = null
+
+const originalFetch = window.fetch.bind(window)
+const originalXhrOpen = window.XMLHttpRequest.prototype.open
 
 const getCsrfToken = async () => {
   if (!csrfTokenPromise) {
-    csrfTokenPromise = fetch(CSRF_ENDPOINT, { credentials: 'include' })
+    csrfTokenPromise = originalFetch(CSRF_ENDPOINT, { credentials: 'include' })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error('Failed to fetch CSRF token')
@@ -25,15 +28,9 @@ const getCsrfToken = async () => {
   return csrfTokenPromise
 }
 
-const isBackendUrl = (url) =>
-  url.startsWith(BACKEND_BASE_URL) || url.startsWith('/')
-
-const originalFetch = window.fetch.bind(window)
 window.fetch = async (input, init = {}) => {
   const url = typeof input === 'string' ? input : input.url
-  if (!isBackendUrl(url)) {
-    return originalFetch(input, init)
-  }
+  const normalizedUrl = toApiUrl(url)
 
   const method = (init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase()
   const isStateChanging = !['GET', 'HEAD', 'OPTIONS'].includes(method)
@@ -51,10 +48,16 @@ window.fetch = async (input, init = {}) => {
       init.credentials || (input instanceof Request ? input.credentials : undefined) || 'include',
   }
 
-  if (input instanceof Request) {
-    return originalFetch(new Request(input, finalInit))
+  if (input instanceof Request && finalInit.body === undefined && !['GET', 'HEAD'].includes(method)) {
+    finalInit.body = input.clone().body
   }
-  return originalFetch(input, finalInit)
+
+  return originalFetch(normalizedUrl, finalInit)
+}
+
+window.XMLHttpRequest.prototype.open = function open(method, url, ...rest) {
+  const normalizedUrl = typeof url === 'string' ? toApiUrl(url) : url
+  return originalXhrOpen.call(this, method, normalizedUrl, ...rest)
 }
 
 createRoot(document.getElementById('root')).render(

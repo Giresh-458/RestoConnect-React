@@ -28,12 +28,19 @@ const personSchema = new Schema({
 personSchema.methods.add_order = function (order) {
   this.prev_orders.push(order);
 
-  this.top_restaurent.set(
-    order.name,
-    (this.top_restaurent.get(order.name) || 0) + 1
-  );
-  order.items.forEach((element) => {
-    this.top_dishes.set(element, (this.top_dishes.get(element) || 0) + 1);
+  const restaurantName = String(order?.name || "").trim();
+  if (restaurantName) {
+    this.top_restaurent.set(
+      restaurantName,
+      (this.top_restaurent.get(restaurantName) || 0) + 1,
+    );
+  }
+
+  const items = Array.isArray(order?.items) ? order.items : [];
+  items.forEach((element) => {
+    const dishName = String(element || "").trim();
+    if (!dishName) return;
+    this.top_dishes.set(dishName, (this.top_dishes.get(dishName) || 0) + 1);
   });
   return this.save();
 };

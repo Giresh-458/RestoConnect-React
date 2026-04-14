@@ -4,7 +4,7 @@ import { isLogin } from "../util/auth";
 import { getFavourites } from "../util/favourites";
 import styles from "./CustomerHomepage.module.css";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "";
 
 /* ── cuisine category icons for the "What's on your mind?" carousel ── */
 const CUISINE_ICONS = {
@@ -402,7 +402,7 @@ function TopRatedCard({ restaurant, onClick }) {
   return (
     <div className={styles.topCard} onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === "Enter" && onClick()}>
       <div className={styles.topCardImg}>
-        <img src={restaurant.image || "/images/default-restaurant.jpg"} alt={restaurant.name} onError={(e) => { e.target.src = "https://via.placeholder.com/400x250?text=Restaurant"; }} />
+        <img src={restaurant.image || "/images/image-not-found.jpg"} alt={restaurant.name} onError={(e) => { e.target.src = "/images/image-not-found.jpg"; }} />
         <div className={styles.topCardOverlay}>
           {restaurant.rating != null && (
             <span className={styles.ratingPill}>⭐ {restaurant.rating.toFixed(1)}</span>
@@ -425,9 +425,9 @@ function RestaurantCard({ restaurant, onClick }) {
       {/* image */}
       <div className={styles.cardImg}>
         <img
-          src={restaurant.image || "/images/default-restaurant.jpg"}
+          src={restaurant.image || "/images/image-not-found.jpg"}
           alt={restaurant.name}
-          onError={(e) => { e.target.src = "https://via.placeholder.com/400x250?text=Restaurant"; }}
+          onError={(e) => { e.target.src = "/images/image-not-found.jpg"; }}
         />
         {/* badges */}
         <div className={styles.cardBadges}>

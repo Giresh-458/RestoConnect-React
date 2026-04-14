@@ -4,6 +4,9 @@ import './AuthPage.css';
 import { useToast } from '../components/common/Toast';
 import { toast as imperativeToast } from '../components/common/Toast';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const authUrl = (path) => `${API_BASE_URL}${path}`;
+
 export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
@@ -59,7 +62,7 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/send-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/send-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -97,7 +100,7 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/verify-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/verify-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -145,7 +148,7 @@ export function AuthPage() {
 
         try {
             console.log('Resetting password for:', resetEmail, 'with code:', resetCode);
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/reset', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/reset'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -187,7 +190,7 @@ export function AuthPage() {
         setForgotPasswordSuccess('');
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/resend-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/resend-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -663,7 +666,7 @@ export async function action({ request }) {
 
         // Login logic
         try {
-            const response = await fetch('http://localhost:3000/api/auth/login', {
+            const response = await fetch(authUrl('/api/auth/login'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -741,7 +744,7 @@ export async function action({ request }) {
                 signupFormData.append('profilePicture', profileFile);
             }
 
-            const response = await fetch('http://localhost:3000/api/auth/signup', {
+            const response = await fetch(authUrl('/api/auth/signup'), {
                 method: 'POST',
                 credentials: 'include',
                 body: signupFormData

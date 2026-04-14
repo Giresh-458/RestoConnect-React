@@ -53,7 +53,7 @@ export function RestaurantEdit(props) {
 
     const payload = { suspensionEndDate, suspensionReason: suspensionReason || null };
     try {
-      const resp = await fetch(`http://localhost:3000/api/admin/restaurants/${restaurant._id}/suspension`, {
+      const resp = await fetch(`/api/admin/restaurants/${restaurant._id}/suspension`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -81,7 +81,7 @@ export function RestaurantEdit(props) {
     const ok = await confirmDlg({ title: "Unsuspend Restaurant", message: `Unsuspend restaurant '${restaurant.name}'?`, variant: "warning", confirmText: "Unsuspend" });
     if (!ok) return;
     try {
-      const resp = await fetch(`http://localhost:3000/api/admin/restaurants/${restaurant._id}/suspension/clear`, {
+      const resp = await fetch(`/api/admin/restaurants/${restaurant._id}/suspension/clear`, {
         method: 'PATCH',
         credentials: 'include'
       });

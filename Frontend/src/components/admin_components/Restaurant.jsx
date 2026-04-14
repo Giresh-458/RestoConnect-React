@@ -44,7 +44,7 @@ export function Restaurant({ searchTerm }) {
   const confirmDlg = useConfirm();
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/admin/restaurants", { credentials: "include" })
+    fetch("/api/admin/restaurants", { credentials: "include" })
       .then((res) => res.ok ? res.json() : Promise.reject(res))
       .then((data) => Dispatch({ type: "load", payload: data }))
       .catch(() => {});
@@ -68,12 +68,12 @@ export function Restaurant({ searchTerm }) {
     }
 
     if (state.lastaction === "delete") {
-      fetch(`http://localhost:3000/api/admin/restaurants/${state.lastpayload}`, {
+      fetch(`/api/admin/restaurants/${state.lastpayload}`, {
         method: "DELETE",
         credentials: "include",
       }).catch(() => {});
     } else if (state.lastaction === "edit") {
-      fetch(`http://localhost:3000/api/admin/restaurants/${state.lastpayload._id}`, {
+      fetch(`/api/admin/restaurants/${state.lastpayload._id}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -82,7 +82,7 @@ export function FeedBackPage({ mode }) {
   const fetchCustomerData = async () => {
     try {
       const response = await fetch(
-        "http://localhost:3000/api/customer/feedback",
+        "/api/customer/feedback",
         {
           credentials: "include",
         }
@@ -229,7 +229,7 @@ export function FeedBackPage({ mode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:3000/api/owner/feedback", {
+      const response = await fetch("/api/owner/feedback", {
         credentials: "include",
       });
 
@@ -265,7 +265,7 @@ export function FeedBackPage({ mode }) {
       };
 
       const response = await fetch(
-        "http://localhost:3000/api/customer/submit-feedback",
+        "/api/customer/submit-feedback",
         {
           method: "POST",
           headers: {
@@ -310,7 +310,7 @@ export function FeedBackPage({ mode }) {
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/owner/feedback/${id}/status`,
+        `/api/owner/feedback/${id}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

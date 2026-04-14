@@ -95,7 +95,7 @@ export const DashBoardPage = () => {
   const fetchDashboardData = async () => {
     try {
       setFetchError("");
-      const response = await fetch("http://localhost:3000/api/customer/customerDashboard", { method: "GET", credentials: "include", headers: { Accept: "application/json" } });
+      const response = await fetch("/api/customer/customerDashboard", { method: "GET", credentials: "include", headers: { Accept: "application/json" } });
       if (response.status === 401) { navigate("/login?message=Please login again"); return; }
       if (response.status === 403) { navigate("/login?message=Access denied"); return; }
       if (!response.ok) throw new Error(`Failed (${response.status})`);
@@ -133,7 +133,7 @@ export const DashBoardPage = () => {
     if (!recordId) { toast.error("Could not identify order."); return; }
     try {
       setReorderingOrderId(recordId);
-      const response = await fetch(`http://localhost:3000/api/customer/orders/${recordId}/reorder`, { method: "POST", headers: { Accept: "application/json" }, credentials: "include" });
+      const response = await fetch(`/api/customer/orders/${recordId}/reorder`, { method: "POST", headers: { Accept: "application/json" }, credentials: "include" });
       if (response.status === 401) { navigate("/login?message=Please login again"); return; }
       if (!response.ok) { const e = await response.json().catch(() => ({})); throw new Error(e.error || `Failed (${response.status})`); }
       const data = await response.json();
@@ -141,7 +141,7 @@ export const DashBoardPage = () => {
       let items = Array.isArray(data.items) ? data.items : [];
       if (items.some((i) => !i.name || !i.price) && data.restaurant?.id) {
         try {
-          const menuResp = await fetch(`http://localhost:3000/api/customer/menu/${data.restaurant.id}`, { credentials: "include" });
+          const menuResp = await fetch(`/api/customer/menu/${data.restaurant.id}`, { credentials: "include" });
           if (menuResp.ok) {
             const menuData = await menuResp.json();
             const menuDishes = Array.isArray(menuData.dishes) ? menuData.dishes : [];
@@ -174,7 +174,7 @@ export const DashBoardPage = () => {
     setEmailNotificationsEnabled(next);
     setNotificationSaving(true);
     try {
-      const r = await fetch("http://localhost:3000/api/customer/preferences/email-notifications", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, credentials: "include", body: JSON.stringify({ enabled: next }) });
+      const r = await fetch("/api/customer/preferences/email-notifications", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, credentials: "include", body: JSON.stringify({ enabled: next }) });
       if (r.status === 401) { navigate("/login?message=Please login again"); return; }
       if (!r.ok) throw new Error();
       const d = await r.json(); if (!d.success) throw new Error();
@@ -208,7 +208,7 @@ export const DashBoardPage = () => {
       const fd = new FormData(); fd.append("name", editFormData.name); fd.append("email", editFormData.email); fd.append("phone", editFormData.phone);
       if (selectedProfileFile) fd.append("profilePicture", selectedProfileFile);
       if (editFormData.newPassword) { fd.append("newPassword", editFormData.newPassword); fd.append("confirmPassword", editFormData.confirmPassword); }
-      const r = await fetch("http://localhost:3000/api/customer/edit", { method: "POST", credentials: "include", body: fd });
+      const r = await fetch("/api/customer/edit", { method: "POST", credentials: "include", body: fd });
       if (r.status === 401) { navigate("/login?message=Please login again"); return; }
       const data = await r.json();
       if (data.success) {

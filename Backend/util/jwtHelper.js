@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const config = require('../config/env');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'session';
-const JWT_EXPIRY = process.env.JWT_EXPIRY || '30d'; 
+const JWT_SECRET = config.jwtSecret;
+const JWT_EXPIRY = config.jwtExpiry;
 const AUTH_TOKEN_COOKIE = 'authToken';
 
 function signToken(payload) {

@@ -1,66 +1,56 @@
-# RestoConnect-React
+# RestoConnect
 
-RestoConnect is a full-stack restaurant management and ordering platform with a React (Vite) frontend and an Express/MongoDB backend.
+RestoConnect is a full-stack restaurant management platform with:
 
-## Prerequisites
+- `Frontend/`: React + Vite client
+- `Backend/`: Express + MongoDB API
+- `docker-compose.yml`: local production-style stack with frontend, backend, MongoDB, and Redis
 
-- Node.js 18+ and npm
-- MongoDB running locally
+## Production readiness changes
 
-## Project Structure
+- Runtime configuration moved into environment variables
+- Frontend hardcoded API URLs removed
+- Backend hardcoded database origin, CORS origin, session secret, JWT secret fallback, and email credential fallback removed
+- Production-safe cookie, proxy, and CORS configuration added
+- Dockerfiles added for frontend and backend
+- Vercel SPA rewrite config added for frontend deployment
+- Render blueprint added for backend deployment
 
-- Backend/ - Express API + EJS views
-- Frontend/ - React (Vite) client
-
-## Installation
-
-### Backend
-
-1. Open a terminal in Backend/
-2. Install dependencies:
-	npm install
+## Quick start
 
 ### Frontend
 
-1. Open a terminal in Frontend/
-2. Install dependencies:
-	npm install
-
-## Database
-
-The backend connects to a local MongoDB instance at:
-
-mongodb://127.0.0.1:27017/test
-
-Make sure MongoDB is running before starting the server.
-
-## Running the App (Development)
-
-### Start Backend
-
-From Backend/:
-
-npm start
-
-The API will run at http://localhost:3000
-
-### Start Frontend
-
-From Frontend/:
-
-npm run dev
-
-The app will run at http://localhost:5173
-
-## Optional: Seed Data
-
-If you want to seed the database:
-
-1. Open a terminal in Backend/seeds/
+1. Copy values from [Frontend/env.example](Frontend/env.example).
 2. Run:
-	node seedData.js
 
-## Notes
+```bash
+cd Frontend
+npm install
+npm run dev
+```
 
-- The frontend expects the backend to be available at http://localhost:3000.
-- If you change ports, update CORS settings in Backend/server.js and any frontend API calls.
+### Backend
+
+1. Copy values from [Backend/env.example](Backend/env.example).
+2. Run:
+
+```bash
+cd Backend
+npm install
+npm run dev
+```
+
+## Docker
+
+Use the compose setup for a local production-like environment:
+
+```bash
+cp docker-compose.env.example .env
+docker compose up --build
+```
+
+The frontend will be available at `http://localhost:8080`.
+
+## Deployment
+
+Full deployment instructions live in [DEPLOYMENT.md](DEPLOYMENT.md).

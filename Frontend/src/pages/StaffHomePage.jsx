@@ -1,7 +1,7 @@
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import "../components/StaffHomePage.css";
+import "../components/StaffHomepage.css";
 import { useToast } from "../components/common/Toast";
 
 function timeAgo(dateStr) {
@@ -309,7 +309,7 @@ export function StaffHomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const API_BASE = "http://localhost:3000/api/staff";
+  const API_BASE = "/api/staff";
   const opts = { credentials: "include", headers: { Accept: "application/json" } };
 
   const fetchData = useCallback(async (silent = false) => {

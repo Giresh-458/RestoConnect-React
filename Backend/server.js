@@ -13,29 +13,47 @@ const mongoose = require("mongoose")
 // Swagger imports
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./swagger');
+const { graphqlHTTP } = require('express-graphql');
+const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLList, GraphQLID, GraphQLFloat, GraphQLNonNull } = require('graphql');
+const { Restaurant } = require("./Model/Restaurents_model.js");
+const config = require("./config/env");
+const { getClearCookieOptions, getCsrfCookieOptions, getSessionCookieOptions } = require("./util/cookies");
+const { createSessionStoreManager } = require("./util/sessionStore");
+const { performanceMetricsMiddleware } = require("./middleware/performanceMetrics");
+const { connectDataCache } = require("./util/dataCache");
+const {
+  redisReadCacheMiddleware,
+  redisInvalidateOnMutationMiddleware,
+} = require("./middleware/redisCache");
+
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
-const { Restaurant } = require("./Model/Restaurents_model.js");
+
 const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
+const stripeRoutes = require("./routes/stripe");
 const app = express();
+const sessionStoreManager = createSessionStoreManager();
+
+if (config.trustProxy) {
+  app.set("trust proxy", 1);
+}
 
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
 app.use(cookieParser());
-// Trust proxy when behind Render/Heroku reverse proxy (needed for secure cookies)
-if (process.env.TRUST_PROXY === "true") {
-  app.set("trust proxy", 1);
-}
-
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((s) => s.trim())
-  : ["http://localhost:5173"];
-
+app.use(performanceMetricsMiddleware);
+app.use(redisInvalidateOnMutationMiddleware);
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || config.corsAllowedOrigins.length === 0 || config.corsAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -43,20 +61,28 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", "views");
 
+// Stripe payment API route
+app.use("/api", stripeRoutes);
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "session",
+    store: sessionStoreManager.store,
+    secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     rolling: true,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      maxAge: parseInt(process.env.SESSION_MAX_AGE_MS) || 1000 * 60 * 30 * 24,
-      sameSite: process.env.COOKIE_SAME_SITE || "lax",
-    },
+    proxy: config.trustProxy,
+    cookie: getSessionCookieOptions(),
   })
 );
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    environment: config.nodeEnv,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 
 app.get("/schemas", (req, res) => {
@@ -99,17 +125,91 @@ app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerS
   }
 }));
 
+
+const LeftoverType = new GraphQLObjectType({
+  name: 'Leftover',
+  fields: {
+    _id: { type: GraphQLID },
+    itemName: { type: GraphQLNonNull(GraphQLString) },
+    quantity: { type: GraphQLFloat },
+    expiryDate: { type: GraphQLString }, 
+    createdAt: { type: GraphQLString }
+  }
+});
+
+const RestaurantType = new GraphQLObjectType({
+  name: 'Restaurant',
+  fields: {
+    _id: { type: GraphQLID },
+    id: { 
+      type: GraphQLID,
+      resolve: (parent) => parent._id 
+    },
+    name: { type: GraphQLNonNull(GraphQLString) },
+    city: { type: GraphQLString },
+    image: { type: GraphQLString },
+    leftovers: { 
+      type: new GraphQLList(LeftoverType),
+      resolve: (parent) => {                         // no async, no extra DB call
+        if (!parent.leftovers || parent.leftovers.length === 0) return [];
+        
+        return parent.leftovers
+          .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
+          .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
+          .map(item => ({
+            _id: item._id?.toString(),             //  explicitly map each field
+            itemName: item.itemName,
+            quantity: item.quantity,
+            expiryDate: item.expiryDate instanceof Date  //  handle both Date and string
+              ? item.expiryDate.toISOString()
+              : item.expiryDate,
+            createdAt: item.createdAt instanceof Date
+              ? item.createdAt.toISOString()
+              : item.createdAt,
+          }));
+      }
+    }
+  }
+});
+
+const RootQueryType = new GraphQLObjectType({
+  name: 'Query',
+  fields: {
+    publicRestaurants: {
+      type: new GraphQLList(RestaurantType),
+      description: 'Get all restaurants with their leftover items and expiry dates (public, no auth)',
+      async resolve() {
+        const restaurants = await Restaurant.find({}).lean();
+        return restaurants.map(r => ({
+          ...r,
+          _id: r._id.toString()
+        }));
+      }
+    }
+  }
+});
+
+const schema = new GraphQLSchema({
+  query: RootQueryType
+});
+
+
+app.use('/graphql', graphqlHTTP({
+  schema: schema,
+  graphiql: true // GraphiQL playground enabled
+}));
+
 const csrfProtection = csrf({
-  cookie: true,
+  cookie: getCsrfCookieOptions(),
   value: (req) => req.headers['x-csrf-token']
 });
 app.use((req, res, next) => {
 
   // cookie sent by browser
-  console.log("Cookie header:", req.headers.cookie);
+  //console.log("Cookie header:", req.headers.cookie);
 
   // csrf token sent by client
-  console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
+  //console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
 
   if (req.path.startsWith('/api-docs')) return next();
   // Auth endpoints that establish session - no CSRF (user not logged in yet)
@@ -138,8 +238,6 @@ const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
 const { verifyToken, AUTH_TOKEN_COOKIE } = require("./util/jwtHelper.js");
 const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
-
-connectDB()
 
 // Logging setup
 const programLogStream = rfs.createStream('programlog.txt', {
@@ -193,7 +291,8 @@ app.get("/api/csrf-token", (req, res) => {
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) console.log(err);
-    res.clearCookie(AUTH_TOKEN_COOKIE, { path: "/" });
+    res.clearCookie("connect.sid", getClearCookieOptions());
+    res.clearCookie(AUTH_TOKEN_COOKIE, getClearCookieOptions());
     res.redirect("/");
   });
 });
@@ -202,26 +301,26 @@ app.get("/logout", (req, res) => {
 app.use("/loginPage", loginPage);
 
 //  public
-app.use("/api/customer", customerPublicRoutes);
+app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 // Support routes must be mounted BEFORE generic role routers to ensure proper matching
-app.use("/api/customer/support", authentication("customer"), customerSupportRouter);
+app.use("/api/customer/support", authentication("customer"), redisReadCacheMiddleware, customerSupportRouter);
 app.use("/customer", authentication("customer"), customerRouter);
-app.use("/api/customer", authentication("customer"), customerRouter);
+app.use("/api/customer", authentication("customer"), redisReadCacheMiddleware, customerRouter);
 
-app.use("/api/admin/support", authentication(["admin", "employee"]), adminSupportRouter);
-app.use("/api/superadmin", authentication("admin"), superadminRouter);
+app.use("/api/admin/support", authentication(["admin", "employee"]), redisReadCacheMiddleware, adminSupportRouter);
+app.use("/api/superadmin", authentication("admin"), redisReadCacheMiddleware, superadminRouter);
 app.use("/admin", authentication(["admin", "employee"]), adminRouter);
-app.use("/api/admin", authentication(["admin", "employee"]), adminRouter);
+app.use("/api/admin", authentication(["admin", "employee"]), redisReadCacheMiddleware, adminRouter);
 
-app.use("/api/employee/support", authentication("employee"), adminSupportRouter);
+app.use("/api/employee/support", authentication("employee"), redisReadCacheMiddleware, adminSupportRouter);
 app.use("/employee", authentication("employee"), adminRouter);
-app.use("/api/employee", authentication("employee"), adminRouter);
+app.use("/api/employee", authentication("employee"), redisReadCacheMiddleware, adminRouter);
 
-app.use("/api/owner/support", authentication("owner"), ownerSupportRouter);
+app.use("/api/owner/support", authentication("owner"), redisReadCacheMiddleware, ownerSupportRouter);
 app.use("/owner", authentication("owner"), ownerRouter);
-app.use("/api/owner", authentication("owner"), ownerRouter);
+app.use("/api/owner", authentication("owner"), redisReadCacheMiddleware, ownerRouter);
 
 
 
@@ -230,7 +329,7 @@ app.use("/reservations", authentication("owner"), reservationRouter);
 
 
 // Staff routes - use router for all /staff and /api/staff paths
-app.use('/api/staff', authentication('staff'), staffRouter);
+app.use('/api/staff', authentication('staff'), redisReadCacheMiddleware, staffRouter);
 // Also mount staffRouter at /staff for API routes (like /staff/homepage)
 app.use('/staff', authentication('staff'),
 staffRouter);
@@ -259,6 +358,7 @@ app.get("/", async (req, res, next) => {
 app.get(
   "/menu/:restid",
   authentication("customer"),
+  redisReadCacheMiddleware,
   async (req, res, next) => {
     try {
       await menuController.getMenu(req, res, next);
@@ -337,7 +437,7 @@ app.get("/check-session", async (req, res) => {
   }
 });
 
-app.get("/api/restaurants", async (req, res) => {
+app.get("/api/restaurants", redisReadCacheMiddleware, async (req, res) => {
   try {
     // Run both queries in parallel — distinct avoids loading all docs just for city names
     const [restaurants, uniqueCities] = await Promise.all([
@@ -355,9 +455,20 @@ app.get("/api/restaurants", async (req, res) => {
   }
 });
 
+const startServer = async () => {
+  await sessionStoreManager.connect();
+  await connectDataCache();
+  await connectDB();
+
+  app.listen(config.port, () => {
+    console.log(`Server running on port ${config.port}`);
+  });
+};
+
 if (require.main === module) {
-  app.listen(3000, () => {
-    console.log("Server running at http://localhost:3000");
+  startServer().catch((error) => {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   });
 }
 

@@ -29,6 +29,12 @@ export function StaffNav() {
           >
             Dashboard
           </NavLink>
+          <NavLink 
+            to={"/staff/leftovers"} 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`}
+          >
+            Leftovers
+          </NavLink>
         </div>
         <button onClick={handleLogout} className={styles.logoutBtn}>Logout</button>
       </nav>
