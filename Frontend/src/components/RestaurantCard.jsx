@@ -15,7 +15,7 @@ const RestaurantCard = ({ restaurant }) => {
       onClick={handleSelect}
     >
       <img 
-        src={restaurant.imageUrl || '/default-restaurant.jpg'} 
+        src={restaurant.imageUrl || '/images/image-not-found.jpg'} 
         alt={restaurant.name}
         className="w-full h-48 object-cover"
       />

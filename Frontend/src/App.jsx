@@ -3,6 +3,10 @@ import { Provider } from "react-redux";
 
 import store from "./store/store";
 
+import { ToastProvider } from "./components/common/Toast";
+import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import "./components/common/Toast.css";
+
 import { HomePage, loader as homeLoader } from "./pages/HomePage";
 import RestaurantListPage from "./pages/RestaurantListPage";
 
@@ -22,17 +26,25 @@ import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePa
 import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
 import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
 import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
+import { LiveFloor, loader as LiveFloorLoader } from "./pages/LiveFloor";
+import Promotions from "./pages/Promotions";
+import OwnerSettings from "./pages/OwnerSettings";
 import StaffManagement from "./pages/StaffManagement";
+import { SupportChatPage } from "./pages/SupportChatPage";
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 
-
+const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 import { StaffNav } from "./components/StaffNav";
 import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePage";
 import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/StaffDashBoardPage";
+import StaffLeftoversPage from "./pages/StaffLeftoversPage";
 
-
-import { AdminPage } from "./pages/AdminPage";
-import {loader as adminLoader} from "./pages/AdminPage";
+import { AdminPage, loader as adminLoader } from "./pages/AdminPage";
+import { EmployeePage, loader as employeeLoader } from "./pages/EmployeePage";
+import { SuperAdminPage, loader as superAdminLoader } from "./pages/SuperAdminPage";
 
 import { AuthPage } from "./pages/AuthPage";
 import {action as authAction} from './pages/AuthPage';
@@ -40,8 +52,8 @@ import {action as authAction} from './pages/AuthPage';
 import { RestaurantApplication } from "./pages/RestaurantApplication";
 import {action as restaurantApplicationAction} from './pages/RestaurantApplication';
 
-import { logout } from "./util/auth";
-import { isLogin } from "./util/auth";
+import { logout, isLogin, customerLoader, ownerLoader, staffLoader } from "./util/auth";
+import ErrorPage from "./pages/ErrorPage";
 
 
 const router = createBrowserRouter([
@@ -57,9 +69,10 @@ const router = createBrowserRouter([
       { path: "payment", element: <PaymentPage></PaymentPage> },
       { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
       { path: "feedback", element: <FeedBackPage mode="customer" /> },
+      { path: "support", element: <SupportChatPage mode="customer" /> },
       { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
     ],
-    loader:isLogin
+    loader:customerLoader
   },
   {
     path: "/owner",
@@ -71,24 +84,39 @@ const router = createBrowserRouter([
       { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
       { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
       { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
-      { path: "feedback", element: <FeedBackPage></FeedBackPage> },
-      { path: "staffmanagement", element: <StaffManagement></StaffManagement> },
+      { path: "floor", element: <LiveFloor />, loader: LiveFloorLoader },
+      { path: "promotions", element: <Promotions />, loader: isLogin },
+      { path: "settings", element: <OwnerSettings />, loader: isLogin },
+      { path: "feedback", element: <FeedBackPage mode="owner" />, loader: isLogin },
+      { path: "support", element: <SupportChatPage mode="owner" />, loader: isLogin },
+      { path: "staffmanagement", element: <StaffManagement />, loader: isLogin },
     ],
-    loader:isLogin
+    loader:ownerLoader
   },
   {
     path: "/staff",
     element: <StaffNav></StaffNav>,
     children: [
       { index: true, element: <StaffHomePage></StaffHomePage>,loader:StaffHomePageLoader},
-      { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader}
+      { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader},
+      { path: "leftovers", element: <StaffLeftoversPage /> }
     ],
-    loader:isLogin
+    loader:staffLoader
   },
   {
     path: "/admin",
-    element: <AdminPage></AdminPage>,
-    loader:adminLoader
+    element: <AdminPage />,
+    loader: adminLoader
+  },
+  {
+    path: "/employee",
+    element: <EmployeePage />,
+    loader: employeeLoader
+  },
+  {
+    path: "/superadmin",
+    element: <SuperAdminPage />,
+    loader: superAdminLoader
   },
   {
     path: "/login",
@@ -109,20 +137,31 @@ const router = createBrowserRouter([
     path: "/restaurant-application",
     element: <RestaurantApplication></RestaurantApplication>,
     action: restaurantApplicationAction
+  },
+  {
+    path: "*",
+    element: <ErrorPage></ErrorPage>
   }
- 
 ]
 );
 
 function App() {
   return (
-    <>
-      <Provider store={store}>
-      <RouterProvider router={router} />
-      </Provider>
-
-    </>
-  )
+    <Provider store={store}>
+      <ToastProvider>
+        <ConfirmProvider>
+          {stripePromise ? (
+            <Elements stripe={stripePromise}>
+              <RouterProvider router={router} future={{ v7_startTransition: true }} />
+            </Elements>
+          ) : (
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          )}
+        </ConfirmProvider>
+      </ToastProvider>
+    </Provider>
+  );
 }
 
 export default App
+

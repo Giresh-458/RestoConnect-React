@@ -59,14 +59,18 @@ const promoCodeSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  rest_id: {
+    type: String,
+    ref: 'Restaurant',
+    default: ""
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
 
-// Index for faster lookups
-promoCodeSchema.index({ code: 1 });
+// Index for faster lookups (code index is already created by unique: true)
 promoCodeSchema.index({ isActive: 1, validFrom: 1, validUntil: 1 });
 
 // Method to check if promo code is valid

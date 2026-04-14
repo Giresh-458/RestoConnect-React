@@ -1,9 +1,13 @@
 import { useRef, useState } from "react";
 import styles from "./RestaurantSubPage.module.css";
+import { useToast } from "../common/Toast";
+import { useConfirm } from "../common/ConfirmDialog";
 
 export function RestaurantEdit(props) {
   const restaurant = props.restaurant;
   const diagref = useRef(null);
+  const toast = useToast();
+  const confirmDlg = useConfirm();
   const [suspensionEndDate, setSuspensionEndDate] = useState(
     restaurant.suspensionEndDate ? new Date(restaurant.suspensionEndDate).toISOString().split('T')[0] : ''
   );
@@ -49,8 +53,8 @@ export function RestaurantEdit(props) {
 
     const payload = { suspensionEndDate, suspensionReason: suspensionReason || null };
     try {
-      const resp = await fetch(`http://localhost:3000/admin/suspend_restaurant/${restaurant._id}`, {
-        method: 'POST',
+      const resp = await fetch(`/api/admin/restaurants/${restaurant._id}/suspension`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(payload)
@@ -74,21 +78,22 @@ export function RestaurantEdit(props) {
   };
 
   const handleUnsuspend = async () => {
-    if (!confirm(`Unsuspend restaurant '${restaurant.name}'?`)) return;
+    const ok = await confirmDlg({ title: "Unsuspend Restaurant", message: `Unsuspend restaurant '${restaurant.name}'?`, variant: "warning", confirmText: "Unsuspend" });
+    if (!ok) return;
     try {
-      const resp = await fetch(`http://localhost:3000/admin/unsuspend_restaurant/${restaurant._id}`, {
-        method: 'POST',
+      const resp = await fetch(`/api/admin/restaurants/${restaurant._id}/suspension/clear`, {
+        method: 'PATCH',
         credentials: 'include'
       });
       if (!resp.ok) {
         const err = await resp.json().catch(()=>({ error: 'Server error' }));
-        alert('Error: ' + (err.error || 'Failed to unsuspend'));
+        toast.error('Error: ' + (err.error || 'Failed to unsuspend'));
         return;
       }
       props.Dispatch({ type: 'edit', payload: { ...restaurant, isSuspended: false, suspensionEndDate: null, suspensionReason: null } });
     } catch (e) {
       console.error(e);
-      alert('Network or server error while unsuspending');
+      toast.error('Network or server error while unsuspending');
     }
   };
 

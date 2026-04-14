@@ -42,7 +42,7 @@ export async function action({request}){
     const formData = await request.formData();
     const username = formData.get("username");
     const password = formData.get("password");
-   let res =   await fetch("http://localhost:3000/", {
+   let res =   await fetch("/", {
     method: "POST",
     credentials: "include", 
     headers: {

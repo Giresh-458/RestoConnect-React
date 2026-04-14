@@ -4,25 +4,48 @@ const path = require("path");
 const bodyparser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const session = require("express-session");
+const csrf = require("csurf");
 const { connectDB } = require("./util/database");
 const cors = require("cors");
+const morgan = require("morgan");
+const rfs = require("rotating-file-stream");
+const mongoose = require("mongoose")
+// Swagger imports
+const swaggerUi = require('swagger-ui-express');
+const { swaggerSpec } = require('./swagger');
+const { graphqlHTTP } = require('express-graphql');
+const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLList, GraphQLID, GraphQLFloat, GraphQLNonNull } = require('graphql');
+const { Restaurant } = require("./Model/Restaurents_model.js");
+const config = require("./config/env");
+const { getClearCookieOptions, getCsrfCookieOptions, getSessionCookieOptions } = require("./util/cookies");
+const { createSessionStoreManager } = require("./util/sessionStore");
+
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
-const { Restaurant } = require("./Model/Restaurents_model.js");
+
 const { User } = require("./Model/userRoleModel.js");
 const customerPublicRoutes = require("./routes/customerPublic");
+const stripeRoutes = require("./routes/stripe");
 const app = express();
+const sessionStoreManager = createSessionStoreManager();
 
-// Middleware
-// Note: bodyparser.urlencoded automatically skips multipart/form-data, 
-// and multer will handle it, so this should work fine
+if (config.trustProxy) {
+  app.set("trust proxy", 1);
+}
+
 app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || config.corsAllowedOrigins.length === 0 || config.corsAllowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -30,45 +53,238 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", "views");
 
+// Stripe payment API route
+app.use("/api", stripeRoutes);
+
 app.use(
   session({
-    secret: "session",
+    store: sessionStoreManager.store,
+    secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     rolling: true,
-    cookie: {
-      httpOnly: true,
-      secure: false,
-      maxAge: 1000 * 60 * 30 * 24,
-      sameSite: "lax",
-    },
+    proxy: config.trustProxy,
+    cookie: getSessionCookieOptions(),
   })
 );
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    environment: config.nodeEnv,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+
+app.get("/schemas", (req, res) => {
+  const schemas = {};
+
+  Object.keys(mongoose.models).forEach((modelName) => {
+    const model = mongoose.models[modelName];
+    schemas[modelName] = {};
+
+    Object.keys(model.schema.paths).forEach((field) => {
+      schemas[modelName][field] =
+        model.schema.paths[field].instance;
+    });
+  });
+
+  res.json(schemas);
+});
+
+// Swagger docs (before CSRF - must be publicly readable without JWT/CSRF)
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.send(swaggerSpec);
+});
+app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerSpec, {
+  customCss: `
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info .title { font-size: 2.5em; }
+    .swagger-ui .info .description { font-size: 1.1em; line-height: 1.6; }
+  `,
+  customSiteTitle: 'RestoConnect API Documentation',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'list',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+  }
+}));
+
+
+const LeftoverType = new GraphQLObjectType({
+  name: 'Leftover',
+  fields: {
+    _id: { type: GraphQLID },
+    itemName: { type: GraphQLNonNull(GraphQLString) },
+    quantity: { type: GraphQLFloat },
+    expiryDate: { type: GraphQLString }, 
+    createdAt: { type: GraphQLString }
+  }
+});
+
+const RestaurantType = new GraphQLObjectType({
+  name: 'Restaurant',
+  fields: {
+    _id: { type: GraphQLID },
+    id: { 
+      type: GraphQLID,
+      resolve: (parent) => parent._id 
+    },
+    name: { type: GraphQLNonNull(GraphQLString) },
+    city: { type: GraphQLString },
+    image: { type: GraphQLString },
+    leftovers: { 
+      type: new GraphQLList(LeftoverType),
+      resolve: (parent) => {                         // no async, no extra DB call
+        if (!parent.leftovers || parent.leftovers.length === 0) return [];
+        
+        return parent.leftovers
+          .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
+          .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
+          .map(item => ({
+            _id: item._id?.toString(),             //  explicitly map each field
+            itemName: item.itemName,
+            quantity: item.quantity,
+            expiryDate: item.expiryDate instanceof Date  //  handle both Date and string
+              ? item.expiryDate.toISOString()
+              : item.expiryDate,
+            createdAt: item.createdAt instanceof Date
+              ? item.createdAt.toISOString()
+              : item.createdAt,
+          }));
+      }
+    }
+  }
+});
+
+const RootQueryType = new GraphQLObjectType({
+  name: 'Query',
+  fields: {
+    publicRestaurants: {
+      type: new GraphQLList(RestaurantType),
+      description: 'Get all restaurants with their leftover items and expiry dates (public, no auth)',
+      async resolve() {
+        const restaurants = await Restaurant.find({}).lean();
+        return restaurants.map(r => ({
+          ...r,
+          _id: r._id.toString()
+        }));
+      }
+    }
+  }
+});
+
+const schema = new GraphQLSchema({
+  query: RootQueryType
+});
+
+
+app.use('/graphql', graphqlHTTP({
+  schema: schema,
+  graphiql: true // GraphiQL playground enabled
+}));
+
+const csrfProtection = csrf({
+  cookie: getCsrfCookieOptions(),
+  value: (req) => req.headers['x-csrf-token']
+});
+app.use((req, res, next) => {
+
+  // cookie sent by browser
+  //console.log("Cookie header:", req.headers.cookie);
+
+  // csrf token sent by client
+  //console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
+
+  if (req.path.startsWith('/api-docs')) return next();
+  // Auth endpoints that establish session - no CSRF (user not logged in yet)
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/signup') return next();
+  if (req.path.startsWith('/api/auth/forgot-password')) return next();
+  return csrfProtection(req, res, next);
+});
 
 const authRoutes = require("./routes/authRoutes.js");
 const loginPage = require("./routes/loginPage.js");
 const customerRouter = require("./routes/customer.js");
 const adminRouter = require("./routes/adminroutes.js");
+const superadminRouter = require("./routes/superadminRoutes.js");
 const ownerRouter = require("./routes/ownerRoutes.js");
 const staffRouter = require("./routes/staffRouter.js");
 
 const reservationRouter = require("./routes/reservationRoutes.js");
+const customerSupportRouter = require("./routes/customerSupportRoutes.js");
+const ownerSupportRouter = require("./routes/ownerSupportRoutes.js");
+const adminSupportRouter = require("./routes/adminSupportRoutes.js");
 
 const homepageController = require("./Controller/homePageController.js");
 const menuController = require("./Controller/menuController.js");
 const staffController = require("./Controller/staffController.js");
 const authentication = require("./authenticationMiddleWare.js");
 const validation = require("./passwordAuth.js");
+const { verifyToken, AUTH_TOKEN_COOKIE } = require("./util/jwtHelper.js");
 const { uploadRestaurantImage, handleUploadErrors } = require("./util/fileUpload.js");
 
-connectDB();
+// Logging setup
+const programLogStream = rfs.createStream('programlog.txt', {
+  interval: '1d', // rotate daily
+  path: path.join(__dirname, 'logs')
+});
+
+const errorLogStream = rfs.createStream('error.txt', {
+  interval: '1d', // rotate daily
+  path: path.join(__dirname, 'logs')
+});
+
+// Morgan middleware for logging all requests
+app.use(morgan('combined', { stream: programLogStream }));
 
 // Mount auth routes
 app.use("/api/auth", authRoutes);
 
+/**
+ * @swagger
+ * /api/csrf-token:
+ *   get:
+ *     summary: Get CSRF token for protected endpoints
+ *     tags: [Authentication]
+ *     description: |
+ *       This endpoint returns a CSRF token that must be included in the
+ *       X-CSRF-Token header for all state-changing requests (POST, PUT, DELETE).
+ *       
+ *       **How to use:**
+ *       1. First call this endpoint to get a CSRF token
+ *       2. Include the token in your request header: X-CSRF-Token: {token}
+ *       3. Make your state-changing request
+ *       
+ *       **Note:** The CSRF token is automatically handled when using the
+ *       "Authorize" button in Swagger UI with session-based authentication.
+ *     responses:
+ *       200:
+ *         description: CSRF token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *             example:
+ *               csrfToken: "abc123def456..."
+ */
+// CSRF token endpoint
+app.get("/api/csrf-token", (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 app.get("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) console.log(err);
+    res.clearCookie("connect.sid", getClearCookieOptions());
+    res.clearCookie(AUTH_TOKEN_COOKIE, getClearCookieOptions());
     res.redirect("/");
   });
 });
@@ -80,12 +296,21 @@ app.use("/loginPage", loginPage);
 app.use("/api/customer", customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
+// Support routes must be mounted BEFORE generic role routers to ensure proper matching
+app.use("/api/customer/support", authentication("customer"), customerSupportRouter);
 app.use("/customer", authentication("customer"), customerRouter);
 app.use("/api/customer", authentication("customer"), customerRouter);
 
-app.use("/admin", authentication("admin"), adminRouter);
-app.use("/api/admin", authentication("admin"), adminRouter);
+app.use("/api/admin/support", authentication(["admin", "employee"]), adminSupportRouter);
+app.use("/api/superadmin", authentication("admin"), superadminRouter);
+app.use("/admin", authentication(["admin", "employee"]), adminRouter);
+app.use("/api/admin", authentication(["admin", "employee"]), adminRouter);
 
+app.use("/api/employee/support", authentication("employee"), adminSupportRouter);
+app.use("/employee", authentication("employee"), adminRouter);
+app.use("/api/employee", authentication("employee"), adminRouter);
+
+app.use("/api/owner/support", authentication("owner"), ownerSupportRouter);
 app.use("/owner", authentication("owner"), ownerRouter);
 app.use("/api/owner", authentication("owner"), ownerRouter);
 
@@ -112,7 +337,7 @@ app.get("/", async (req, res, next) => {
   }
 });
 
-app.post("/", validation, async (req, res, next) => {
+/*app.post("/", validation, async (req, res, next) => {
   try {
     await homepageController.putHomePage(req, res, next);
   } catch (err) {
@@ -120,7 +345,7 @@ app.post("/", validation, async (req, res, next) => {
     err.message = err.message || "Internal Server Error";
     return next(err);
   }
-});
+});*/
 
 app.get(
   "/menu/:restid",
@@ -156,10 +381,19 @@ app.post(
   }
 );
 
+// CSRF error handling
+app.use((err, req, res, next) => {
+  if (err && err.code === "EBADCSRFTOKEN") {
+    return res.status(403).json({ message: "Invalid CSRF token" });
+  }
+  return next(err);
+});
+
 // Error-handling middleware (must be added after all routes)
 app.use((err, req, res, next) => {
-  // Log full error server-side
-  console.error("Unhandled error:", err && err.stack ? err.stack : err);
+  // Log full error to error.txt
+  const errorMessage = `Unhandled error: ${err && err.stack ? err.stack : err}\n`;
+  errorLogStream.write(errorMessage);
 
   const status = err && err.status ? err.status : 500;
   const message = err && err.message ? err.message : "Internal Server Error";
@@ -171,20 +405,21 @@ app.use((err, req, res, next) => {
   res.status(status).json({ message, url: req.originalUrl });
 });
 
+// Legacy /check-session: same logic as /api/auth/check-session (JWT first, then legacy session)
 app.get("/check-session", async (req, res) => {
   try {
-    if (req.session.username && req.session.cookie._expires > new Date()) {
-      const user = await User.findOne({
-        username: req.session.username,
-      }).select("role");
-      if (!user) {
-        return res.json({ valid: false });
+    const token = req.cookies?.[AUTH_TOKEN_COOKIE];
+    if (token) {
+      const payload = verifyToken(token);
+      if (payload?.username) {
+        const user = await User.findOne({ username: payload.username }).select("role");
+        if (user) return res.json({ valid: true, username: payload.username, role: user.role });
       }
-      return res.json({
-        valid: true,
-        username: req.session.username,
-        role: user.role,
-      });
+    }
+    if (req.session?.username && req.session.cookie._expires > new Date()) {
+      const user = await User.findOne({ username: req.session.username }).select("role");
+      if (!user) return res.json({ valid: false });
+      return res.json({ valid: true, username: req.session.username, role: user.role });
     }
     res.json({ valid: false });
   } catch (err) {
@@ -212,10 +447,21 @@ app.get("/api/restaurants", async (req, res) => {
   }
 });
 
+const startServer = async () => {
+  await sessionStoreManager.connect();
+  await connectDB();
+
+  app.listen(config.port, () => {
+    console.log(`Server running on port ${config.port}`);
+  });
+};
+
 if (require.main === module) {
-  app.listen(3000, () => {
-    console.log("Server running at http://localhost:3000");
+  startServer().catch((error) => {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   });
 }
 
 module.exports = app;
+

@@ -1,7 +1,11 @@
 import { useState } from "react";
 import styles from "./Settings.module.css"; // Import the CSS Module
+import { useToast } from "../common/Toast";
+import { useConfirm } from "../common/ConfirmDialog";
 
 export function Settings(props) {
+  const toast = useToast();
+  const confirmDlg = useConfirm();
   const [formData, setFormData] = useState({
     username: props.data.username || props.data.fullname,
     email: props.data.email,
@@ -45,8 +49,8 @@ export function Settings(props) {
     const body = changed ? { username, email, currentPassword } : { username, email };
 
     try {
-      const res = await fetch('http://localhost:3000/admin/edit_profile', {
-        method: 'POST',
+      const res = await fetch('/api/admin/profile', {
+        method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -77,8 +81,8 @@ export function Settings(props) {
     setSubmittingProfile(true);
     const { username, email } = formData;
     try {
-      const res = await fetch('http://localhost:3000/admin/edit_profile', {
-        method: 'POST',
+      const res = await fetch('/api/admin/profile', {
+        method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, currentPassword: modalPassword })
@@ -143,8 +147,8 @@ export function Settings(props) {
       return;
     }
 
-    fetch('http://localhost:3000/admin/change_password', {
-      method: 'POST',
+    fetch('/api/admin/password', {
+      method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword })
@@ -162,21 +166,22 @@ export function Settings(props) {
   }
 
   function deleteAccount() {
-    if (!window.confirm("Are you sure you want to delete your account?")) return;
-    fetch('http://localhost:3000/admin/delete_account', {
-      method: 'DELETE',
-      credentials: 'include'
-    }).then(async (res) => {
-      if (res.ok) {
-        // redirect to login or home
-        window.location.href = '/login';
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'Error deleting account');
-      }
-    }).catch(err => {
-      console.error(err);
-      alert('Network error while deleting account');
+    confirmDlg({ title: "Delete Account", message: "Are you sure you want to delete your account?", variant: "danger", confirmText: "Delete" }).then(ok => {
+      if (!ok) return;
+      fetch('/api/admin/account', {
+        method: 'DELETE',
+        credentials: 'include'
+      }).then(async (res) => {
+        if (res.ok) {
+          window.location.href = '/login';
+        } else {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data.error || 'Error deleting account');
+        }
+      }).catch(err => {
+        console.error(err);
+        toast.error('Network error while deleting account');
+      });
     });
   }
 

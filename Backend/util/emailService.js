@@ -1,20 +1,25 @@
 const nodemailer = require('nodemailer');
+const config = require('../config/env');
 
-// Email configuration - using Gmail as default
-// For production, use environment variables
+
 const createTransporter = () => {
-  const emailUser = process.env.EMAIL_USER || 'restoconnect.wbd@gmail.com';
-  const emailPass = process.env.EMAIL_PASS || 'tcwpoluxajgyynfj';
+  if (!config.emailUser || !config.emailPass) {
+    throw new Error('Email service is not configured. Set EMAIL_USER and EMAIL_PASS to enable password reset emails.');
+  }
 
-  // Try Gmail with secure configuration
+  const transportOptions = config.smtpService
+    ? { service: config.smtpService }
+    : {
+        host: config.smtpHost,
+        port: config.smtpPort,
+        secure: config.smtpSecure,
+      };
+
   return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    ...transportOptions,
     auth: {
-      user: emailUser,
-      pass: emailPass
+      user: config.emailUser,
+      pass: config.emailPass
     },
     tls: {
       rejectUnauthorized: false
@@ -22,25 +27,22 @@ const createTransporter = () => {
   });
 };
 
-// Verify transporter connection
 const verifyTransporter = async (transporter) => {
   try {
     await transporter.verify();
-    console.log('✅ Email server is ready to send messages');
+    console.log(' Email server is ready to send messages');
     return true;
   } catch (error) {
-    console.error('❌ Email server verification failed:', error.message);
+    console.error(' Email server verification failed:', error.message);
     return false;
   }
 };
 
-// Send password reset code email
 const sendPasswordResetCode = async (email, code) => {
   let transporter;
   try {
     transporter = createTransporter();
     
-    // Try to verify connection (non-blocking - will still attempt to send if verification fails)
     try {
       const isVerified = await verifyTransporter(transporter);
       if (!isVerified) {
@@ -48,12 +50,10 @@ const sendPasswordResetCode = async (email, code) => {
       }
     } catch (verifyError) {
       console.warn('⚠️ Email verification error (non-blocking):', verifyError.message);
-      // Continue anyway - sometimes verification fails but sending still works
     }
     
-    const emailUser = process.env.EMAIL_USER || 'restoconnect.wbd@gmail.com';
     const mailOptions = {
-      from: `RestoConnect <${emailUser}>`,
+      from: config.emailFrom || `RestoConnect <${config.emailUser}>`,
       to: email,
       subject: 'Password Reset Code - RestoConnect',
       html: `
@@ -97,7 +97,6 @@ const sendPasswordResetCode = async (email, code) => {
     console.error('Error response:', error.response);
     console.error('Full error:', error);
     
-    // Provide more specific error messages
     let errorMessage = 'Failed to send email. Please try again later.';
     
     if (error.code === 'EAUTH') {

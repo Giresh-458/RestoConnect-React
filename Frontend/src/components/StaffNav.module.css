@@ -1,34 +1,85 @@
+/* ─── Staff Top Navigation — Owner Indigo Theme ─── */
 .staffNav {
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background: #d1ecf1;
-  border-bottom: 1px solid #bee5eb;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 24px;
+  height: 52px;
+  background: linear-gradient(135deg, #1e1e2f 0%, #27293d 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.15);
+  flex-wrap: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.staffNav a {
-  padding: 0.5rem 1rem;
-  color: #0c5460;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+.brand {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  margin-right: 16px;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
-.staffNav a:hover {
-  background-color: #bee5eb;
-  color: #0c5460;
+.links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.staffNav a.active {
-  background-color: #17a2b8;
-  color: white;
+.link {
+  padding: 6px 16px;
+  color: #8b8fa3;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #c3c7d4;
+}
+
+.active {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.logoutBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 14px;
+  color: #8b8fa3;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
 }
 
 @media (max-width: 600px) {
   .staffNav {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 0 16px;
+  }
+  .brand {
+    display: none;
   }
 }
 

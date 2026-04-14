@@ -4,16 +4,15 @@ import { isLogin } from '../util/auth';
 import './HomePage.css';
 
 export async function loader() {
-
-  const role = await isLogin();
-  
-  if(role!=null){
-     return redirect(`/${role}/`);
+  try {
+    const role = await isLogin();
+    if (role != null) {
+      return redirect(`/${role}/`);
+    }
+  } catch (err) {
+    // User not authenticated — show the public landing page
   }
- 
-
-
-
+  return null;
 }
 
 export function HomePage(){

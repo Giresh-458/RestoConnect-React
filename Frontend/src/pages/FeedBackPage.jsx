@@ -1,14 +1,42 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { addToFavourites } from "../util/favourites";
 import "../styles/owner_dashboard.css";
 import styles from "./FeedBackPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
+import { useToast } from "../components/common/Toast";
+
+/* Interactive star rating component */
+function StarRating({ value, onChange, label, disabled }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className={styles.starRatingGroup}>
+      <span className={styles.starLabel}>{label}</span>
+      <div className={styles.stars}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            className={`${styles.star} ${star <= (hover || value) ? styles.starFilled : ""}`}
+            onMouseEnter={() => !disabled && setHover(star)}
+            onMouseLeave={() => setHover(0)}
+            onClick={() => !disabled && onChange(star)}
+            disabled={disabled}
+            aria-label={`${star} star`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      {value > 0 && <span className={styles.starText}>{value}/5</span>}
+    </div>
+  );
+}
 
 export function FeedBackPage({ mode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const isOwnerView =
     mode === "owner" || location.pathname.includes("/owner/feedback");
   const isCustomerView =
@@ -54,7 +82,7 @@ export function FeedBackPage({ mode }) {
   const fetchCustomerData = async () => {
     try {
       const response = await fetch(
-        "http://localhost:3000/api/customer/feedback",
+        "/api/customer/feedback",
         {
           credentials: "include",
         }
@@ -201,7 +229,7 @@ export function FeedBackPage({ mode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://localhost:3000/api/owner/feedback", {
+      const response = await fetch("/api/owner/feedback", {
         credentials: "include",
       });
 
@@ -237,7 +265,7 @@ export function FeedBackPage({ mode }) {
       };
 
       const response = await fetch(
-        "http://localhost:3000/api/customer/submit-feedback",
+        "/api/customer/submit-feedback",
         {
           method: "POST",
           headers: {
@@ -282,7 +310,7 @@ export function FeedBackPage({ mode }) {
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/owner/feedback/${id}/status`,
+        `/api/owner/feedback/${id}/status`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -299,278 +327,290 @@ export function FeedBackPage({ mode }) {
       fetchOwnerFeedback();
     } catch (err) {
       console.error("Error updating status:", err);
-      alert("Could not update the feedback status.");
+      toast.error("Could not update the feedback status.");
     }
   };
 
   // Customer View - Feedback Form
   if (isCustomerView) {
     const restaurantName = location.state?.restaurant;
+    const orderDishes = extractOrderDishes();
 
     return (
-      <div className={styles.feedbackContainer}>
+      <div className={styles.page}>
         <CheckoutSteps current="feedback" />
-        <h2 className={styles.title}>Share Your Feedback</h2>
-
-        {hasFeedback && (
-          <div className={styles.alreadySubmittedMessage}>
-            ✅ You have already submitted feedback. Thank you for your input!
-            You can only provide feedback once.
+        <div className={styles.container}>
+          {/* Hero */}
+          <div className={styles.hero}>
+            <div className={styles.heroIcon}>⭐</div>
+            <h2 className={styles.heroTitle}>Share Your Experience</h2>
+            <p className={styles.heroSubtitle}>
+              Your feedback helps us serve you better
+            </p>
           </div>
-        )}
 
-        {restaurantName && (
-          <div className={styles.restaurantName}>
-            <strong>Restaurant:</strong> {restaurantName}
-          </div>
-        )}
-
-        {submitSuccess && (
-          <div className={styles.successMessage}>
-            ✅ Feedback submitted successfully! Thank you for your input.
-          </div>
-        )}
-
-        {submitError && (
-          <div className={styles.errorMessage}>❌ {submitError}</div>
-        )}
-
-        <form
-          onSubmit={handleSubmit}
-          className={styles.feedbackForm}
-          style={{
-            opacity: hasFeedback ? 0.5 : 1,
-            pointerEvents: hasFeedback ? "none" : "auto",
-          }}
-        >
-          {/* Hidden fields for restaurant and order IDs from navigation state */}
-          <input type="hidden" name="rest_id" value={formData.rest_id} />
-          <input type="hidden" name="orderId" value={formData.orderId} />
-
-          <div className={styles.ratingGroup}>
-            <div className={styles.formGroup}>
-              <label htmlFor="diningRating">
-                Dining Experience Rating (1-5)
-              </label>
-              <select
-                id="diningRating"
-                value={formData.diningRating}
-                onChange={(e) =>
-                  setFormData({ ...formData, diningRating: e.target.value })
-                }
-              >
-                <option value="">Not rated</option>
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <option key={num} value={num}>
-                    {num} ⭐
-                  </option>
-                ))}
-              </select>
+          {restaurantName && (
+            <div className={styles.restaurantBadge}>
+              <span className={styles.restaurantIcon}>🍽️</span>
+              <span>{restaurantName}</span>
             </div>
+          )}
 
-            <div className={styles.formGroup}>
-              <label htmlFor="orderRating">Order Quality Rating (1-5)</label>
-              <select
-                id="orderRating"
-                value={formData.orderRating}
-                onChange={(e) =>
-                  setFormData({ ...formData, orderRating: e.target.value })
-                }
-              >
-                <option value="">Not rated</option>
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <option key={num} value={num}>
-                    {num} ⭐
-                  </option>
-                ))}
-              </select>
+          {hasFeedback && (
+            <div className={styles.alreadySubmittedMessage}>
+              <span className={styles.msgIcon}>✅</span>
+              You have already submitted feedback for this order. Thank you!
             </div>
-          </div>
+          )}
 
-          <div className={styles.ordersSection}>
-            <h3 className={styles.ordersTitle}>
-              Add Favorite Items from Your Orders
-            </h3>
-            {extractOrderDishes().length === 0 && (
-              <div className={styles.noOrdersMessage}>
-                <p>
-                  No past order items found. Place an order first to see items
-                  here.
-                </p>
+          {submitSuccess && (
+            <div className={styles.successMessage}>
+              <span className={styles.msgIcon}>🎉</span>
+              Feedback submitted successfully! Redirecting...
+            </div>
+          )}
+
+          {submitError && (
+            <div className={styles.errorMessage}>
+              <span className={styles.msgIcon}>❌</span>
+              {submitError}
+            </div>
+          )}
+
+          {/* Feedback Form Card */}
+          <div
+            className={styles.card}
+            style={{
+              opacity: hasFeedback ? 0.5 : 1,
+              pointerEvents: hasFeedback ? "none" : "auto",
+            }}
+          >
+            <form onSubmit={handleSubmit} className={styles.feedbackForm}>
+              <input type="hidden" name="rest_id" value={formData.rest_id} />
+              <input type="hidden" name="orderId" value={formData.orderId} />
+
+              {/* Ratings */}
+              <div className={styles.ratingsCard}>
+                <h3 className={styles.sectionTitle}>Rate Your Experience</h3>
+                <div className={styles.ratingGroup}>
+                  <StarRating
+                    label="Dining Experience"
+                    value={Number(formData.diningRating) || 0}
+                    onChange={(val) =>
+                      setFormData({ ...formData, diningRating: String(val) })
+                    }
+                    disabled={hasFeedback}
+                  />
+                  <StarRating
+                    label="Order Quality"
+                    value={Number(formData.orderRating) || 0}
+                    onChange={(val) =>
+                      setFormData({ ...formData, orderRating: String(val) })
+                    }
+                    disabled={hasFeedback}
+                  />
+                </div>
               </div>
-            )}
-            {extractOrderDishes().length > 0 && (
-              <div className={styles.dishesGrid}>
-                {extractOrderDishes().map((dish) => {
-                  const id = dish?.id || dish?._id || dish?.dishId;
-                  const dishName = dish?.name || dish?.title || "Dish";
 
-                  return (
-                    <div key={id || dishName} className={styles.dishCard}>
-                      <div className={styles.dishCardContent}>
-                        <h4 className={styles.dishCardName}>{dishName}</h4>
-                        {dish?.price && (
-                          <p className={styles.dishCardPrice}>₹{dish.price}</p>
-                        )}
-                        {dish?.description && (
-                          <p className={styles.dishCardDescription}>
-                            {dish.description}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        className={`${styles.dishCardHeartButton} ${
-                          addingDishId === id ? styles.loading : ""
-                        } ${
-                          selectedFavoriteDishes.includes(dishName)
-                            ? styles.selected
-                            : ""
-                        }`}
-                        onClick={async () => {
-                          if (!formData.rest_id) {
-                            setFavMessage({
-                              type: "error",
-                              text: "Please select a restaurant first.",
-                            });
-                            return;
-                          }
-                          if (!id) {
-                            setFavMessage({
-                              type: "error",
-                              text: "Invalid dish - cannot add to favorites.",
-                            });
-                            return;
-                          }
-                          try {
-                            setAddingDishId(id);
-                            await addToFavourites(id);
+              {/* Favourite dishes */}
+              <div className={styles.dishesSection}>
+                <h3 className={styles.sectionTitle}>
+                  Loved something? Tap to favourite it!
+                </h3>
+                {orderDishes.length === 0 ? (
+                  <div className={styles.noDishes}>
+                    <span>🍜</span>
+                    <p>No order items found to favourite.</p>
+                  </div>
+                ) : (
+                  <div className={styles.dishesGrid}>
+                    {orderDishes.map((dish) => {
+                      const id = dish?.id || dish?._id || dish?.dishId;
+                      const dishName = dish?.name || dish?.title || "Dish";
+                      const isSelected =
+                        selectedFavoriteDishes.includes(dishName);
 
-                            // Track the dish in feedback form
-                            if (selectedFavoriteDishes.includes(dishName)) {
-                              setSelectedFavoriteDishes(
-                                selectedFavoriteDishes.filter(
-                                  (d) => d !== dishName
-                                )
+                      return (
+                        <button
+                          key={id || dishName}
+                          type="button"
+                          className={`${styles.dishChip} ${isSelected ? styles.dishChipSelected : ""}`}
+                          onClick={async () => {
+                            if (!formData.rest_id) {
+                              setFavMessage({
+                                type: "error",
+                                text: "Restaurant not set.",
+                              });
+                              return;
+                            }
+                            if (!id) {
+                              setFavMessage({
+                                type: "error",
+                                text: "Invalid dish.",
+                              });
+                              return;
+                            }
+                            try {
+                              setAddingDishId(id);
+                              await addToFavourites(id);
+                              if (isSelected) {
+                                setSelectedFavoriteDishes(
+                                  selectedFavoriteDishes.filter(
+                                    (d) => d !== dishName
+                                  )
+                                );
+                                setFavMessage({
+                                  type: "info",
+                                  text: `Removed "${dishName}".`,
+                                });
+                              } else {
+                                setSelectedFavoriteDishes([
+                                  ...selectedFavoriteDishes,
+                                  dishName,
+                                ]);
+                                setFavMessage({
+                                  type: "success",
+                                  text: `Added "${dishName}" to favourites!`,
+                                });
+                              }
+                              setTimeout(() => setFavMessage(null), 3000);
+                            } catch (err) {
+                              console.error(
+                                "Failed to add to favourites:",
+                                err
                               );
                               setFavMessage({
-                                type: "info",
-                                text: `Removed "${dishName}" from liked items.`,
+                                type: "error",
+                                text: `${dishName}: ${err.message || "Failed"}`,
                               });
-                            } else {
-                              setSelectedFavoriteDishes([
-                                ...selectedFavoriteDishes,
-                                dishName,
-                              ]);
-                              setFavMessage({
-                                type: "success",
-                                text: ` Added "${dishName}" to favourites!`,
-                              });
+                            } finally {
+                              setAddingDishId(null);
                             }
-                            setTimeout(() => setFavMessage(null), 3000);
-                          } catch (err) {
-                            console.error("Failed to add to favourites:", err);
-                            const errorMsg =
-                              err.message || "Could not add to favorites";
-                            setFavMessage({
-                              type: "error",
-                              text: ` ${dishName}: ${errorMsg}`,
-                            });
-                          } finally {
-                            setAddingDishId(null);
-                          }
-                        }}
-                        disabled={addingDishId === id || !formData.rest_id}
-                        title="Add to favorites"
-                      >
-                        {addingDishId === id
-                          ? "..."
-                          : selectedFavoriteDishes.includes(dishName)
-                          ? "❤️"
-                          : "🤍"}
-                      </button>
-                    </div>
-                  );
-                })}
+                          }}
+                          disabled={addingDishId === id || !formData.rest_id}
+                        >
+                          <span className={styles.dishChipHeart}>
+                            {addingDishId === id
+                              ? "⏳"
+                              : isSelected
+                              ? "❤️"
+                              : "🤍"}
+                          </span>
+                          <span className={styles.dishChipName}>{dishName}</span>
+                          {dish?.price && (
+                            <span className={styles.dishChipPrice}>
+                              ₹{dish.price}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {favMessage && (
+                  <div
+                    className={`${styles.favMessage} ${styles[favMessage.type]}`}
+                  >
+                    {favMessage.text}
+                  </div>
+                )}
+
+                {selectedFavoriteDishes.length > 0 && (
+                  <div className={styles.selectedItems}>
+                    <strong>❤️ Items you loved:</strong>{" "}
+                    {selectedFavoriteDishes.join(", ")}
+                  </div>
+                )}
               </div>
-            )}
-            {favMessage && (
-              <div
-                className={`${styles.favMessage} ${styles[favMessage.type]}`}
+
+              {/* Additional Feedback */}
+              <div className={styles.textareaGroup}>
+                <label htmlFor="additionalFeedback">
+                  Additional Feedback (optional)
+                </label>
+                <textarea
+                  id="additionalFeedback"
+                  value={formData.additionalFeedback}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      additionalFeedback: e.target.value,
+                    })
+                  }
+                  placeholder="Tell us what you think — suggestions, compliments, anything..."
+                  rows="4"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className={styles.submitButton}
+                disabled={submitting || !formData.rest_id}
               >
-                {favMessage.text}
-              </div>
-            )}
-            {selectedFavoriteDishes.length > 0 && (
-              <div className={styles.selectedItemsDisplay}>
-                <strong>Items you loved: </strong>
-                <span className={styles.selectedItemsList}>
-                  {selectedFavoriteDishes.join(", ")}
-                </span>
-              </div>
-            )}
+                {submitting ? (
+                  <>
+                    <span className={styles.btnSpinner}></span> Submitting...
+                  </>
+                ) : (
+                  "Submit Feedback"
+                )}
+              </button>
+            </form>
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="additionalFeedback">Additional Feedback</label>
-            <textarea
-              id="additionalFeedback"
-              value={formData.additionalFeedback}
-              onChange={(e) =>
-                setFormData({ ...formData, additionalFeedback: e.target.value })
-              }
-              placeholder="Share your thoughts, suggestions, or any other feedback..."
-              rows="5"
-            />
-          </div>
+          {/* Past Feedback */}
+          {customerData?.feedbacks?.length > 0 && (
+            <div className={styles.card}>
+              <h3 className={styles.sectionTitle}>Your Past Feedback</h3>
+              <div className={styles.feedbackList}>
+                {customerData.feedbacks.map((fb) => (
+                  <div key={fb.id} className={styles.feedbackItem}>
+                    <div className={styles.feedbackHeader}>
+                      <span className={styles.feedbackDate}>
+                        {new Date(fb.createdAt).toLocaleDateString()}
+                      </span>
+                      <span
+                        className={`${styles.statusBadge} ${
+                          styles[`status${fb.status}`]
+                        }`}
+                      >
+                        {fb.status}
+                      </span>
+                    </div>
+                    {(fb.diningRating || fb.orderRating) && (
+                      <div className={styles.ratings}>
+                        {fb.diningRating && (
+                          <span>🍽️ Dining: {"⭐".repeat(fb.diningRating)}</span>
+                        )}
+                        {fb.orderRating && (
+                          <span>📦 Order: {"⭐".repeat(fb.orderRating)}</span>
+                        )}
+                      </div>
+                    )}
+                    {fb.lovedItems && (
+                      <p className={styles.lovedItems}>
+                        ❤️ Loved: {fb.lovedItems}
+                      </p>
+                    )}
+                    {fb.additionalFeedback && (
+                      <p className={styles.comment}>
+                        💬 {fb.additionalFeedback}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={submitting || !formData.rest_id}
+            className={styles.homeBtn}
+            onClick={() => navigate("/customer/")}
           >
-            {submitting ? "Submitting..." : "Submit Feedback"}
+            ← Back to Home
           </button>
-        </form>
-
-        {/* Show past feedback */}
-        {customerData?.feedbacks?.length > 0 && (
-          <div className={styles.pastFeedback}>
-            <h3>Your Past Feedback</h3>
-            <div className={styles.feedbackList}>
-              {customerData.feedbacks.map((fb) => (
-                <div key={fb.id} className={styles.feedbackItem}>
-                  <div className={styles.feedbackHeader}>
-                    <span className={styles.feedbackDate}>
-                      {new Date(fb.createdAt).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`${styles.status} ${
-                        styles[fb.status.toLowerCase()]
-                      }`}
-                    >
-                      {fb.status}
-                    </span>
-                  </div>
-                  {(fb.diningRating || fb.orderRating) && (
-                    <div className={styles.ratings}>
-                      {fb.diningRating && (
-                        <span>Dining: {fb.diningRating}⭐</span>
-                      )}
-                      {fb.orderRating && <span>Order: {fb.orderRating}⭐</span>}
-                    </div>
-                  )}
-                  {fb.lovedItems && (
-                    <p className={styles.lovedItems}>Loved: {fb.lovedItems}</p>
-                  )}
-                  {fb.additionalFeedback && (
-                    <p className={styles.comment}>{fb.additionalFeedback}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     );
   }

@@ -1,55 +1,110 @@
-/* Order Page Layout */
+/* ============================================
+   ORDER PAGE - GLASSMORPHISM DESIGN
+   Bluish Green Theme matching Menu Page
+   ============================================ */
+
 .orderPage {
-  max-width: 1100px;
-  margin: 24px auto;
-  padding: 0 16px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 25%, #00d4aa 50%, #4facfe 75%, #00f2fe 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  padding: 0 0 3rem 0;
+  position: relative;
+}
+
+.orderPage::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(79, 172, 254, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 242, 254, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(0, 212, 170, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .layout {
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 20px;
+  grid-template-columns: 1fr 420px;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  position: relative;
+  z-index: 1;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .layout {
     grid-template-columns: 1fr;
   }
 }
 
-/* Panels */
+/* Glass Panels */
 .orderSummaryPanel,
 .actionPanel {
-  background: #ffffff;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.12),
+    0 4px 16px rgba(79, 172, 254, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .panelHeader {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .panelHeader h2 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #212529;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.3px;
 }
 
 .restaurantName {
   font-size: 13px;
-  color: #6c757d;
+  color: #4facfe;
+  font-weight: 600;
+  background: rgba(79, 172, 254, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
 }
 
 /* Empty cart */
 .emptyCart {
-  padding: 24px;
+  padding: 48px 24px;
   text-align: center;
-  color: #6c757d;
+  color: #6b7280;
+}
+
+.emptyCart p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 16px;
 }
 
 /* Order list */
@@ -60,12 +115,23 @@
 }
 
 .summaryItem {
-  padding: 12px 0;
-  border-bottom: 1px dashed #e9ecef;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+.summaryItem:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .summaryItem:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .summaryMain {
@@ -78,57 +144,76 @@
 .itemInfo {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .itemName {
-  font-weight: 600;
-  color: #212529;
+  font-weight: 700;
+  color: #111827;
+  font-size: 1rem;
 }
 
 .itemMeta {
   font-size: 13px;
-  color: #6c757d;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .summaryPrice {
-  font-weight: 700;
-  color: #212529;
+  font-weight: 800;
+  color: #00d4aa;
+  font-size: 1.05rem;
 }
 
 /* Totals */
 .summaryTotals {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f3f5;
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .totRow {
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
-  color: #495057;
+  padding: 8px 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .totTotal {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 12px;
   padding-top: 12px;
-  border-top: 2px solid #e9ecef;
-  font-size: 16px;
+  border-top: 2px solid rgba(79, 172, 254, 0.3);
+  font-size: 1.25rem;
+  color: #111827;
 }
 
 /* Actions */
 .editCartRow {
-  margin-top: 10px;
+  margin-top: 16px;
+  text-align: center;
 }
 
 .linkButton {
   border: none;
   background: transparent;
-  color: #0d6efd;
-  font-weight: 600;
+  color: #4facfe;
+  font-weight: 700;
   cursor: pointer;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.linkButton:hover {
+  color: #00d4aa;
 }
 
 .actionsRow {
@@ -138,90 +223,118 @@
 
 .primaryButton,
 .secondaryButton {
-  flex: 1;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 14px 24px;
+  border-radius: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform .02s ease, box-shadow .2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+  width: 100%;
 }
 
 .primaryButton {
-  background: #0d6efd;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   color: #fff;
-  border: 1px solid #0b5ed7;
-  box-shadow: 0 4px 10px rgba(13,110,253,0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 6px 24px rgba(79, 172, 254, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(79, 172, 254, 0.4), 0 0 20px rgba(79, 172, 254, 0.2);
 }
 
 .primaryButton:disabled {
-  opacity: .6;
+  opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
 }
 
 .secondaryButton {
-  background: #f8f9fa;
-  color: #212529;
-  border: 1px solid #e9ecef;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(15px);
+  color: #374151;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.primaryButton:active,
-.secondaryButton:active {
-  transform: translateY(1px);
+.secondaryButton:hover {
+  background: rgba(255, 255, 255, 0.85);
+  transform: translateY(-2px);
 }
 
 /* Reservation form */
 .reservationForm {
-  margin-top: 16px;
-  padding: 14px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .formTitle {
-  margin: 0 0 12px 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #212529;
+  margin: 0 0 20px 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formTitle::before {
+  content: '📋';
+  font-size: 1.2rem;
 }
 
 .formField {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .formField span {
   font-size: 13px;
-  color: #495057;
+  color: #374151;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .formField input,
 .formField select,
 .formField textarea {
-  padding: 0 10px;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  background: #fff;
+  padding: 0 14px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   font-family: inherit;
   font-size: 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  color: #111827;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .formField input,
 .formField select {
-  height: 40px;
+  height: 44px;
+}
+
+.formField textarea {
+  padding: 12px 14px;
 }
 
 .formField input:focus,
 .formField select:focus,
 .formField textarea:focus {
   outline: none;
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+  border-color: #4facfe;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.15), 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 /* Time input wrapper */
@@ -240,14 +353,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
   color: white;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 12px;
+  font-weight: 700;
   font-size: 14px;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.2);
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);
 }
 
 .timeValue {
@@ -257,24 +370,24 @@
 /* Preset times */
 .presetTimes {
   margin-top: 12px;
-  padding: 12px;
-  background: linear-gradient(135deg, #f0f7ff 0%, #f8fcff 100%);
-  border-radius: 8px;
-  border: 1px solid #d4e6ff;
+  padding: 14px;
+  background: rgba(79, 172, 254, 0.08);
+  border-radius: 12px;
+  border: 1px solid rgba(79, 172, 254, 0.15);
 }
 
 .presetTimesLabel {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0d6efd;
+  font-size: 11px;
+  font-weight: 800;
+  color: #4facfe;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
   margin-bottom: 10px;
 }
 
 .presetTimesGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   max-height: 160px;
   overflow-y: auto;
@@ -290,33 +403,30 @@
 }
 
 .presetTimesGrid::-webkit-scrollbar-thumb {
-  background: #b8d4f1;
+  background: rgba(79, 172, 254, 0.3);
   border-radius: 2px;
-}
-
-.presetTimesGrid::-webkit-scrollbar-thumb:hover {
-  background: #0d6efd;
 }
 
 .presetTimeBtn {
   padding: 8px 4px;
-  background: white;
-  color: #0d6efd;
-  border: 1.5px solid #dee2e6;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #4facfe;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .timeHour {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .timeSeparator {
@@ -330,21 +440,17 @@
 }
 
 .presetTimeBtn:hover {
-  border-color: #0d6efd;
-  background: #f0f7ff;
+  border-color: #4facfe;
+  background: rgba(79, 172, 254, 0.1);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
-}
-
-.presetTimeBtn:active {
-  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(79, 172, 254, 0.15);
 }
 
 .presetTimeBtnActive {
-  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
   color: white;
-  border-color: #0d6efd;
-  box-shadow: 0 3px 10px rgba(13, 110, 253, 0.25);
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(79, 172, 254, 0.35);
 }
 
 .presetTimeBtnActive .timeSeparator {
@@ -353,12 +459,12 @@
 
 .helpText {
   font-size: 12px;
-  color: #6c757d;
+  color: #6b7280;
   margin-top: 6px;
   font-style: italic;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .helpText::before {
@@ -368,41 +474,43 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  background: #e7f1ff;
-  color: #0d6efd;
+  background: rgba(79, 172, 254, 0.15);
+  color: #4facfe;
   border-radius: 50%;
-  font-size: 11px;
-  font-weight: bold;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .reservationActions {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+  justify-content: stretch;
+  margin-top: 16px;
 }
 
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
+  .layout {
+    padding: 1rem;
+    gap: 16px;
+  }
+
+  .orderSummaryPanel,
+  .actionPanel {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .panelHeader h2 {
+    font-size: 1.25rem;
+  }
+
   .timeInputWrapper {
     grid-template-columns: 1fr;
   }
 
-  .timeDisplay {
-    padding: 10px;
-    font-size: 13px;
-  }
-
-  .reservationForm {
-    padding: 12px;
-  }
-
-  .formField {
-    margin-bottom: 10px;
-  }
-
   .presetTimesGrid {
-    grid-template-columns: repeat(5, 1fr);
-    gap: 5px;
+    grid-template-columns: repeat(4, 1fr);
     max-height: 140px;
   }
 

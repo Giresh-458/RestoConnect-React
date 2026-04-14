@@ -1,6 +1,8 @@
 import { Form, useActionData } from "react-router-dom";
 import "./RestaurantApplication.css";
 import { useEffect, useState } from "react";
+import { toast } from "../components/common/Toast";
+import { apiFetch } from "../config/fetch";
 
 export function RestaurantApplication() {
   const actionData = useActionData();
@@ -9,8 +11,8 @@ export function RestaurantApplication() {
     useEffect(() => {
         const fetchCuisines = async () => {
             try {
-            const res = await fetch(
-                "http://localhost:3000/api/customer/restaurants/public-cuisines"
+            const res = await apiFetch(
+                "/api/customer/restaurants/public-cuisines"
             );
             const data = await res.json();
             setCuisines(data.cuisines || []);
@@ -358,9 +360,8 @@ export async function action({ request }) {
       submitFormData.append("restaurantImage", restaurantImage);
     }
 
-    const response = await fetch("http://localhost:3000/req_res", {
+    const response = await apiFetch("/req_res", {
       method: "POST",
-      credentials: "include",
       // Don't set Content-Type header - let browser set it with boundary for multipart/form-data
       body: submitFormData,
     });
@@ -375,12 +376,11 @@ export async function action({ request }) {
     }
 
     // Show success popup and redirect to login
-    alert(
-      "✅ " +
-        (result.message ||
-          "Application submitted successfully! We will review and contact you soon. You can now login.")
+    toast.success(
+      result.message ||
+        "Application submitted successfully! We will review and contact you soon. You can now login."
     );
-    window.location.href = "/login";
+    setTimeout(() => { window.location.href = "/login"; }, 2000);
     return null;
   } catch (error) {
     console.error("Application error:", error);

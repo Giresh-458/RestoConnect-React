@@ -1,98 +1,917 @@
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
-import React, { useState, useEffect } from "react";
-import WelcomeHeader from "../components/WelcomeHeader";
-import Announcements from "../components/Announcements";
-import QuickSupport from "../components/QuickSupport";
-import ShiftSchedule from "../components/ShiftSchedule";
-import TaskTracker from "../components/TaskTracker";
-import PerformanceSummary from "../components/PerformanceSummary";
-import "../components/StaffHomePage.css";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import "../components/StaffHomepage.css";
+import { useToast } from "../components/common/Toast";
 
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 60000;
+  if (diff < 1) return "just now";
+  if (diff < 60) return `${Math.round(diff)}m ago`;
+  return `${Math.floor(diff / 60)}h ${Math.round(diff % 60)}m ago`;
+}
+
+function timeUntil(dateStr) {
+  if (!dateStr) return "";
+  
+  let targetDate;
+  try {
+    if (dateStr && typeof dateStr === 'string' && dateStr.includes(':') && !dateStr.includes('T')) {
+      const today = new Date();
+      const [hours, minutes] = dateStr.split(':');
+      today.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
+      targetDate = today;
+    } else {
+      targetDate = new Date(dateStr);
+    }
+    
+    if (isNaN(targetDate.getTime())) {
+      return "";
+    }
+  } catch (e) {
+    return "";
+  }
+  
+  const diff = (targetDate.getTime() - Date.now()) / 60000;
+  if (diff < 0) return `${Math.abs(Math.round(diff))}m overdue`;
+  if (diff < 60) return `in ${Math.round(diff)}m`;
+  return `in ${Math.floor(diff / 60)}h ${Math.round(diff % 60)}m`;
+}
+
+function StatCard({ icon, label, value, subtext, color }) {
+  return (
+    <div className={`sh-stat-card sh-stat-${color}`}>
+      <div className="sh-stat-icon">{icon}</div>
+      <div className="sh-stat-info">
+        <span className="sh-stat-value">{value}</span>
+        <span className="sh-stat-label">{label}</span>
+        {subtext && <span className="sh-stat-sub">{subtext}</span>}
+      </div>
+    </div>
+  );
+}
+
+function OrderCard({ order, onStatusChange, isUpdating }) {
+  const elapsed = order.orderTime ? timeAgo(order.orderTime) : "";
+  const statusFlow = ["pending", "preparing", "ready", "served"];
+  const currentIdx = statusFlow.indexOf(order.status?.toLowerCase());
+  const nextStatus =
+    currentIdx >= 0 && currentIdx < statusFlow.length - 1
+      ? statusFlow[currentIdx + 1]
+      : null;
+
+  const statusLabels = {
+    pending: "New",
+    preparing: "Preparing",
+    ready: "Ready",
+    served: "Served",
+    active: "Active",
+    waiting: "Waiting",
+  };
+  const statusColors = {
+    pending: "#f59e0b",
+    preparing: "#3b82f6",
+    ready: "#10b981",
+    served: "#6b7280",
+    active: "#f59e0b",
+    waiting: "#f59e0b",
+  };
+
+  return (
+    <div className={`sh-order-card sh-order-${order.status?.toLowerCase()}`}>
+      <div className="sh-order-header">
+        <span className="sh-order-id">#{String(order._id).slice(-4)}</span>
+        <span
+          className="sh-order-badge"
+          style={{
+            background:
+              statusColors[order.status?.toLowerCase()] || "#6b7280",
+          }}
+        >
+          {statusLabels[order.status?.toLowerCase()] || order.status}
+        </span>
+      </div>
+      <div className="sh-order-table">
+        <span className="sh-table-icon">🪑</span>
+        Table {order.tableNumber || "N/A"}
+      </div>
+      <div className="sh-order-items">
+        {(order.dishes || []).slice(0, 3).map((d, i) => (
+          <span key={i} className="sh-dish-tag">
+            {d}
+          </span>
+        ))}
+        {(order.dishes || []).length > 3 && (
+          <span className="sh-dish-more">
+            +{order.dishes.length - 3} more
+          </span>
+        )}
+      </div>
+      <div className="sh-order-footer">
+        <span className="sh-order-time">{elapsed}</span>
+        {order.totalAmount > 0 && (
+          <span className="sh-order-amount">
+            ${order.totalAmount.toFixed(2)}
+          </span>
+        )}
+      </div>
+      {nextStatus && (
+        <button
+          className="sh-order-action"
+          disabled={isUpdating}
+          onClick={() => onStatusChange(order._id, nextStatus)}
+        >
+          {isUpdating
+            ? "..."
+            : nextStatus === "preparing"
+            ? "🔥 Start Preparing"
+            : nextStatus === "ready"
+            ? "✅ Mark Ready"
+            : nextStatus === "served"
+            ? "🍽️ Mark Served"
+            : `→ ${nextStatus}`}
+        </button>
+      )}
+      {!nextStatus && order.status?.toLowerCase() !== "served" && (
+        <button
+          className="sh-order-action"
+          disabled={isUpdating}
+          onClick={() => onStatusChange(order._id, "done")}
+        >
+          {isUpdating ? "..." : "✓ Complete"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-component: Table Map ───
+function TableMap({ tables }) {
+  const statusConfig = {
+    Available: { color: "#10b981", bg: "#ecfdf5", label: "Free" },
+    Allocated: { color: "#3b82f6", bg: "#eff6ff", label: "Reserved" },
+    Occupied: { color: "#ef4444", bg: "#fef2f2", label: "Busy" },
+    Cleaning: { color: "#f59e0b", bg: "#fefce8", label: "Cleaning" },
+  };
+  return (
+    <div className="sh-table-grid">
+      {tables.map((t) => {
+        const cfg = statusConfig[t.status] || statusConfig.Available;
+        return (
+          <div
+            key={t.number}
+            className="sh-table-cell"
+            style={{ borderColor: cfg.color, background: cfg.bg }}
+          >
+            <span className="sh-table-num" style={{ color: cfg.color }}>
+              T{t.number}
+            </span>
+            <span className="sh-table-seats">{t.seats} seats</span>
+            <span className="sh-table-status" style={{ color: cfg.color }}>
+              {cfg.label}
+            </span>
+          </div>
+        );
+      })}
+      {tables.length === 0 && (
+        <div className="sh-empty-small">No tables configured</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-component: Reservation Row ───
+function ReservationRow({ res, availableTables, onAssign, isProcessing }) {
+  const [selectedTable, setSelectedTable] = useState("");
+  const countdown = timeUntil(res.time);
+  const isOverdue = countdown.includes("overdue");
+
+  return (
+    <div className={`sh-res-row ${isOverdue ? "sh-res-overdue" : ""}`}>
+      <div className="sh-res-info">
+        <div className="sh-res-name">{res.customerName}</div>
+        <div className="sh-res-meta">
+          <span>
+            {new Date(res.time).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+          <span className="sh-res-dot">·</span>
+          <span>
+            {res.guests} guest{res.guests !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+      <div
+        className={`sh-res-countdown ${
+          isOverdue ? "sh-countdown-overdue" : ""
+        }`}
+      >
+        {countdown}
+      </div>
+      {!res.allocated ? (
+        <div className="sh-res-assign">
+          <select
+            value={selectedTable}
+            onChange={(e) => setSelectedTable(e.target.value)}
+            disabled={isProcessing}
+          >
+            <option value="">Table...</option>
+            {availableTables
+              .filter((t) => t.seats >= (res.guests || 1))
+              .map((t) => (
+              <option key={t.number} value={t.number}>
+                T{t.number} ({t.seats})
+              </option>
+            ))}
+            {availableTables.filter((t) => t.seats >= (res.guests || 1)).length === 0 && (
+              <option disabled>No tables with enough seats</option>
+            )}
+          </select>
+          <button
+            onClick={() => {
+              onAssign(res._id, selectedTable);
+              setSelectedTable("");
+            }}
+            disabled={!selectedTable || isProcessing}
+            className="sh-assign-btn"
+          >
+            {isProcessing ? "..." : "Assign"}
+          </button>
+        </div>
+      ) : (
+        <span className="sh-res-assigned">
+          Table {res.table_id || res.tables?.[0] || "?"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-component: Alert Item ───
+function AlertItem({ alert }) {
+  const icons = { inventory: "📦", reservation: "📅", order: "🍽️" };
+  return (
+    <div className={`sh-alert-item sh-alert-${alert.severity}`}>
+      <span className="sh-alert-icon">{icons[alert.icon] || "⚠️"}</span>
+      <span className="sh-alert-msg">{alert.message}</span>
+    </div>
+  );
+}
+
+// ─── Sub-component: Task Item ───
+function TaskItem({ task, onToggle, isUpdating }) {
+  const isDone = ["Done", "Completed"].includes(task.status);
+  return (
+    <div className={`sh-task-item ${isDone ? "sh-task-done" : ""}`}>
+      <button
+        className={`sh-task-check ${isDone ? "checked" : ""}`}
+        onClick={() => !isDone && onToggle(task.id)}
+        disabled={isDone || isUpdating}
+      >
+        {isDone ? "✓" : ""}
+      </button>
+      <div className="sh-task-info">
+        <span className={`sh-task-name ${isDone ? "sh-line-through" : ""}`}>
+          {task.name}
+        </span>
+        {task.priority && (
+          <span
+            className={`sh-task-priority sh-priority-${task.priority?.toLowerCase()}`}
+          >
+            {task.priority}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════
 export function StaffHomePage() {
-  const [staffData, setStaffData] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [updatingOrder, setUpdatingOrder] = useState(null);
+  const [updatingTask, setUpdatingTask] = useState(null);
+  const [processingReservation, setProcessingReservation] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const toast = useToast();
 
+  // Live clock
   useEffect(() => {
-    fetchStaffData();
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  const fetchStaffData = async () => {
+  const API_BASE = "/api/staff";
+  const opts = { credentials: "include", headers: { Accept: "application/json" } };
+
+  const fetchData = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       setError(null);
 
-      // Always use /api/staff/homepage for JSON response
-      const response = await fetch("http://localhost:3000/staff/homepage", {
-        credentials: "include",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
+      const [summaryRes, ordersRes, reservationsRes, tablesRes, announcementsRes, tasksRes, shiftsRes, alertsRes, supportRes, feedbackRes] = await Promise.all([
+        fetch(`${API_BASE}/homepage/summary`, opts),
+        fetch(`${API_BASE}/homepage/orders`, opts),
+        fetch(`${API_BASE}/homepage/reservations`, opts),
+        fetch(`${API_BASE}/tables`, opts),
+        fetch(`${API_BASE}/announcements`, opts),
+        fetch(`${API_BASE}/tasks`, opts),
+        fetch(`${API_BASE}/homepage/shifts`, opts),
+        fetch(`${API_BASE}/homepage/alerts`, opts),
+        fetch(`${API_BASE}/homepage/support-messages`, opts),
+        fetch(`${API_BASE}/homepage/feedback`, opts),
+      ]);
+
+      const check = async (r, label) => {
+        if (!r.ok) {
+          const errBody = await r.json().catch(() => ({}));
+          const msg = errBody?.error || errBody?.message || `${label} failed: ${r.status}`;
+          if (r.status === 401) window.location.href = "/login?message=Please log in again";
+          throw new Error(msg);
+        }
+        return r.json();
+      };
+
+      const [summary, orders, reservations, tables, announcements, tasks, shifts, alerts, supportMessages, recentFeedback] = await Promise.all([
+        check(summaryRes, "Homepage summary"),
+        check(ordersRes, "Orders"),
+        check(reservationsRes, "Reservations"),
+        check(tablesRes, "Tables"),
+        check(announcementsRes, "Announcements"),
+        check(tasksRes, "Tasks"),
+        check(shiftsRes, "Shifts"),
+        check(alertsRes, "Alerts"),
+        check(supportRes, "Support messages"),
+        check(feedbackRes, "Feedback"),
+      ]);
+
+      const availableTables = (tables || []).filter((t) => t.status === "Available");
+
+      setData({
+        ...summary,
+        orders: orders || [],
+        reservations: reservations || [],
+        tables: tables || [],
+        availableTables,
+        announcements: announcements || [],
+        tasks: tasks || [],
+        shifts: shifts || [],
+        alerts: alerts || [],
+        supportMessages: supportMessages || [],
+        recentFeedback: recentFeedback || [],
       });
-      console.log(JSON.stringify(response))
-      if (!response.ok) {
-        // Try to read error body as text so we don't crash on non‑JSON (e.g. HTML)
-        const text = await response.text().catch(() => "");
-        throw new Error(
-          text && text.startsWith("<")
-            ? `Failed to fetch staff data (server returned HTML, status ${response.status}). 
-Make sure the backend is running on port 3000 and you are logged in as a staff user.`
-            : `Failed to fetch staff data: ${response.status}`
-        );
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        const text = await response.text().catch(() => "");
-        throw new Error(
-          text && text.startsWith("<")
-            ? "Server returned HTML instead of JSON. Check that the backend /api/staff/homepage route is configured to send JSON and that you are authenticated as staff."
-            : "Server response was not JSON. Please check the backend."
-        );
-      }
-
-      const data = await response.json();
-      setStaffData(data);
-    } catch (error) {
-      console.error("Error fetching staff data:", error);
-      setError(error.message);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      if (!silent) setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(() => fetchData(true), 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Order status change
+  const handleOrderStatus = async (orderId, newStatus) => {
+    setUpdatingOrder(orderId);
+    try {
+      const resp = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        if (resp.status === 401) {
+          window.location.href = "/login?message=Please log in again";
+          return;
+        }
+        const msg = body?.error || body?.message || "Failed to update order";
+        throw new Error(msg);
+      }
+      await fetchData(true);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUpdatingOrder(null);
     }
   };
 
+  // Assign table to reservation
+  const handleAssignTable = async (reservationId, tableNumber) => {
+    if (!tableNumber) return;
+    setProcessingReservation(true);
+    try {
+      const resp = await fetch(`${API_BASE}/reservations/${reservationId}/allocate`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tableNumber: String(tableNumber) }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || err.message || "Failed to assign table");
+      }
+      await fetchData(true);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setProcessingReservation(false);
+    }
+  };
+
+  // Task toggle
+  const handleTaskDone = async (taskId) => {
+    setUpdatingTask(taskId);
+    try {
+      const resp = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "Completed" }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body?.error || body?.message || "Failed to update task");
+      }
+      await fetchData(true);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setUpdatingTask(null);
+    }
+  };
+
+  // Computed data
+  const pendingReservations = useMemo(
+    () =>
+      (data?.reservations || []).filter(
+        (r) =>
+          !r.allocated &&
+          (r.status === "pending" || r.status === "confirmed")
+      ),
+    [data?.reservations]
+  );
+
+  const ordersByStatus = useMemo(() => {
+    const groups = { new: [], preparing: [], ready: [] };
+    (data?.orders || []).forEach((o) => {
+      const s = o.status?.toLowerCase();
+      if (s === "pending" || s === "active" || s === "waiting")
+        groups.new.push(o);
+      else if (s === "preparing") groups.preparing.push(o);
+      else if (s === "ready") groups.ready.push(o);
+    });
+    return groups;
+  }, [data?.orders]);
+
+  const pendingTasks = useMemo(
+    () => (data?.tasks || []).filter((t) => !["Done", "Completed"].includes(t.status)),
+    [data?.tasks]
+  );
+  const doneTasks = useMemo(
+    () => (data?.tasks || []).filter((t) => ["Done", "Completed"].includes(t.status)),
+    [data?.tasks]
+  );
+
+  // ─── Loading State ───
   if (loading) {
-    return <div className="loading-container">Loading your dashboard...</div>;
+    return (
+      <div className="sh-loading">
+        <div className="sh-spinner"></div>
+        <p>Preparing your command center...</p>
+      </div>
+    );
   }
 
+  // ─── Error State ───
   if (error) {
     return (
-      <div className="error-container">
-        <div className="error">Error: {error}</div>
-        <button onClick={fetchStaffData} className="retry-button">
-          Retry
+      <div className="sh-error">
+        <div className="sh-error-icon">⚠️</div>
+        <h2>Something went wrong</h2>
+        <p>{error}</p>
+        <button onClick={() => fetchData()} className="sh-retry-btn">
+          Try Again
         </button>
       </div>
     );
   }
 
+  const perf = data?.performance || {};
+  const stats = data?.tableStats || {};
+  const criticalAlerts = (data?.alerts || []).filter(
+    (a) => a.severity === "critical"
+  );
+  const warningAlerts = (data?.alerts || []).filter(
+    (a) => a.severity === "warning"
+  );
+
   return (
-    <div className="staff-homepage">
-      <WelcomeHeader staff={staffData?.staff} />
-
-      <div className="main-content">
-        <div className="left-column">
-          <Announcements announcements={staffData?.announcements || []} />
-          <QuickSupport />
+    <div className="sh-root">
+      {/* ─── TOP BAR ─── */}
+      <header className="sh-topbar">
+        <div className="sh-topbar-left">
+          <span className="sh-restaurant-name">
+            🍽️ {data?.staff?.branch || "Restaurant"}
+          </span>
+          <span className="sh-topbar-divider">|</span>
+          <span className="sh-live-badge">
+            <span className="sh-live-dot"></span> LIVE
+          </span>
         </div>
-
-        <div className="right-column">
-          <ShiftSchedule shifts={staffData?.shifts || []} />
-          <TaskTracker tasks={staffData?.tasks || []} />
-          <PerformanceSummary performance={staffData?.performance || {}} />
+        <div className="sh-topbar-center">
+          <span className="sh-clock">
+            {currentTime.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </span>
+          <span className="sh-date">
+            {currentTime.toLocaleDateString([], {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </span>
         </div>
+        <div className="sh-topbar-right">
+          <span className="sh-staff-badge">
+            👤 {data?.staff?.name || "Staff"}
+          </span>
+          <span className="sh-role-badge">
+            {data?.staff?.role || "Staff"}
+          </span>
+          <button
+            onClick={() => fetchData(true)}
+            className={`sh-refresh-btn ${refreshing ? "sh-spinning" : ""}`}
+            title="Refresh"
+          >
+            🔄
+          </button>
+        </div>
+      </header>
+
+      {/* ─── CRITICAL ALERTS BANNER ─── */}
+      {criticalAlerts.length > 0 && (
+        <div className="sh-critical-banner">
+          <span className="sh-critical-icon">🚨</span>
+          <div className="sh-critical-msgs">
+            {criticalAlerts.map((a, i) => (
+              <span key={i}>{a.message}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── STATS STRIP ─── */}
+      <section className="sh-stats-strip">
+        <StatCard
+          icon="🍽️"
+          label="Active Orders"
+          value={data?.orders?.length || 0}
+          color="blue"
+        />
+        <StatCard
+          icon="🪑"
+          label="Tables Occupied"
+          value={`${stats.occupied || 0}/${stats.total || 0}`}
+          subtext={`${stats.available || 0} free`}
+          color="green"
+        />
+        <StatCard
+          icon="👥"
+          label="Guests Dining"
+          value={stats.guests || 0}
+          color="purple"
+        />
+        <StatCard
+          icon="📅"
+          label="Reservations"
+          value={pendingReservations.length}
+          subtext="pending today"
+          color="amber"
+        />
+        <StatCard
+          icon="✅"
+          label="Orders Served"
+          value={perf.completedOrders || perf.ordersServed || 0}
+          subtext={
+            perf.totalRevenue
+              ? `$${perf.totalRevenue.toFixed(0)} revenue`
+              : ""
+          }
+          color="emerald"
+        />
+        <StatCard
+          icon="⏱️"
+          label="Avg Serve Time"
+          value={`${perf.avgServeTime || 0}m`}
+          subtext={`${perf.efficiencyScore || 0}% on-time`}
+          color="rose"
+        />
+      </section>
+
+      {/* ─── MAIN GRID ─── */}
+      <div className="sh-main-grid">
+        {/* ─── LEFT: Live Order Queue ─── */}
+        <section className="sh-orders-section">
+          <div className="sh-section-header">
+            <h2>🔥 Live Order Queue</h2>
+            <span className="sh-order-count">
+              {data?.orders?.length || 0} active
+            </span>
+          </div>
+
+          {(data?.orders || []).length === 0 ? (
+            <div className="sh-empty-state">
+              <span className="sh-empty-icon">📋</span>
+              <p>No active orders right now</p>
+              <span className="sh-empty-sub">
+                New orders will appear here automatically
+              </span>
+            </div>
+          ) : (
+            <div className="sh-order-columns">
+              {/* New Orders */}
+              <div className="sh-order-col">
+                <div className="sh-col-header sh-col-new">
+                  <span
+                    className="sh-col-dot"
+                    style={{ background: "#f59e0b" }}
+                  ></span>
+                  New ({ordersByStatus.new.length})
+                </div>
+                <div className="sh-col-body">
+                  {ordersByStatus.new.map((o) => (
+                    <OrderCard
+                      key={o._id}
+                      order={o}
+                      onStatusChange={handleOrderStatus}
+                      isUpdating={updatingOrder === o._id}
+                    />
+                  ))}
+                </div>
+              </div>
+              {/* Preparing */}
+              <div className="sh-order-col">
+                <div className="sh-col-header sh-col-preparing">
+                  <span
+                    className="sh-col-dot"
+                    style={{ background: "#3b82f6" }}
+                  ></span>
+                  Preparing ({ordersByStatus.preparing.length})
+                </div>
+                <div className="sh-col-body">
+                  {ordersByStatus.preparing.map((o) => (
+                    <OrderCard
+                      key={o._id}
+                      order={o}
+                      onStatusChange={handleOrderStatus}
+                      isUpdating={updatingOrder === o._id}
+                    />
+                  ))}
+                </div>
+              </div>
+              {/* Ready to Serve */}
+              <div className="sh-order-col">
+                <div className="sh-col-header sh-col-ready">
+                  <span
+                    className="sh-col-dot"
+                    style={{ background: "#10b981" }}
+                  ></span>
+                  Ready ({ordersByStatus.ready.length})
+                </div>
+                <div className="sh-col-body">
+                  {ordersByStatus.ready.map((o) => (
+                    <OrderCard
+                      key={o._id}
+                      order={o}
+                      onStatusChange={handleOrderStatus}
+                      isUpdating={updatingOrder === o._id}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ─── RIGHT SIDEBAR ─── */}
+        <aside className="sh-sidebar">
+          {/* Table Map */}
+          <div className="sh-card">
+            <div className="sh-section-header">
+              <h3>🪑 Floor Map</h3>
+              <div className="sh-table-legend">
+                <span className="sh-legend-item">
+                  <span
+                    className="sh-legend-dot"
+                    style={{ background: "#10b981" }}
+                  ></span>
+                  Free
+                </span>
+                <span className="sh-legend-item">
+                  <span
+                    className="sh-legend-dot"
+                    style={{ background: "#3b82f6" }}
+                  ></span>
+                  Reserved
+                </span>
+                <span className="sh-legend-item">
+                  <span
+                    className="sh-legend-dot"
+                    style={{ background: "#ef4444" }}
+                  ></span>
+                  Busy
+                </span>
+              </div>
+            </div>
+            <TableMap tables={data?.tables || []} />
+          </div>
+
+          {/* Alerts */}
+          {warningAlerts.length > 0 && (
+            <div className="sh-card sh-alerts-card">
+              <h3>⚠️ Alerts ({warningAlerts.length})</h3>
+              <div className="sh-alerts-list">
+                {warningAlerts.slice(0, 5).map((a, i) => (
+                  <AlertItem key={i} alert={a} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Announcements */}
+          {(data?.announcements || []).length > 0 && (
+            <div className="sh-card">
+              <h3>📢 Announcements</h3>
+              <div className="sh-announcements">
+                {data.announcements.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`sh-announce-item ${
+                      a.priority === "high" ? "sh-announce-high" : ""
+                    }`}
+                  >
+                    {a.priority === "high" && (
+                      <span className="sh-announce-badge">URGENT</span>
+                    )}
+                    <p>{a.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {/* ─── BOTTOM GRID ─── */}
+      <div className="sh-bottom-grid">
+        {/* Reservations */}
+        <section className="sh-card sh-reservations-card">
+          <div className="sh-section-header">
+            <h3>📅 Today's Reservations</h3>
+            <span className="sh-badge">
+              {(data?.reservations || []).length}
+            </span>
+          </div>
+          {(data?.reservations || []).length === 0 ? (
+            <div className="sh-empty-small">No reservations today</div>
+          ) : (
+            <div className="sh-res-list">
+              {(data?.reservations || []).map((r) => (
+                <ReservationRow
+                  key={r._id}
+                  res={r}
+                  availableTables={data?.availableTables || []}
+                  onAssign={handleAssignTable}
+                  isProcessing={processingReservation}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* My Tasks */}
+        <section className="sh-card sh-tasks-card">
+          <div className="sh-section-header">
+            <h3>✅ My Tasks</h3>
+            <span className="sh-badge">{pendingTasks.length} pending</span>
+          </div>
+          {pendingTasks.length === 0 && doneTasks.length === 0 ? (
+            <div className="sh-empty-small">No tasks assigned</div>
+          ) : (
+            <div className="sh-tasks-list">
+              {pendingTasks.map((t) => (
+                <TaskItem
+                  key={t.id}
+                  task={t}
+                  onToggle={handleTaskDone}
+                  isUpdating={updatingTask === t.id}
+                />
+              ))}
+              {doneTasks.length > 0 && (
+                <div className="sh-tasks-done-section">
+                  <span className="sh-done-label">
+                    Completed ({doneTasks.length})
+                  </span>
+                  {doneTasks.slice(0, 3).map((t) => (
+                    <TaskItem
+                      key={t.id}
+                      task={t}
+                      onToggle={() => {}}
+                      isUpdating={false}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Performance */}
+        <section className="sh-card sh-perf-card">
+          <h3>📊 Today's Performance</h3>
+          <div className="sh-perf-grid">
+            <div className="sh-perf-item">
+              <span className="sh-perf-num">{perf.ordersServed || 0}</span>
+              <span className="sh-perf-label">Orders Served</span>
+            </div>
+            <div className="sh-perf-item">
+              <span className="sh-perf-num">
+                {perf.avgRating || 0}
+                <small>/5</small>
+              </span>
+              <span className="sh-perf-label">Avg Rating</span>
+            </div>
+            <div className="sh-perf-item">
+              <span className="sh-perf-num">
+                {perf.avgServeTime || 0}
+                <small>m</small>
+              </span>
+              <span className="sh-perf-label">Avg Serve Time</span>
+            </div>
+            <div className="sh-perf-item">
+              <span className="sh-perf-num">
+                {perf.efficiencyScore || 0}
+                <small>%</small>
+              </span>
+              <span className="sh-perf-label">Efficiency</span>
+            </div>
+          </div>
+          {/* Shift info */}
+          {(data?.shifts || []).length > 0 && (
+            <div className="sh-shift-info">
+              <h4>🕐 Your Shift</h4>
+              {data.shifts.map((s) => (
+                <div key={s.id} className="sh-shift-row">
+                  <span>{s.name}</span>
+                  <span className="sh-shift-time">{s.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Recent Feedback */}
+          {(data?.recentFeedback || []).length > 0 && (
+            <div className="sh-feedback-section">
+              <h4>💬 Recent Feedback</h4>
+              {data.recentFeedback.slice(0, 3).map((f, i) => {
+                const ratings = [f.diningRating, f.orderRating].filter(r => typeof r === 'number');
+                const avgRating = ratings.length > 0 ? Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0;
+                return (
+                  <div key={i} className="sh-feedback-item">
+                    <div className="sh-feedback-header">
+                      <span className="sh-feedback-name">{f.customerName}</span>
+                      <span className="sh-feedback-rating">
+                        {"★".repeat(avgRating || 0)}
+                        {"☆".repeat(5 - (avgRating || 0))}
+                      </span>
+                    </div>
+                    {f.feedback && (
+                      <p className="sh-feedback-text">"{f.feedback}"</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

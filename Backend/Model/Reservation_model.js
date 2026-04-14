@@ -26,11 +26,20 @@ const reservationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "confirmed", "completed", "cancelled"],
+    enum: ["pending", "confirmed", "seated", "completed", "cancelled"],
     default: "pending",
+  },
+  cancellationReason: {
+    type: String,
+    default: "",
+  },
+  cancelledAt: {
+    type: Date,
+    default: null,
   },
   rest_id: {
     type: String,
+    ref: 'Restaurant',
     required: true,
   },
   date: {

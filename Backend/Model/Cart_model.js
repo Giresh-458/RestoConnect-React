@@ -12,10 +12,11 @@ const cartSchema = new mongoose.Schema({
   },
   restaurantId: {
     type: String,
+    ref: 'Restaurant',
     required: true
   },
   items: [{
-    dish: { type: String, required: true },
+    dish: { type: String, ref: 'Dish', required: true },
     quantity: { type: Number, required: true }
   }],
   date: {

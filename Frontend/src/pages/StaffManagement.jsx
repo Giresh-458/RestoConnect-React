@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../components/common/Toast';
+import { useConfirm } from '../components/common/ConfirmDialog';
 import './StaffManagement.css';
 
 const StaffManagement = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [staffList, setStaffList] = useState([]);
   const [supportMessages, setSupportMessages] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -13,6 +17,12 @@ const StaffManagement = () => {
     description: '',
     assignedTo: [],
     priority: 'medium'
+  });
+
+  const [addStaffForm, setAddStaffForm] = useState({
+    username: '',
+    password: '',
+    email: ''
   });
 
   const [announcementForm, setAnnouncementForm] = useState({
@@ -42,13 +52,13 @@ const StaffManagement = () => {
 
       // Fetch staff list, support messages, and announcements in parallel
       const [staffResponse, messagesResponse, announcementsResponse] = await Promise.all([
-        fetch('http://localhost:3000/api/owner/staffManagement', {
+        fetch('/api/owner/staffManagement', {
           credentials: 'include'
         }),
-        fetch('http://localhost:3000/api/owner/support-messages', {
+        fetch('/api/owner/support-messages', {
           credentials: 'include'
         }),
-        fetch('http://localhost:3000/api/owner/announcements', {
+        fetch('/api/owner/announcements', {
           credentials: 'include'
         })
       ]);
@@ -75,7 +85,7 @@ const StaffManagement = () => {
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-task', {
+      const response = await fetch('/api/owner/add-task', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +99,12 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
+
+      // Refresh task list if a staff member is selected
+      if (selectedStaff) {
+        handleStaffSelectionForTasks(selectedStaff);
+      }
 
       // Reset form
       setTaskForm({
@@ -99,14 +114,74 @@ const StaffManagement = () => {
       });
     } catch (error) {
       console.error('Error adding task:', error);
-      alert('Failed to add task: ' + error.message);
+      toast.error('Failed to add task: ' + error.message);
+    }
+  };
+
+  const handleAddStaffSubmit = async (e) => {
+    e.preventDefault();
+    if (!addStaffForm.username.trim() || !addStaffForm.password.trim()) {
+      toast.warn('Username and password are required.');
+      return;
+    }
+    if (!addStaffForm.email.trim()) {
+      toast.warn('Email is required for staff accounts.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/owner/staffManagement/api/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(addStaffForm),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add staff');
+      }
+
+      toast.success('Staff added successfully');
+      setAddStaffForm({
+        username: '',
+        password: '',
+        email: ''
+      });
+      fetchInitialData();
+    } catch (error) {
+      console.error('Error adding staff:', error);
+      toast.error('Failed to add staff: ' + error.message);
+    }
+  };
+
+  const handleDeleteStaff = async (staffId) => {
+    const ok = await confirm({ title: 'Remove Staff', message: 'Are you sure you want to remove this staff member?', variant: 'danger', confirmText: 'Remove' });
+    if (!ok) return;
+
+    try {
+      const response = await fetch(`/api/owner/staffManagement/api/${staffId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove staff');
+      }
+
+      toast.success('Staff removed successfully');
+      fetchInitialData();
+    } catch (error) {
+      console.error('Error removing staff:', error);
+      toast.error('Failed to remove staff: ' + error.message);
     }
   };
 
   const handleAnnouncementSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-announcement', {
+      const response = await fetch('/api/owner/add-announcement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +195,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Reset form
       setAnnouncementForm({
@@ -132,14 +207,18 @@ const StaffManagement = () => {
       fetchInitialData();
     } catch (error) {
       console.error('Error adding announcement:', error);
-      alert('Failed to add announcement: ' + error.message);
+      toast.error('Failed to add announcement: ' + error.message);
     }
   };
 
   const handleShiftSubmit = async (e) => {
     e.preventDefault();
+    if (!shiftForm.assignedStaff || shiftForm.assignedStaff.length === 0) {
+      toast.warn('Please select at least one staff member for the shift.');
+      return;
+    }
     try {
-      const response = await fetch('http://localhost:3000/api/owner/add-shift', {
+      const response = await fetch('/api/owner/add-shift', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +232,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Reset form
       setShiftForm({
@@ -165,7 +244,7 @@ const StaffManagement = () => {
       });
     } catch (error) {
       console.error('Error adding shift:', error);
-      alert('Failed to add shift: ' + error.message);
+      toast.error('Failed to add shift: ' + error.message);
     }
   };
 
@@ -188,12 +267,11 @@ const StaffManagement = () => {
   };
 
   const handleDeleteAnnouncement = async (announcementId) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Delete Announcement', message: 'Are you sure you want to delete this announcement?', variant: 'danger', confirmText: 'Delete' });
+    if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/announcements/${announcementId}`, {
+      const response = await fetch(`/api/owner/announcements/${announcementId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -203,13 +281,13 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Refresh announcements list
       fetchInitialData();
     } catch (error) {
       console.error('Error deleting announcement:', error);
-      alert('Failed to delete announcement: ' + error.message);
+      toast.error('Failed to delete announcement: ' + error.message);
     }
   };
 
@@ -221,7 +299,7 @@ const StaffManagement = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/tasks/${staffId}`, {
+      const response = await fetch(`/api/owner/staffManagement/tasks/${staffId}`, {
         credentials: 'include'
       });
 
@@ -233,17 +311,16 @@ const StaffManagement = () => {
       setStaffTasks(result.tasks || []);
     } catch (error) {
       console.error('Error fetching staff tasks:', error);
-      alert('Failed to fetch staff tasks: ' + error.message);
+      toast.error('Failed to fetch staff tasks: ' + error.message);
     }
   };
 
   const handleDeleteStaffTask = async (taskId) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
-      return;
-    }
+    const ok = await confirm({ title: 'Delete Task', message: 'Are you sure you want to delete this task?', variant: 'danger', confirmText: 'Delete' });
+    if (!ok) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/owner/staffManagement/tasks/${taskId}`, {
+      const response = await fetch(`/api/owner/staffManagement/tasks/${taskId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -253,7 +330,7 @@ const StaffManagement = () => {
       }
 
       const result = await response.json();
-      alert(result.message);
+      toast.success(result.message);
 
       // Refresh tasks for selected staff
       if (selectedStaff) {
@@ -261,7 +338,7 @@ const StaffManagement = () => {
       }
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to delete task: ' + error.message);
+      toast.error('Failed to delete task: ' + error.message);
     }
   };
 
@@ -295,25 +372,76 @@ const StaffManagement = () => {
               <table className="staff-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
                     <th>Username</th>
                     <th>Status</th>
                     <th>Shifts</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {staffList.map((staff) => (
                     <tr key={staff._id}>
-                      <td>{staff.name || 'N/A'}</td>
                       <td>{staff.username}</td>
                       <td><span className="staff-status-badge">Active</span></td>
                       <td>{staff.shifts?.length || 0}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="table-action-btn danger"
+                          onClick={() => handleDeleteStaff(staff._id)}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
+
+        {/* Add Staff Section */}
+        <div className="section">
+          <h2>Add Staff</h2>
+          <form onSubmit={handleAddStaffSubmit} className="management-form">
+            <div className="form-group">
+              <label>Username:</label>
+              <input
+                type="text"
+                value={addStaffForm.username}
+                onChange={(e) => setAddStaffForm(prev => ({ ...prev, username: e.target.value }))}
+                required
+                placeholder="e.g., staff.john"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Password:</label>
+              <input
+                type="password"
+                value={addStaffForm.password}
+                onChange={(e) => setAddStaffForm(prev => ({ ...prev, password: e.target.value }))}
+                required
+                placeholder="Create a password"
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Email:</label>
+                <input
+                  type="email"
+                  value={addStaffForm.email}
+                  onChange={(e) => setAddStaffForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="staff@email.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="submit-btn">Add Staff</button>
+          </form>
         </div>
         {/* Add Task Section */}
         <div className="section">
@@ -343,20 +471,18 @@ const StaffManagement = () => {
 
             <div className="form-group">
               <label>Assign to Staff:</label>
-              <select
-                value={taskForm.assignedTo[0] || ''}
-                onChange={(e) => setTaskForm(prev => ({
-                  ...prev,
-                  assignedTo: e.target.value ? [e.target.value] : []
-                }))}
-              >
-                <option value="">Select Staff Member</option>
+              <div className="staff-checkboxes">
                 {staffList.map(staff => (
-                  <option key={staff._id} value={staff.username}>
+                  <label key={staff._id} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={taskForm.assignedTo.includes(staff.username)}
+                      onChange={() => handleStaffSelection(staff.username, 'task')}
+                    />
                     {staff.username}
-                  </option>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
             <button type="submit" className="submit-btn">Add Task</button>
@@ -401,7 +527,10 @@ const StaffManagement = () => {
               <p>No announcements yet.</p>
             ) : (
               announcements.map((announcement, index) => (
-                <div key={announcement._id || index} className="announcement-item">
+                <div
+                  key={announcement._id || index}
+                  className={`announcement-item priority-${announcement.priority}`}
+                >
                   <div className="announcement-content">
                     <div className="announcement-header">
                       <span className={`priority-badge priority-${announcement.priority}`}>
@@ -448,6 +577,7 @@ const StaffManagement = () => {
                 type="date"
                 value={shiftForm.date}
                 onChange={(e) => setShiftForm(prev => ({ ...prev, date: e.target.value }))}
+                min={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>

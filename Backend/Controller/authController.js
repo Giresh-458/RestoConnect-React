@@ -4,6 +4,8 @@ const { PasswordResetCode } = require('../Model/PasswordResetCode_model');
 const bcrypt = require('bcrypt');
 const { getProfilePicUrl } = require('../util/fileUpload');
 const { sendPasswordResetCode } = require('../util/emailService');
+const { signToken, verifyToken, AUTH_TOKEN_COOKIE } = require('../util/jwtHelper');
+const { getAuthCookieOptions, getClearCookieOptions } = require('../util/cookies');
 
 // Validation helper functions
 const validateEmail = (email) => {
@@ -82,9 +84,9 @@ const login = async (req, res, next) => {
             });
         }
 
-        // Set session
-        req.session.username = user.username;
-        req.session.role = user.role;
+        // Stateless auth: set JWT in httpOnly cookie (used by authentication middleware)
+        const token = signToken({ username: user.username, role: user.role });
+        res.cookie(AUTH_TOKEN_COOKIE, token, getAuthCookieOptions());
 
         return res.status(200).json({
             valid: true,
@@ -162,12 +164,14 @@ const signup = async (req, res, next) => {
             });
         }
 
-        // Validate role
-        const allowedRoles = ['customer', 'owner', 'staff'];
+        // Validate role - only customers can self-register
+        // Owners are created when admin accepts restaurant requests
+        // Staff are created by restaurant owners
+        const allowedRoles = ['customer'];
         if (!allowedRoles.includes(role)) {
             return res.status(400).json({
                 success: false,
-                error: 'Invalid role selected'
+                error: 'Only customer accounts can be created through signup. Owners and staff are added by administrators and restaurant owners respectively.'
             });
         }
 
@@ -226,35 +230,37 @@ const signup = async (req, res, next) => {
 
 // Logout Controller
 const logout = (req, res, next) => {
-    req.session.destroy(err => {
-        if (err) {
-            console.error('Logout error:', err);
-            err.status = err.status || 500;
-            err.message = err.message || 'Failed to logout';
-            return next(err);
-        }
-        res.clearCookie('connect.sid');
-        return res.status(200).json({ 
-            success: true, 
-            message: 'Logged out successfully' 
-        });
+    // Stateless logout: clear cookies; keep session only for csurf token if present.
+    if (req.session) {
+        req.session.destroy(() => {});
+    }
+    res.clearCookie('connect.sid', getClearCookieOptions());
+    res.clearCookie(AUTH_TOKEN_COOKIE, getClearCookieOptions());
+    return res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
     });
 };
 
-// Check Session Controller
+// Check Session Controller: session first, then JWT from cookie (minimal frontend change)
 const checkSession = async (req, res, next) => {
     try {
-        if (req.session.username && req.session.cookie._expires > new Date()) {
-            const user = await User.findOne({ username: req.session.username }).select("role");
-            if (!user) {
-                return res.json({ valid: false });
+        // 1) JWT in cookie (preferred stateless check)
+        const token = req.cookies?.[AUTH_TOKEN_COOKIE];
+        if (token) {
+            const payload = verifyToken(token);
+            if (payload?.username) {
+                const user = await User.findOne({ username: payload.username }).select("role");
+                if (user) {
+                    return res.json({
+                        valid: true,
+                        username: payload.username,
+                        role: user.role
+                    });
+                }
             }
-            return res.json({
-                valid: true,
-                username: req.session.username,
-                role: user.role
-            });
         }
+        // 2) No valid JWT
         res.json({ valid: false });
     } catch (err) {
         console.error("Error in check-session:", err);

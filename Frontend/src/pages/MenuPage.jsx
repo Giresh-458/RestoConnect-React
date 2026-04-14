@@ -21,6 +21,7 @@ import {
 } from "../util/imageUtils";
 import styles from "./MenuPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
+import { useToast } from "../components/common/Toast";
 
 export function MenuPage() {
   const data = useLoaderData();
@@ -37,6 +38,7 @@ export function MenuPage() {
   const [loadingFavourites, setLoadingFavourites] = useState(true);
   const [showSwitchWarning, setShowSwitchWarning] = useState(false);
   const [pendingDish, setPendingDish] = useState(null);
+  const toast = useToast();
 
   if (!data || !data.restaurant || !data.dishes) {
     return (
@@ -49,6 +51,18 @@ export function MenuPage() {
 
   const { restaurant, dishes } = data;
   const restIdForCart = restaurant._id || restaurant.id;
+
+  // Auto-detect restaurant switch: if cart has items from a different restaurant,
+  // immediately show the switch warning so the user doesn't see stale cart data.
+  useEffect(() => {
+    if (
+      cartItems.length > 0 &&
+      currentRestId &&
+      currentRestId !== restIdForCart
+    ) {
+      setShowSwitchWarning(true);
+    }
+  }, [restIdForCart, currentRestId, cartItems.length]);
 
   // Filter dishes based on search and category
   const filteredDishes = dishes.filter((dish) => {
@@ -95,15 +109,15 @@ export function MenuPage() {
   };
 
   const handleConfirmSwitch = () => {
+    dispatch(clearcart());
+    dispatch(
+      setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
+    );
     if (pendingDish) {
-      dispatch(clearcart());
-      dispatch(
-        setRestaurant({ restId: restIdForCart, restName: restaurant.name }),
-      );
       dispatch(addItem({ ...pendingDish, amount: pendingDish.price }));
       setPendingDish(null);
-      setShowSwitchWarning(false);
     }
+    setShowSwitchWarning(false);
   };
 
   const handleCancelSwitch = () => {
@@ -122,11 +136,20 @@ export function MenuPage() {
 
   const handleOrder = () => {
     if (cartItems.length === 0) {
-      alert("Your cart is empty. Add some items first!");
+      toast.warn("Your cart is empty. Add some items first!");
+      return;
+    }
+    if (!restaurant.isOpen) {
+      toast.warn("This restaurant is currently closed");
       return;
     }
     navigate("/customer/order", {
-      state: { restId: restIdForCart, restName: restaurant.name },
+      state: {
+        restId: restIdForCart,
+        restName: restaurant.name,
+        taxRate: Number(restaurant.taxRate ?? 0) || 0,
+        serviceCharge: Number(restaurant.serviceCharge ?? 0) || 0,
+      },
     });
   };
 
@@ -134,7 +157,8 @@ export function MenuPage() {
   const deliveryFee = 3.0;
   const safeCartTotal =
     typeof cartTotal === "number" && !isNaN(cartTotal) ? cartTotal : 0;
-  const taxes = (safeCartTotal * 0.08).toFixed(2); // 8% tax
+  const currentTaxRate = Number(restaurant?.taxRate ?? 0) || 0;
+  const taxes = (safeCartTotal * (currentTaxRate / 100)).toFixed(2);
   const finalTotal = (
     parseFloat(safeCartTotal) +
     deliveryFee +
@@ -174,7 +198,7 @@ export function MenuPage() {
       setFavourites((prev) => [...prev, dishId]);
     } catch (error) {
       console.error("Error adding to favourites:", error);
-      alert("Failed to add to favourites");
+      toast.error("Failed to add to favourites");
     }
   };
 
@@ -185,7 +209,7 @@ export function MenuPage() {
       setFavourites((prev) => prev.filter((id) => id !== dishId));
     } catch (error) {
       console.error("Error removing from favourites:", error);
-      alert("Failed to remove from favourites");
+      toast.error("Failed to remove from favourites");
     }
   };
 
@@ -197,8 +221,8 @@ export function MenuPage() {
         className={styles.restaurantBanner}
         style={{
           backgroundImage: restaurant.image
-            ? `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6)), url("${restaurant.image}")`
-            : `linear-gradient(135deg, rgba(79, 172, 254, 0.6), rgba(0, 242, 254, 0.6), rgba(0, 212, 170, 0.6))`,
+            ? `linear-gradient(to right, rgba(30, 41, 59, 0.7), rgba(30, 41, 59, 0.4)), url("${restaurant.image}")`
+            : `linear-gradient(to right, #1e293b, #334155)`,
         }}
       >
         <div className={styles.bannerOverlay}>
@@ -566,7 +590,7 @@ export async function loader({ request, params }) {
 
   try {
     const response = await fetch(
-      `http://localhost:3000/api/customer/menu/${params.id || params.restid}`,
+      `/api/customer/menu/${params.id || params.restid}`,
       {
         credentials: "include",
       },

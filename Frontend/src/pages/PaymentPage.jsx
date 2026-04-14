@@ -1,22 +1,89 @@
-
-import "./PaymentPage.css";
+import styles from "./PaymentPage.module.css";
 import { CheckoutSteps } from "../components/CheckoutSteps";
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearcart, setPromoCode, clearPromoCode } from '../store/CartSlice';
+
+const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
+
+
+export function StripeCheckout({ grandTotal, onSuccess, onError, disabled }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleStripePay = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+    setError(null);
+    try {
+      if (!stripe || !elements) {
+        throw new Error('Stripe is not ready yet. Please try again.');
+      }
+      const cardEl = elements.getElement(CardElement);
+      if (!cardEl) {
+        throw new Error('Card element not found. Please refresh and try again.');
+      }
+      // Create PaymentIntent on backend
+      const resp = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Math.round(grandTotal * 100), currency: 'inr' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.clientSecret) throw new Error(data.error || 'Failed to create payment intent');
+
+      const result = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: {
+          card: cardEl,
+        },
+      });
+      if (result.error) {
+        setError(result.error.message);
+        onError && onError(result.error.message);
+      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+        onSuccess && onSuccess(result.paymentIntent);
+      }
+    } catch (err) {
+      setError(err.message);
+      onError && onError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleStripePay} style={{ marginTop: 16 }}>
+      <CardElement options={{ hidePostalCode: true }} />
+      {error && <div style={{ color: '#d32f2f', marginTop: 8 }}>{error}</div>}
+      <button type="submit" disabled={!stripe || processing || disabled} style={{ marginTop: 16 }}>
+        {processing ? 'Processing...' : 'Pay with Card (Stripe)'}
+      </button>
+    </form>
+  );
+}
 
 export function PaymentPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { restId, orderId, amount, payload } = location.state || {};
+  const { restId, orderId, payload } = location.state || {};
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const dispatch = useDispatch();
   const [method, setMethod] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoCodeError, setPromoCodeError] = useState(null);
   const [promoCodeLoading, setPromoCodeLoading] = useState(false);
+  const [availablePromos, setAvailablePromos] = useState([]);
   const promoCode = useSelector((state) => state.cart?.promoCode || null);
   const promoDiscount = useSelector((state) => state.cart?.promoDiscount || 0);
 
@@ -28,12 +95,33 @@ export function PaymentPage() {
   const subtotal = (typeof srcPayload.totalAmount === 'number' && !Number.isNaN(srcPayload.totalAmount))
     ? srcPayload.totalAmount
     : items.reduce((s, it) => s + ((it.amount ?? it.price ?? 0) * (it.quantity ?? 1)), 0);
-  const deliveryFee = 3.0;
-  const taxes = +(subtotal * 0.08).toFixed(2);
-  const subtotalWithTaxes = +(subtotal + deliveryFee + taxes).toFixed(2);
+  const deliveryFee = Number(srcPayload.deliveryFee ?? 3.0) || 0;
+  const taxRate = Number(srcPayload.taxRate ?? 0) || 0;
+  const serviceChargeRate = Number(srcPayload.serviceCharge ?? 0) || 0;
+  const taxes = +(subtotal * (taxRate / 100)).toFixed(2);
+  const serviceCharge = +(subtotal * (serviceChargeRate / 100)).toFixed(2);
+  const subtotalWithTaxes = +(subtotal + deliveryFee + taxes + serviceCharge).toFixed(2);
   const finalDiscount = promoDiscount > subtotalWithTaxes ? subtotalWithTaxes : promoDiscount;
   const grandTotal = +(subtotalWithTaxes - finalDiscount).toFixed(2);
   const restIdEffective = restId || srcPayload.rest_id || storeRestId || null;
+
+  useEffect(() => {
+    const loadPromos = async () => {
+      if (!restIdEffective) return;
+      try {
+        const response = await fetch(`/api/customer/promo/available?rest_id=${encodeURIComponent(restIdEffective)}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setAvailablePromos(Array.isArray(data.data) ? data.data : []);
+        }
+      } catch {
+        setAvailablePromos([]);
+      }
+    };
+    loadPromos();
+  }, [restIdEffective]);
 
   const handlePromoCodeApply = async () => {
     if (!promoCodeInput.trim()) {
@@ -45,13 +133,14 @@ export function PaymentPage() {
     setPromoCodeLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/customer/promo/validate', {
+      const response = await fetch('/api/customer/promo/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           code: promoCodeInput.trim().toUpperCase(),
           orderAmount: subtotalWithTaxes,
+          rest_id: restIdEffective,
         }),
       });
 
@@ -85,297 +174,161 @@ export function PaymentPage() {
     setPromoCodeError(null);
   };
 
-  const handlePay = async () => {
-    setProcessing(true);
-    setError(null);
-    if (!method) {
-      setProcessing(false);
-      setError('Please select a payment method.');
-      return;
-    }
-
-    // Validate required data
-    if (!restIdEffective) {
-      setProcessing(false);
-      setError('Restaurant information is missing. Please go back and try again.');
-      return;
-    }
-
-    if (!items || items.length === 0) {
-      setProcessing(false);
-      setError('No items in cart. Please add items before payment.');
-      return;
-    }
-
-    try {
-      let resp, data;
-      // If orderId exists, confirm it. Otherwise create then pay.
-      if (orderId) {
-        resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' }, 
-          credentials: 'include',
-          body: JSON.stringify({ orderId, rest_id: restIdEffective })
-        });
-        data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(data.error || data.message || 'Payment failed');
-        }
-      } else {
-        // Ensure items have the correct structure
-        const formattedItems = items.map(item => ({
-          name: item.name || item.dish || item.id || '',
-          quantity: item.quantity || 1,
-          price: item.price || item.amount || 0,
-          dish: item.dish || item.name || item.id || '',
-          id: item.id || item._id || ''
-        })).filter(item => item.name || item.dish);
-
-        if (formattedItems.length === 0) {
-          throw new Error('No valid items found. Please check your cart.');
-        }
-
-        const bodyPayload = {
-          ...srcPayload,
-          items: formattedItems,
-          rest_id: srcPayload.rest_id || restIdEffective,
-          totalAmount: grandTotal,
-          restaurantName: srcPayload.restaurantName || '',
-          promoCode: promoCode || null,
-          promoDiscount: finalDiscount || 0,
-        };
-
-        // Only include reservation if it has required fields (date and time - table_id is optional)
-        if (bodyPayload.reservation && (!bodyPayload.reservation.date || !bodyPayload.reservation.time)) {
-          // Remove incomplete reservation data
-          delete bodyPayload.reservation;
-        }
-
-        // First try a two-step: create then pay
-        let createdOrderId = null;
-        try {
-          const createResp = await fetch('http://localhost:3000/api/customer/checkout', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify(bodyPayload)
-          });
-          const createData = await createResp.json();
-          if (!createResp.ok) {
-            throw new Error(createData.error || createData.message || 'Failed to create order');
-          }
-          createdOrderId = (createData && createData.data && createData.data.orderId) || createData.orderId;
-          if (!createdOrderId) {
-            throw new Error('Missing orderId from checkout');
-          }
-          
-          resp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify({ orderId: createdOrderId, rest_id: bodyPayload.rest_id || restIdEffective })
-          });
-          data = await resp.json();
-          if (!resp.ok) {
-            throw new Error(data.error || data.message || 'Payment failed');
-          }
-        } catch (stepErr) {
-          // Fallback to one-step: let backend create+pay from payload
-          const payResp = await fetch('http://localhost:3000/api/customer/checkout/pay', {
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            credentials: 'include',
-            body: JSON.stringify({ payload: bodyPayload })
-          });
-          const payData = await payResp.json();
-          if (!payResp.ok) {
-            throw new Error(payData.error || payData.message || 'Payment failed');
-          }
-          data = payData;
-        }
-      }
-
-      // Extract orderId in a tolerant way
-      const newOrderId = (data && data.data && data.data.orderId) || data.orderId || (data && data.data && data.data.order?._id) || (data && data.data && data.data.order?.id);
-      if (!newOrderId) {
-        throw new Error('Missing orderId in response');
-      }
-
-      // Apply promo code usage if promo code was used
-      if (promoCode) {
-        try {
-          await fetch('http://localhost:3000/api/customer/promo/apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ code: promoCode }),
-          });
-        } catch (e) {
-          console.warn('Failed to apply promo code usage:', e);
-        }
-      }
-
-      try { 
-        dispatch(clearcart()); 
-      } catch (e) {
-        console.warn('Failed to clear cart:', e);
-      }
-      
-      const destRest = restIdEffective;
-      navigate('/customer/order-placed', { state: { restId: destRest, orderId: newOrderId } });
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(`Payment failed. ${err?.message || 'Server error. Please try again.'}`);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   return (
-    <div className="payment-page">
-      <div className="payment-container">
-        <div className="steps-row">
-          <CheckoutSteps current="payment" />
-        </div>
-        <div className="payment-card">
-          <header className="payment-header">
-            <div className="header-row">
-              <button type="button" className="back-btn" onClick={() => navigate(-1)}>← Back</button>
-              <h1>Secure payment</h1>
+    <div className={styles.paymentPage}>
+      <CheckoutSteps current="payment" />
+
+      <div className={styles.paymentContainer}>
+        <div className={styles.paymentCard}>
+          <header className={styles.paymentHeader}>
+            <div className={styles.headerRow}>
+              <button type="button" className={styles.backBtn} onClick={() => navigate(-1)}>← Back</button>
+              <h1>Secure Payment</h1>
             </div>
-            <p>Choose your preferred payment method to complete your order.</p>
-            <div className="due-total">Total due: <strong>₹ {grandTotal.toFixed(2)}</strong></div>
+            <p className={styles.headerDescription}>Choose your preferred payment method to complete your order.</p>
+            <div className={styles.dueTotal}>
+              <span>Total due</span>
+              <strong>₹ {grandTotal.toFixed(2)}</strong>
+            </div>
           </header>
 
-        {error && <div className="payment-error">{error}</div>}
+          {error && <div className={styles.paymentError}>{error}</div>}
 
-        <section className="payment-methods">
-          <div className="method-group">
-            <h2>Pay with card</h2>
-            <div className="field-row">
-              <label>
-                Card number
-                <input type="text" placeholder="1234 5678 9012 3456" onFocus={() => setMethod('card')} />
-              </label>
-            </div>
-            <div className="field-row two-cols">
-              <label>
-                Expiry
-                <input type="text" placeholder="MM/YY" onFocus={() => setMethod('card')} />
-              </label>
-              <label>
-                CVV
-                <input type="password" placeholder="***" onFocus={() => setMethod('card')} />
-              </label>
-            </div>
-          </div>
+          <section className={styles.paymentMethods}>
+            <div className={styles.methodGroup}>
+              <h2>💳 Pay with Card (Stripe)</h2>
+              {stripePromise ? (
+                <Elements stripe={stripePromise}>
+                  <StripeCheckout
+                    grandTotal={grandTotal}
+                    onSuccess={async (paymentIntent) => {
+                      try {
+                        setProcessing(true);
+                        setError(null);
 
-          <div className="method-group">
-            <h2>Or UPI / Wallet</h2>
-            <div className="pill-row">
-              <button type="button" className={method === 'upi' ? 'selected' : ''} onClick={() => setMethod('upi')}>UPI</button>
-              <button type="button" className={method === 'gpay' ? 'selected' : ''} onClick={() => setMethod('gpay')}>Google Pay</button>
-              <button type="button" className={method === 'phonepe' ? 'selected' : ''} onClick={() => setMethod('phonepe')}>PhonePe</button>
-              <button type="button" className={method === 'paytm' ? 'selected' : ''} onClick={() => setMethod('paytm')}>Paytm</button>
-            </div>
-          </div>
-        </section>
+                        const resp = await fetch('/api/customer/checkout/pay', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            rest_id: restIdEffective,
+                            payload: {
+                              rest_id: restIdEffective,
+                              restaurant: srcPayload.restaurantName || srcPayload.restaurant || null,
+                              items,
+                              totalAmount: subtotalWithTaxes,
+                              reservation: srcPayload.reservation || null,
+                              promoCode: promoCode || null,
+                              // helpful for debugging/auditing if you later store it server-side
+                              stripePaymentIntentId: paymentIntent?.id || null,
+                            },
+                          }),
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok) throw new Error(data.error || data.message || 'Failed to create order');
 
-        <section className="promo-section" style={{ marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '8px' }}>
-          <h3 style={{ marginBottom: '12px', fontSize: '16px', fontWeight: '600' }}>Promo Code</h3>
-          {promoCode ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#e8f5e9', borderRadius: '6px', marginBottom: '8px' }}>
-              <div>
-                <strong style={{ color: '#2e7d32' }}>{promoCode}</strong>
-                <span style={{ marginLeft: '8px', color: '#666', fontSize: '14px' }}>Applied</span>
+                        const createdOrderId = data?.data?.orderId || data?.orderId || null;
+                        if (!createdOrderId) throw new Error('Order created but orderId missing from response');
+
+                        dispatch(clearcart());
+                        navigate('/customer/order-placed', { state: { restId: restIdEffective, orderId: createdOrderId } });
+                      } catch (e) {
+                        setError(e.message || 'Failed to finalize order after payment');
+                      } finally {
+                        setProcessing(false);
+                      }
+                    }}
+                    onError={setError}
+                    disabled={processing}
+                  />
+                </Elements>
+              ) : (
+                <div className={styles.paymentError}>
+                  Stripe is not configured. Set <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> in your Frontend <code>.env</code>.
+                </div>
+              )}
+            </div>
+
+            <div className={styles.methodGroup}>
+              <h2>📱 UPI / Wallet</h2>
+              <div className={styles.pillRow}>
+                <button type="button" className={`${styles.pillBtn} ${method === 'upi' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('upi')}>UPI</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'gpay' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('gpay')}>Google Pay</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'phonepe' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('phonepe')}>PhonePe</button>
+                <button type="button" className={`${styles.pillBtn} ${method === 'paytm' ? styles.pillBtnSelected : ''}`} onClick={() => setMethod('paytm')}>Paytm</button>
               </div>
-              <button
-                type="button"
-                onClick={handlePromoCodeRemove}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #c62828',
-                  color: '#c62828',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                }}
-              >
-                Remove
-              </button>
             </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                placeholder="Enter promo code"
-                value={promoCodeInput}
-                onChange={(e) => {
-                  setPromoCodeInput(e.target.value.toUpperCase());
-                  setPromoCodeError(null);
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handlePromoCodeApply();
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  border: promoCodeError ? '2px solid #d32f2f' : '2px solid #ddd',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={handlePromoCodeApply}
-                disabled={promoCodeLoading || !promoCodeInput.trim()}
-                style={{
-                  padding: '10px 20px',
-                  background: promoCodeLoading || !promoCodeInput.trim() ? '#ccc' : '#ff6b6b',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: promoCodeLoading || !promoCodeInput.trim() ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                {promoCodeLoading ? 'Applying...' : 'Apply'}
-              </button>
-            </div>
-          )}
-          {promoCodeError && (
-            <div style={{ marginTop: '8px', color: '#d32f2f', fontSize: '13px' }}>
-              {promoCodeError}
-            </div>
-          )}
-        </section>
+          </section>
 
-        <section className="charge-summary">
-          <div className="row"><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
-          <div className="row"><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
-          <div className="row"><span>Taxes (8%)</span><span>₹ {taxes.toFixed(2)}</span></div>
-          {promoCode && finalDiscount > 0 && (
-            <div className="row" style={{ color: '#2e7d32', fontWeight: '600' }}>
-              <span>Promo Code Discount ({promoCode})</span>
-              <span>-₹ {finalDiscount.toFixed(2)}</span>
-            </div>
-          )}
-        </section>
+          <section className={styles.promoSection}>
+            <h3>Promo Code</h3>
+            {!promoCode && availablePromos.length > 0 && (
+              <div className={styles.promoInputRow}>
+                <select
+                  value={promoCodeInput}
+                  onChange={(e) => setPromoCodeInput(e.target.value)}
+                  className={styles.promoInput}
+                >
+                  <option value="">Select available promo</option>
+                  {availablePromos.map((promo) => (
+                    <option key={promo._id || promo.code} value={promo.code}>
+                      {promo.code} - {promo.discountType === 'fixed' ? `₹${promo.discountValue}` : `${promo.discountValue}%`} OFF
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {promoCode ? (
+              <div className={styles.promoApplied}>
+                <div>
+                  <span className={styles.promoAppliedCode}>{promoCode}</span>
+                  <span className={styles.promoAppliedBadge}>Applied ✓</span>
+                </div>
+                <button type="button" onClick={handlePromoCodeRemove} className={styles.promoRemoveBtn}>Remove</button>
+              </div>
+            ) : (
+              <div className={styles.promoInputRow}>
+                <input
+                  type="text"
+                  placeholder="Enter promo code"
+                  value={promoCodeInput}
+                  onChange={(e) => { setPromoCodeInput(e.target.value.toUpperCase()); setPromoCodeError(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handlePromoCodeApply(); } }}
+                  className={`${styles.promoInput} ${promoCodeError ? styles.promoInputError : ''}`}
+                />
+                <button
+                  type="button"
+                  onClick={handlePromoCodeApply}
+                  disabled={promoCodeLoading || !promoCodeInput.trim()}
+                  className={styles.promoApplyBtn}
+                >
+                  {promoCodeLoading ? 'Applying...' : 'Apply'}
+                </button>
+              </div>
+            )}
+            {promoCodeError && <div className={styles.promoError}>{promoCodeError}</div>}
+          </section>
 
-        <footer className="payment-footer">
-          <div className="summary">
-            <span>Total</span>
-            <strong>₹ {grandTotal.toFixed(2)}</strong>
-          </div>
-          <button className="pay-btn" type="button" onClick={handlePay} disabled={processing || !method}>
-            {processing ? 'Processing...' : 'Pay & place order'}
-          </button>
-        </footer>
+          <section className={styles.chargeSummary}>
+            <div className={styles.chargeRow}><span>Subtotal</span><span>₹ {subtotal.toFixed(2)}</span></div>
+            <div className={styles.chargeRow}><span>Delivery Fee</span><span>₹ {deliveryFee.toFixed(2)}</span></div>
+            <div className={styles.chargeRow}><span>Taxes ({taxRate}%)</span><span>₹ {taxes.toFixed(2)}</span></div>
+            {serviceChargeRate > 0 && <div className={styles.chargeRow}><span>Service Charge ({serviceChargeRate}%)</span><span>₹ {serviceCharge.toFixed(2)}</span></div>}
+            {promoCode && finalDiscount > 0 && (
+              <div className={`${styles.chargeRow} ${styles.chargeRowDiscount}`}>
+                <span>Promo Discount ({promoCode})</span>
+                <span>-₹ {finalDiscount.toFixed(2)}</span>
+              </div>
+            )}
+          </section>
+
+          <footer className={styles.paymentFooter}>
+            <div className={styles.footerSummary}>
+              <span>Total</span>
+              <strong>₹ {grandTotal.toFixed(2)}</strong>
+            </div>
+            {/* Stripe handles payment button above. Remove legacy pay button. */}
+          </footer>
         </div>
       </div>
     </div>

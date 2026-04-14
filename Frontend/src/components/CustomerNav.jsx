@@ -30,6 +30,10 @@ export function CustomerNav() {
     }
   };
 
+  if (isDashboard) {
+    return <Outlet />;
+  }
+
   return (
     <>
       <nav className={styles.customerNav}>
@@ -38,6 +42,10 @@ export function CustomerNav() {
           <span className={styles.brandName}>RestoConnect</span>
         </div>
         <div className={styles.navLinks}>
+          <NavLink to="/customer/support">
+            <span className={styles.navIcon}>💬</span>
+            <span>Support</span>
+          </NavLink>
         </div>
         <div className={styles.rightActions}>
           <button 

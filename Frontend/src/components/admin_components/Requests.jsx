@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { maskEmail } from "../../util/maskEmail";
 import styles from "./RestaurantSubPage.module.css";
 
 const initialState = {
@@ -32,18 +33,18 @@ export function Requests({ searchTerm }) {
   const firstRender = useRef(true);
   const [state, Dispatch] = useReducer(reducer, initialState);
   const [filteredRequests, setFilteredRequests] = useState([]);
+  const [csrfToken, setCsrfToken] = useState(null);
 
   useEffect(() => {
-    let xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:3000/admin/requests", true);
-    xhr.onload = function () {
-      if (this.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        Dispatch({ type: "load", payload: data });
-      }
-    };
-    xhr.withCredentials = true;
-    xhr.send();
+    fetch("/api/admin/restaurant-requests", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : Promise.reject(res))
+      .then((data) => Dispatch({ type: "load", payload: data }))
+      .catch(() => {});
+
+    fetch("/api/csrf-token", { method: "GET", credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => data?.csrfToken && setCsrfToken(data.csrfToken))
+      .catch((err) => console.error("Failed to fetch CSRF token for requests:", err));
   }, []);
 
   useEffect(() => {
@@ -67,26 +68,25 @@ export function Requests({ searchTerm }) {
       return;
     }
 
-    if (state.lastaction === "accept") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "GET",
-        `http://localhost:3000/admin/accept_request/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.send();
-    } else if (state.lastaction === "reject") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "GET",
-        `http://localhost:3000/admin/reject_request/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.send();
+    // Do not attempt POST without a CSRF token
+    if (!csrfToken) {
+      return;
     }
-  }, [state.lastaction]);
+
+    if (state.lastaction === "accept") {
+      fetch(`/api/admin/restaurant-requests/${state.lastpayload}/accept`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      }).catch(() => {});
+    } else if (state.lastaction === "reject") {
+      fetch(`/api/admin/restaurant-requests/${state.lastpayload}/reject`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+      }).catch(() => {});
+    }
+  }, [state.lastaction, csrfToken]);
 
   return (
     <div className={styles.requestsContainer}>
@@ -113,7 +113,7 @@ export function Requests({ searchTerm }) {
               <tr key={request._id}>
                 <td className={styles.restaurantName}>{request.name}</td>
                 <td className={styles.ownerName}>{request.owner_username}</td>
-                <td className={styles.email}>{request.email}</td>
+                <td className={styles.email}>{maskEmail(request.email)}</td>
                 <td className={styles.location}>{request.location}</td>
                 <td className={styles.amount}>₹{request.amount}</td>
                 <td className={styles.actions}>

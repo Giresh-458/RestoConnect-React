@@ -1,11 +1,14 @@
 // Controller/adminController.js
+// At the top of adminController.js, replace existing imports with:
 const path = require("path");
 const bcrypt = require("bcrypt");
 const { User } = require("../Model/userRoleModel");
-const { Restaurant } = require("../Model/Restaurents_model"); // ✅ Correct spelling
-const RestaurantRequest = require("../Model/restaurent_request_model"); // ✅ Correct spelling
+const { Restaurant } = require("../Model/Restaurents_model");
+const RestaurantRequest = require("../Model/restaurent_request_model");
 const { Dish } = require("../Model/Dishes_model_test");
-
+const { Order } = require("../Model/Order_model");           // ✅ Add this
+const { Reservation } = require("../Model/Reservation_model"); // ✅ Add this
+const Feedback = require("../Model/feedback");                // ✅ Add this
 // Admin Dashboard
 exports.getAdminDashboard = async (req, res, next) => {
   try {
@@ -35,14 +38,15 @@ exports.getAdminDashboard = async (req, res, next) => {
     }, 0);
 
    
-    const currentAdminUsername = req.user
-      ? req.user.username
-      : req.session.username;
+    const currentAdminUsername =
+      (req.auth && req.auth.username) ||
+      (req.user && req.user.username) ||
+      null;
     let currentAdminProfile = null;
     if (currentAdminUsername) {
       currentAdminProfile = await User.findOne({
         username: currentAdminUsername,
-      });
+      }).select('-password');
     }
 
     let users = [];
@@ -51,9 +55,9 @@ exports.getAdminDashboard = async (req, res, next) => {
       users = await User.find({
         ...userFilter,
         username: { $ne: currentAdminUsername },
-      });
+      }).select('-password');
     } else {
-      users = await User.find(userFilter);
+      users = await User.find(userFilter).select('-password');
     }
 
     users = users.map((user) => {
@@ -159,9 +163,9 @@ exports.getAllUsers = async (req, res, next) => {
       users = await User.find({
         ...filter,
         username: { $ne: currentAdminUsername },
-      });
+      }).select('-password');
     } else {
-      users = await User.find(filter);
+      users = await User.find(filter).select('-password');
     }
     res.json(users);
   } catch (error) {
@@ -288,9 +292,10 @@ exports.unsuspendUser = async (req, res, next) => {
 // 🌟 FIX: Edit admin profile
 exports.editProfile = async (req, res, next) => {
   try {
-    const currentAdminUsername = req.user
-      ? req.user.username
-      : req.session.username;
+    const currentAdminUsername =
+      (req.auth && req.auth.username) ||
+      (req.user && req.user.username) ||
+      null;
     if (!currentAdminUsername) {
       if (expectsJson(req))
         return res.status(401).json({ error: "Unauthorized" });
@@ -336,7 +341,7 @@ exports.editProfile = async (req, res, next) => {
 
     const updateData = { username, email };
     if (newpassword && newpassword.trim() !== "") {
-      if(newpassword.time().length<6){
+      if(newpassword.trim().length<6){
       return res.status(400).json({
   message: "password must be at least 6 letters"
 });
@@ -348,7 +353,7 @@ exports.editProfile = async (req, res, next) => {
       { username: currentAdminUsername },
       { $set: updateData }
     );
-    if (username !== currentAdminUsername) req.session.username = username;
+    // Username is carried via JWT; no need to mutate session username.
 
     if (expectsJson(req))
       return res.status(200).json({ message: "Profile updated successfully" });
@@ -363,7 +368,10 @@ exports.editProfile = async (req, res, next) => {
 
 // 🌟 FIX: Change Admin Password
 exports.changePassword = async (req, res, next) => {
-  const currentAdminUsername = req.session.username; // Use session for identity
+  const currentAdminUsername =
+    (req.auth && req.auth.username) ||
+    (req.user && req.user.username) ||
+    null;
   if (!currentAdminUsername)
     return res.status(401).json({ error: "Unauthorized" });
 
@@ -403,7 +411,10 @@ exports.changePassword = async (req, res, next) => {
 
 // 🌟 FIX: Delete Admin Account
 exports.deleteAccount = async (req, res, next) => {
-  const currentAdminUsername = req.session.username; // Use session for identity
+  const currentAdminUsername =
+    (req.auth && req.auth.username) ||
+    (req.user && req.user.username) ||
+    null;
   if (!currentAdminUsername) {
     if (expectsJson(req))
       return res.status(401).json({ error: "Unauthorized" });
@@ -708,6 +719,213 @@ exports.getPublicRestaurants = async (req, res, next) => {
   }
 };
 
+// ── Admin: Get all orders across all restaurants ──
+exports.getAllOrders = async (req, res, next) => {
+  try {
+    const {Order} = require("../Model/Order_model");
+    const { status, restaurant, date, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    if (date) {
+      const d = new Date(date);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      filter.date = { $gte: d, $lt: next };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [orders, total] = await Promise.all([
+      Order.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
+      Order.countDocuments(filter),
+    ]);
+    // stats
+    const allOrders = await Order.find({});
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayOrders = allOrders.filter(o => new Date(o.date) >= todayStart);
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const todayRevenue = todayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const avgOrderValue = allOrders.length ? (totalRevenue / allOrders.length).toFixed(2) : 0;
+    const statusBreakdown = {};
+    allOrders.forEach(o => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
+    res.json({
+      orders,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalOrders: allOrders.length, todayOrders: todayOrders.length, totalRevenue, todayRevenue, avgOrderValue: parseFloat(avgOrderValue), statusBreakdown },
+    });
+  } catch (error) {
+    console.error("Error in getAllOrders:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Get all reservations across all restaurants ──
+exports.getAllReservations = async (req, res, next) => {
+  try {
+    const Reservation = require("../Model/Reservation_model");
+    const { status, restaurant, date, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    if (date) {
+      const d = new Date(date);
+      const next = new Date(d);
+      next.setDate(next.getDate() + 1);
+      filter.date = { $gte: d, $lt: next };
+    }
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [reservations, total] = await Promise.all([
+      Reservation.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
+      Reservation.countDocuments(filter),
+    ]);
+    // stats
+    const allRes = await Reservation.find({});
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayRes = allRes.filter(r => new Date(r.date) >= todayStart);
+    const statusBreakdown = {};
+    allRes.forEach(r => { statusBreakdown[r.status] = (statusBreakdown[r.status] || 0) + 1; });
+    const totalGuests = allRes.reduce((s, r) => s + (r.guests || 0), 0);
+    res.json({
+      reservations,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalReservations: allRes.length, todayReservations: todayRes.length, totalGuests, statusBreakdown },
+    });
+  } catch (error) {
+    console.error("Error in getAllReservations:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Get all feedback across all restaurants ──
+exports.getAllFeedback = async (req, res, next) => {
+  try {
+    const Feedback = require("../Model/feedback");
+    const { status, restaurant, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (status && status !== "all") filter.status = status;
+    if (restaurant) filter.rest_id = restaurant;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [feedback, total] = await Promise.all([
+      Feedback.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Feedback.countDocuments(filter),
+    ]);
+    const allFb = await Feedback.find({});
+    const avgDining = allFb.length ? (allFb.reduce((s, f) => s + (f.diningRating || 0), 0) / allFb.filter(f => f.diningRating).length).toFixed(1) : 0;
+    const avgOrder = allFb.length ? (allFb.reduce((s, f) => s + (f.orderRating || 0), 0) / allFb.filter(f => f.orderRating).length).toFixed(1) : 0;
+    const pending = allFb.filter(f => f.status === "Pending").length;
+    const resolved = allFb.filter(f => f.status === "Resolved").length;
+    res.json({
+      feedback,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      stats: { totalFeedback: allFb.length, avgDiningRating: parseFloat(avgDining), avgOrderRating: parseFloat(avgOrder), pending, resolved },
+    });
+  } catch (error) {
+    console.error("Error in getAllFeedback:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin: Analytics endpoint ──
+exports.getAnalytics = async (req, res, next) => {
+  try {
+    const Order = require("../Model/Order_model");
+    const Reservation = require("../Model/Reservation_model");
+    const Feedback = require("../Model/feedback");
+
+    const restaurants = await Restaurant.findAll();
+    const allOrders = await Order.find({});
+    const allReservations = await Reservation.find({});
+    const allFeedback = await Feedback.find({});
+    const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
+
+    // Top restaurants by order count
+    const restOrderCount = {};
+    const restRevenue = {};
+    allOrders.forEach(o => {
+      const rid = o.rest_id?.toString() || "unknown";
+      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
+      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
+    });
+
+    // Filter out suspended restaurants from top performing
+    const topRestaurants = restaurants
+      .filter(r => !r.isSuspended) // Exclude suspended restaurants
+      .map(r => ({
+        _id: r._id.toString(),
+        name: r.name,
+        orders: restOrderCount[r._id.toString()] || 0,
+        revenue: restRevenue[r._id.toString()] || 0,
+        rating: r.rating || 0,
+        isSuspended: r.isSuspended,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Peak hours
+    const hourCounts = Array(24).fill(0);
+    allOrders.forEach(o => {
+      if (o.orderTime) {
+        const h = new Date(o.orderTime).getHours();
+        hourCounts[h]++;
+      } else if (o.date) {
+        const h = new Date(o.date).getHours();
+        hourCounts[h]++;
+      }
+    });
+    const peakHours = hourCounts.map((count, hour) => ({ hour: `${hour}:00`, count }));
+
+    // Monthly revenue trend (last 12 months)
+    const monthlyRevenue = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const monthOrders = allOrders.filter(o => {
+        const od = new Date(o.date);
+        return od >= d && od <= monthEnd;
+      });
+      const revenue = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      monthlyRevenue.push({ month: months[d.getMonth()] + " " + d.getFullYear(), revenue, orders: monthOrders.length });
+    }
+
+    // Customer activity - reservations per restaurant
+    const restReservationCount = {};
+    allReservations.forEach(r => {
+      const rid = r.rest_id?.toString() || "unknown";
+      restReservationCount[rid] = (restReservationCount[rid] || 0) + 1;
+    });
+
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const avgRating = allFeedback.length
+      ? (allFeedback.reduce((s, f) => s + (f.diningRating || f.orderRating || 0), 0) / allFeedback.length).toFixed(1)
+      : 0;
+
+    res.json({
+      overview: {
+        totalRestaurants: restaurants.length,
+        totalUsers,
+        totalOrders: allOrders.length,
+        totalReservations: allReservations.length,
+        totalRevenue,
+        avgRating: parseFloat(avgRating),
+        totalFeedback: allFeedback.length,
+      },
+      topRestaurants,
+      peakHours,
+      monthlyRevenue,
+    });
+  } catch (error) {
+    console.error("Error in getAnalytics:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 exports.getRecentActivities = async (req, res, next) => {
   try {
     const activities = [];
@@ -740,6 +958,478 @@ exports.getRecentActivities = async (req, res, next) => {
     res.json(activities.slice(0, 10));
   } catch (error) {
     console.error("Error fetching activities:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Employee Performance Analytics ──
+exports.getEmployeePerformance = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const employees = await User.find({ role: "employee" }).select(
+      "username email _id isSuspended createdAt"
+    );
+    const restaurants = await Restaurant.find({});
+    const allOrders = await Order.find({});
+
+    const employeeCount = employees.length || 1;
+
+    const performance = employees.map((emp, idx) => {
+      const managedRestaurants = restaurants.filter(
+        (_, i) => i % employeeCount === idx
+      );
+      const managedRestIds = managedRestaurants.map((r) => r._id.toString());
+      const managedOrders = allOrders.filter((o) =>
+        managedRestIds.includes(o.rest_id?.toString())
+      );
+      const totalApprovals = managedRestaurants.length;
+      const totalOrdersHandled = managedOrders.length;
+      const revenueGenerated = managedOrders.reduce(
+        (s, o) => s + (o.totalAmount || 0), 0
+      );
+      return {
+        _id: emp._id,
+        username: emp.username,
+        email: emp.email,
+        isSuspended: emp.isSuspended,
+        totalApprovals,
+        totalOrdersHandled,
+        revenueGenerated,
+        rating:
+          totalApprovals > 5 ? 4.5
+          : totalApprovals > 2 ? 3.8
+          : totalApprovals > 0 ? 3.0
+          : 0,
+      };
+    });
+
+    performance.sort((a, b) => b.totalApprovals - a.totalApprovals);
+    res.json({ employees: performance });
+  } catch (error) {
+    console.error("Error in getEmployeePerformance:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Add Employee ──
+exports.addEmployee = async (req, res) => {
+  try {
+    let { username, email, password } = req.body;
+
+    // Trim and sanitize
+    username = username ? username.trim() : '';
+    email = email ? email.trim().toLowerCase() : '';
+    password = password ? password.trim() : '';
+
+    // Validate required fields
+    if (!username || !email || !password) {
+      return res.status(400).json({ success: false, error: 'Username, email, and password are required' });
+    }
+
+    // Validate username: 3-20 chars, letters/numbers/underscores
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({ success: false, error: 'Username must be 3-20 characters (letters, numbers, underscores only)' });
+    }
+
+    // Validate email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if username or email already exists
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: 'Username or email already exists' });
+    }
+
+    // Create employee user
+    const newEmployee = new User({
+      username,
+      email,
+      role: 'employee',
+      password,
+      restaurantName: null,
+      rest_id: null,
+    });
+    await newEmployee.save();
+
+    res.status(201).json({
+      success: true,
+      message: `Employee '${username}' created successfully`,
+      employee: { _id: newEmployee._id, username: newEmployee.username, email: newEmployee.email, role: 'employee' },
+    });
+  } catch (error) {
+    console.error('Error in addEmployee:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+};
+
+// ── Restaurant Revenue / Platform Fee Analytics ──
+exports.getRestaurantRevenue = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "all" } = req.query;
+    const restaurants = await Restaurant.find({});
+    const allOrders = await Order.find({});
+
+    const now = new Date();
+    let filteredOrders = allOrders;
+
+    if (period === "today") {
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "week") {
+      const start = new Date(now); start.setDate(start.getDate() - 7);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "year") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    }
+
+    const restRevenue = {};
+    const restOrderCount = {};
+    filteredOrders.forEach((o) => {
+      const rid = o.rest_id?.toString() || "unknown";
+      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
+      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
+    });
+
+    const restaurantData = restaurants
+      .map((r) => {
+        const revenue = restRevenue[r._id.toString()] || 0;
+        const orders = restOrderCount[r._id.toString()] || 0;
+        const platformFee = revenue * 0.1;
+        return {
+          _id: r._id,
+          name: r.name,
+          location: r.location,
+          city: r.city,
+          image: r.image,
+          rating: r.rating || 0,
+          revenue,
+          orders,
+          platformFee,
+          avgOrderValue: orders > 0 ? Math.round(revenue / orders) : 0,
+          isOpen: r.isOpen,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const totalRevenue = restaurantData.reduce((s, r) => s + r.revenue, 0);
+    const totalPlatformFee = restaurantData.reduce((s, r) => s + r.platformFee, 0);
+    const totalOrders = restaurantData.reduce((s, r) => s + r.orders, 0);
+
+    res.json({
+      restaurants: restaurantData,
+      summary: {
+        totalRevenue,
+        totalPlatformFee,
+        totalOrders,
+        avgOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getRestaurantRevenue:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Dish & Category Trends ──
+exports.getDishTrends = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const allOrders = await Order.find({});
+    const allDishes = await Dish.find({});
+    const restaurants = await Restaurant.find({});
+
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const currentMonthOrders = allOrders.filter(
+      (o) => new Date(o.date) >= currentMonthStart
+    );
+    const prevMonthOrders = allOrders.filter((o) => {
+      const d = new Date(o.date);
+      return d >= prevMonthStart && d <= prevMonthEnd;
+    });
+
+    const countDishes = (orders) => {
+      const counts = {};
+      orders.forEach((o) => {
+        if (o.dishes && Array.isArray(o.dishes)) {
+          o.dishes.forEach((dishId) => {
+            const id = dishId?.toString();
+            if (id) counts[id] = (counts[id] || 0) + 1;
+          });
+        }
+      });
+      return counts;
+    };
+
+    const currentCounts = countDishes(currentMonthOrders);
+    const prevCounts = countDishes(prevMonthOrders);
+
+    const dishTrends = allDishes.map((dish) => {
+      const current = currentCounts[dish._id.toString()] || 0;
+      const previous = prevCounts[dish._id.toString()] || 0;
+      const change = previous > 0 ? ((current - previous) / previous) * 100 : current > 0 ? 100 : 0;
+      const servingRestaurants = restaurants
+        .filter((r) => r.dishes?.some((d) => d.toString() === dish._id.toString()))
+        .map((r) => r.name);
+
+      return {
+        _id: dish._id,
+        name: dish.name,
+        category: dish.category || "Main Course",
+        price: dish.price,
+        image: dish.image,
+        currentMonthOrders: current,
+        prevMonthOrders: previous,
+        changePercent: Math.round(change),
+        trend: change > 0 ? "up" : change < 0 ? "down" : "stable",
+        restaurants: servingRestaurants,
+      };
+    });
+
+    dishTrends.sort((a, b) => b.currentMonthOrders - a.currentMonthOrders);
+
+    // Category aggregation
+    const categories = {};
+    dishTrends.forEach((d) => {
+      const cat = d.category;
+      if (!categories[cat]) categories[cat] = { current: 0, previous: 0, dishes: 0 };
+      categories[cat].current += d.currentMonthOrders;
+      categories[cat].previous += d.prevMonthOrders;
+      categories[cat].dishes++;
+    });
+
+    const categoryTrends = Object.entries(categories).map(([name, data]) => {
+      const change = data.previous > 0
+        ? ((data.current - data.previous) / data.previous) * 100
+        : data.current > 0 ? 100 : 0;
+      return {
+        category: name,
+        currentMonthOrders: data.current,
+        prevMonthOrders: data.previous,
+        changePercent: Math.round(change),
+        trend: change > 0 ? "up" : change < 0 ? "down" : "stable",
+        dishCount: data.dishes,
+      };
+    });
+
+    // Monthly trend (last 6 months)
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthlyData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const monthOrders = allOrders.filter((o) => {
+        const od = new Date(o.date);
+        return od >= d && od <= mEnd;
+      });
+      const counts = countDishes(monthOrders);
+      monthlyData.push({
+        month: months[d.getMonth()],
+        totalDishesOrdered: Object.values(counts).reduce((s, c) => s + c, 0),
+        uniqueDishes: Object.keys(counts).length,
+        revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+      });
+    }
+
+    res.json({
+      dishes: dishTrends.slice(0, 30),
+      categoryTrends,
+      monthlyData,
+      topGainers: dishTrends.filter((d) => d.trend === "up").sort((a, b) => b.changePercent - a.changePercent).slice(0, 5),
+      topDecliners: dishTrends.filter((d) => d.trend === "down").sort((a, b) => a.changePercent - b.changePercent).slice(0, 5),
+    });
+  } catch (error) {
+    console.error("Error in getDishTrends:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Top Customers Analytics ──
+exports.getTopCustomers = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "all" } = req.query;
+    const allOrders = await Order.find({});
+    const customers = await User.find({ role: "customer" }).select("username email _id");
+
+    const now = new Date();
+    let filteredOrders = allOrders;
+
+    if (period === "month") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "quarter") {
+      const start = new Date(now); start.setMonth(start.getMonth() - 3);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    } else if (period === "year") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+    }
+
+    const customerSpending = {};
+    const customerOrderCount = {};
+    const customerItems = {};
+    const customerLastOrder = {};
+
+    filteredOrders.forEach((o) => {
+      const cname = o.customerName || "unknown";
+      customerSpending[cname] = (customerSpending[cname] || 0) + (o.totalAmount || 0);
+      customerOrderCount[cname] = (customerOrderCount[cname] || 0) + 1;
+      if (o.dishes && Array.isArray(o.dishes))
+        customerItems[cname] = (customerItems[cname] || 0) + o.dishes.length;
+      const orderDate = new Date(o.date);
+      if (!customerLastOrder[cname] || orderDate > new Date(customerLastOrder[cname]))
+        customerLastOrder[cname] = o.date;
+    });
+
+    const topCustomers = customers
+      .map((c) => ({
+        _id: c._id,
+        username: c.username,
+        email: c.email,
+        totalSpent: customerSpending[c.username] || 0,
+        totalOrders: customerOrderCount[c.username] || 0,
+        totalItems: customerItems[c.username] || 0,
+        avgOrderValue: customerOrderCount[c.username] > 0
+          ? Math.round((customerSpending[c.username] || 0) / customerOrderCount[c.username])
+          : 0,
+        lastOrderDate: customerLastOrder[c.username] || null,
+      }))
+      .filter((c) => c.totalOrders > 0)
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+
+    const totalCustomerSpend = topCustomers.reduce((s, c) => s + c.totalSpent, 0);
+    const maxSpender = topCustomers[0] || null;
+
+    res.json({
+      customers: topCustomers.slice(0, 20),
+      summary: {
+        totalActiveCustomers: topCustomers.length,
+        totalCustomerSpend,
+        avgSpendPerCustomer: topCustomers.length > 0 ? Math.round(totalCustomerSpend / topCustomers.length) : 0,
+        topSpender: maxSpender ? { username: maxSpender.username, totalSpent: maxSpender.totalSpent } : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getTopCustomers:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Admin Overview Dashboard (Analytics-focused) ──
+exports.getAdminOverview = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const [totalUsers, totalEmployees, totalRestaurants, totalOrders, totalReservations] =
+      await Promise.all([
+        User.countDocuments({ role: { $nin: ["admin", "employee"] } }),
+        User.countDocuments({ role: "employee" }),
+        Restaurant.countDocuments(),
+        Order.countDocuments(),
+        Reservation.countDocuments(),
+      ]);
+
+    const allOrders = await Order.find({});
+    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const platformFee = totalRevenue * 0.1;
+
+    const { password: _pw, ...safeAdmin } = req.user.toObject ? req.user.toObject() : req.user;
+    res.json({
+      current_admin: safeAdmin,
+      totalUsers,
+      totalEmployees,
+      totalRestaurants,
+      totalOrders,
+      totalReservations,
+      totalRevenue,
+      platformFee,
+    });
+  } catch (error) {
+    console.error("Error in getAdminOverview:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ── Revenue Over Time (for admin charts) ──
+exports.getRevenueOverTime = async (req, res) => {
+  try {
+    const { Order } = require("../Model/Order_model");
+    const { period = "monthly" } = req.query;
+    const allOrders = await Order.find({});
+    const now = new Date();
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    let data = [];
+
+    if (period === "daily") {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        const dayOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= dayStart && od < dayEnd;
+        });
+        data.push({
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          revenue: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: dayOrders.length,
+          platformFee: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    } else if (period === "yearly") {
+      for (let i = 4; i >= 0; i--) {
+        const yr = now.getFullYear() - i;
+        const yearStart = new Date(yr, 0, 1);
+        const yearEnd = new Date(yr + 1, 0, 1);
+        const yearOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= yearStart && od < yearEnd;
+        });
+        data.push({
+          label: String(yr),
+          revenue: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: yearOrders.length,
+          platformFee: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    } else {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const monthOrders = allOrders.filter((o) => {
+          const od = new Date(o.date);
+          return od >= d && od <= mEnd;
+        });
+        data.push({
+          label: `${months[d.getMonth()]} ${d.getFullYear()}`,
+          revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+          orders: monthOrders.length,
+          platformFee: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+        });
+      }
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error in getRevenueOverTime:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RestoConnect API Documentation</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" type="text/css" href="//unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info .title { font-size: 2.5em; }
+    .swagger-ui .info .description { font-size: 1.1em; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  
+  <script src="//unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    // CSRF Token management
+    let csrfToken = null;
+    
+    async function fetchCsrfToken() {
+      try {
+        const res = await fetch('/api/csrf-token', { credentials: 'include' });
+        const data = await res.json();
+        csrfToken = data.csrfToken;
+        console.log('[Swagger] CSRF token fetched successfully');
+      } catch (err) {
+        console.error('[Swagger] Failed to fetch CSRF token:', err);
+      }
+    }
+    
+    // Request interceptor to add CSRF token
+    function requestInterceptor(req) {
+      const method = req.method?.toUpperCase();
+      const isStateChanging = method && !['GET', 'HEAD', 'OPTIONS'].includes(method);
+      
+      if (isStateChanging) {
+        if (csrfToken) {
+          req.headers['X-CSRF-Token'] = csrfToken;
+          console.log('[Swagger] Added CSRF token to:', req.url);
+        } else {
+          console.warn('[Swagger] No CSRF token available for:', req.url);
+        }
+      }
+      
+      return req;
+    }
+    
+    // Initialize Swagger UI
+    window.onload = async function() {
+      // Fetch CSRF token first
+      await fetchCsrfToken();
+      
+      window.ui = SwaggerUIBundle({
+        url: "/api-docs.json",
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerJSStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "StandaloneLayout",
+        swaggerOptions: {
+          persistAuthorization: true,
+          displayRequestDuration: true,
+          docExpansion: 'list',
+          filter: true,
+        },
+        requestInterceptor: requestInterceptor
+      });
+    };
+  </script>
+</body>
+</html>

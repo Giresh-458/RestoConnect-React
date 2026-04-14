@@ -16,6 +16,7 @@ const inventorySchema = new mongoose.Schema({
   },
   rest_id: {
     type: String,
+    ref: 'Restaurant',
     required: true
   },
   minStock: {

@@ -10,7 +10,7 @@ useEffect(() => {
   const fetchCuisines = async () => {
     try {
       const res = await fetch(
-        "http://localhost:3000/api/customer/restaurants/public-cuisines"
+        "/api/customer/restaurants/public-cuisines"
       );
       const data = await res.json();
        console.log("Fetched cuisines:", data.availableCuisines);

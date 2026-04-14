@@ -1,6 +1,8 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { RestaurantEdit } from "./RestaurantEdit";
+import { maskEmail } from "../../util/maskEmail";
 import styles from "./RestaurantSubPage.module.css";
+import { useConfirm } from "../common/ConfirmDialog";
 
 const initialState = {
   restaurants_list: [],
@@ -39,18 +41,13 @@ export function Restaurant({ searchTerm }) {
   const firstRender = useRef(true);
   const [state, Dispatch] = useReducer(reducer, initialState);
   const [filteredRestaurants, setFilteredRestaurants] = useState([]);
+  const confirmDlg = useConfirm();
 
   useEffect(() => {
-    let xhr = new XMLHttpRequest();
-    xhr.open("GET", "http://localhost:3000/admin/restaurants", true);
-    xhr.onload = function () {
-      if (this.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        Dispatch({ type: "load", payload: data });
-      }
-    };
-    xhr.withCredentials = true;
-    xhr.send();
+    fetch("/api/admin/restaurants", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : Promise.reject(res))
+      .then((data) => Dispatch({ type: "load", payload: data }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -71,24 +68,17 @@ export function Restaurant({ searchTerm }) {
     }
 
     if (state.lastaction === "delete") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "GET",
-        `http://localhost:3000/admin/delete_restaurant/${state.lastpayload}`,
-        true
-      );
-      xhr.withCredentials = true;
-      xhr.send();
+      fetch(`/api/admin/restaurants/${state.lastpayload}`, {
+        method: "DELETE",
+        credentials: "include",
+      }).catch(() => {});
     } else if (state.lastaction === "edit") {
-      let xhr = new XMLHttpRequest();
-      xhr.open(
-        "POST",
-        `http://localhost:3000/admin/edit_restaurant/${state.lastpayload._id}`,
-        true
-      );
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.withCredentials = true;
-      xhr.send(JSON.stringify(state.lastpayload));
+      fetch(`/api/admin/restaurants/${state.lastpayload._id}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state.lastpayload),
+      }).catch(() => {});
     }
   }, [state.lastaction]);
 
@@ -123,7 +113,7 @@ export function Restaurant({ searchTerm }) {
                   <td className={styles.restaurantName}>{restaurant.name}</td>
                   <td className={styles.ownerName}>{ownerInfo.name}</td>
                   <td className={styles.contactInfo}>
-                    <div className={styles.email}>{ownerInfo.email}</div>
+                    <div className={styles.email}>{maskEmail(ownerInfo.email)}</div>
                   </td>
                   <td className={styles.amountPaid}>
                     ₹{restaurant.amount || 0}
@@ -131,8 +121,9 @@ export function Restaurant({ searchTerm }) {
                   <td className={styles.actions}>
                     <RestaurantEdit Dispatch={Dispatch} restaurant={restaurant} />
                     <button
-                      onClick={() => {
-                        if (!confirm(`Are you sure you want to permanently delete restaurant '${restaurant.name}'? This will remove its dishes and owner account.`)) return;
+                      onClick={async () => {
+                        const ok = await confirmDlg({ title: "Delete Restaurant", message: `Are you sure you want to permanently delete restaurant '${restaurant.name}'? This will remove its dishes and owner account.`, variant: "danger", confirmText: "Delete" });
+                        if (!ok) return;
                         Dispatch({ type: "delete", payload: restaurant._id });
                       }}
                       className={styles.deleteBtn}

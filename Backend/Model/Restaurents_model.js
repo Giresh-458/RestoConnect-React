@@ -39,6 +39,18 @@ const restaurantSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isSuspended: {
+    type: Boolean,
+    default: false,
+  },
+  suspensionEndDate: {
+    type: Date,
+    default: null,
+  },
+  suspensionReason: {
+    type: String,
+    default: null,
+  },
   operatingHours: {
     open: { type: String, default: "09:00" },
     close: { type: String, default: "22:00" },
@@ -142,6 +154,8 @@ const restaurantSchema = new mongoose.Schema({
       assignedTo: [String], // usernames
       priority: { type: String, default: "medium" },
       createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      completedBy: [String], // usernames who completed this task
     },
   ],
   supportMessages: [
@@ -150,6 +164,30 @@ const restaurantSchema = new mongoose.Schema({
       message: String,
       timestamp: { type: Date, default: Date.now },
       status: { type: String, default: "pending" },
+    },
+  ],
+  customerSupportThreads: [
+    {
+      customerName: String,
+      status: { type: String, default: "pending" },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      messages: [
+        {
+          senderRole: String,
+          senderName: String,
+          text: String,
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+    },
+  ],
+  leftovers: [
+    {
+      itemName: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      expiryDate: { type: Date, required: true },
+      createdAt: { type: Date, default: Date.now },
     },
   ],
 });

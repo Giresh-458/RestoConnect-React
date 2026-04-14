@@ -21,9 +21,11 @@ const orderSchema = new mongoose.Schema({
   },
   rest_id: {
     type: String,
+    ref: 'Restaurant',
   },
   reservation_id: {
     type: String,
+    ref: 'Reservation',
     default: null,
   },
   status: {

@@ -15,20 +15,28 @@ export function StaffNav() {
   return (
     <>
       <nav className={styles.staffNav}>
-        <NavLink 
-          to={"/staff/"} 
-          className={({ isActive }) => (isActive ? "active" : "")}
-       
-       end>
-          Home
-        </NavLink>
-        <NavLink 
-          to={"/staff/dashboard"} 
-          className={({ isActive }) => (isActive ? "active" : "")}
-        >
-          Dashboard
-        </NavLink>
-        <button onClick={handleLogout} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+        <span className={styles.brand}>🍽️ RestoConnect</span>
+        <div className={styles.links}>
+          <NavLink 
+            to={"/staff/"} 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`}
+            end>
+            Home
+          </NavLink>
+          <NavLink 
+            to={"/staff/dashboard"} 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`}
+          >
+            Dashboard
+          </NavLink>
+          <NavLink 
+            to={"/staff/leftovers"} 
+            className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ""}`}
+          >
+            Leftovers
+          </NavLink>
+        </div>
+        <button onClick={handleLogout} className={styles.logoutBtn}>Logout</button>
       </nav>
       <Outlet />
     </>

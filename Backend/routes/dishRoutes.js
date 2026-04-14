@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { uploadDishImage, handleUploadErrors } = require('../util/fileUpload');
 const dishController = require('../Controller/dishController');
-const { isAuthenticated, isOwner } = require('../authenticationMiddleWare');
+const auth_middleware = require('../authenticationMiddleWare');
 
 // Create a new dish with image upload
 router.post(
   '/',
-  isAuthenticated,
-  isOwner,
+  auth_middleware('owner'),
   uploadDishImage,
   handleUploadErrors,
   dishController.createDish
@@ -20,8 +19,7 @@ router.get('/:id', dishController.getDish);
 // Update dish with optional image update
 router.put(
   '/:id',
-  isAuthenticated,
-  isOwner,
+  auth_middleware('owner'),
   uploadDishImage,
   handleUploadErrors,
   dishController.updateDish
@@ -30,8 +28,7 @@ router.put(
 // Delete dish
 router.delete(
   '/:id',
-  isAuthenticated,
-  isOwner,
+  auth_middleware('owner'),
   dishController.deleteDish
 );
 

@@ -24,9 +24,23 @@ const dishSchema = new mongoose.Schema({
     default: 1, // Default serves 1 person
     min: 1
   },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  },
+  category: {
+    type: String,
+    default: 'Main Course'
+  },
+  rest_id: {
+    type: String,
+    ref: 'Restaurant',
+    default: null
+  }
 });
 
 dishSchema.methods.addDish = async function(rest_id) {
+  this.rest_id = rest_id;
   await mongoose.model('Restaurant').updateOne(
     { _id: rest_id },
     { $push: { dishes: this._id } }

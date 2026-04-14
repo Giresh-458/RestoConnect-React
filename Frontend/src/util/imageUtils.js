@@ -1,10 +1,12 @@
+import { toBackendAssetUrl } from "../config/api";
+
 /**
  * Constructs a proper image URL for dishes and restaurants
  * Handles both seed data (with direct paths) and uploaded images
  */
 export function getImageUrl(imagePath) {
   if (!imagePath) {
-    return "/images/default-dish.jpg";
+    return "/images/image-not-found.jpg";
   }
 
   // If it's already a full URL (http/https), return as is
@@ -12,13 +14,14 @@ export function getImageUrl(imagePath) {
     return imagePath;
   }
 
-  // If it starts with /, it's a public path - add server URL
+  // Paths already rooted under /uploads, /profile-pictures, or /restaurant-images
+  // need the backend origin when the frontend is deployed separately.
   if (imagePath.startsWith("/")) {
-    return `http://localhost:3000${imagePath}`;
+    return toBackendAssetUrl(imagePath);
   }
 
-  // Otherwise it's a filename from uploads - construct the URL
-  return `http://localhost:3000/uploads/${imagePath}`;
+  // Otherwise it's a filename from uploads - construct the backend URL.
+  return toBackendAssetUrl(imagePath, "uploads");
 }
 
 /**
@@ -26,12 +29,12 @@ export function getImageUrl(imagePath) {
  * Provides a fallback placeholder image
  */
 export function handleImageError(e) {
-  e.target.src = "https://via.placeholder.com/300x200?text=Image+Not+Found";
+  e.target.src = "/images/image-not-found.jpg";
 }
 
 /**
  * Event handler for thumbnail/small image errors
  */
 export function handleSmallImageError(e) {
-  e.target.src = "https://via.placeholder.com/60x60?text=Dish";
+  e.target.src = "/images/image-not-found-small.jpg";
 }

@@ -1,6 +1,11 @@
 import { useState, useRef } from 'react';
 import { Form, useActionData, useNavigate, useSearchParams } from 'react-router-dom';
 import './AuthPage.css';
+import { useToast } from '../components/common/Toast';
+import { toast as imperativeToast } from '../components/common/Toast';
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const authUrl = (path) => `${API_BASE_URL}${path}`;
 
 export function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +18,7 @@ export function AuthPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const message = searchParams.get('message');
+    const toast = useToast();
     
     // Forgot password states
     const [forgotPasswordStep, setForgotPasswordStep] = useState(null); // null, 'email', 'code', 'newPassword'
@@ -56,7 +62,7 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/send-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/send-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -94,7 +100,7 @@ export function AuthPage() {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/verify-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/verify-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -142,7 +148,7 @@ export function AuthPage() {
 
         try {
             console.log('Resetting password for:', resetEmail, 'with code:', resetCode);
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/reset', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/reset'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -184,7 +190,7 @@ export function AuthPage() {
         setForgotPasswordSuccess('');
 
         try {
-            const response = await fetch('http://localhost:3000/api/auth/forgot-password/resend-code', {
+            const response = await fetch(authUrl('/api/auth/forgot-password/resend-code'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -226,12 +232,12 @@ export function AuthPage() {
         if (file) {
             // Validate file type
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
+                toast.warn('Please select an image file');
                 return;
             }
             // Validate file size (2MB max)
             if (file.size > 2 * 1024 * 1024) {
-                alert('File size must be less than 2MB');
+                toast.warn('File size must be less than 2MB');
                 return;
             }
 
@@ -660,7 +666,7 @@ export async function action({ request }) {
 
         // Login logic
         try {
-            const response = await fetch('http://localhost:3000/api/auth/login', {
+            const response = await fetch(authUrl('/api/auth/login'), {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -738,7 +744,7 @@ export async function action({ request }) {
                 signupFormData.append('profilePicture', profileFile);
             }
 
-            const response = await fetch('http://localhost:3000/api/auth/signup', {
+            const response = await fetch(authUrl('/api/auth/signup'), {
                 method: 'POST',
                 credentials: 'include',
                 body: signupFormData
@@ -751,8 +757,8 @@ export async function action({ request }) {
             }
 
             // Show success popup and redirect to login
-            alert('✅ ' + (result.message || 'Account created successfully! Please login.'));
-            window.location.href = '/login';
+            imperativeToast.success(result.message || 'Account created successfully! Please login.');
+            setTimeout(() => { window.location.href = '/login'; }, 2000);
             return null;
 
         } catch (error) {

@@ -3,88 +3,48 @@ const { User } = require("../Model/userRoleModel");
 const { Order } = require("../Model/Order_model");
 const bcrypt = require("bcrypt");
 
-// Dashboard Methods
-exports.getDashBoard = async (req, res, next) => {
-  try {
-    let r_name = await Restaurant.findById(req.session.rest_id);
-    let rest = await Restaurant.findById(req.session.rest_id).populate(
-      "orders"
-    );
-    if (!rest) {
-      return res.status(404).send("Restaurant not found");
-    }
-
-    // Process orders data
-    const orders = rest.orders || [];
-    const orderStatusCount = {};
-    orders.forEach((order) => {
-      const status = order.status || "Unknown";
-      orderStatusCount[status] = (orderStatusCount[status] || 0) + 1;
-    });
-    const ordersData = Object.entries(orderStatusCount).map(
-      ([label, value]) => ({ label, value })
-    );
-
-    // Process inventory data - FIXED: Use the correct structure
-    let inventoryItems = [];
-    let inventoryDataForTable = { labels: [], values: [] }; // For the table
-    let inventoryDataForChart = []; // For the chart
-
-    if (
-      rest.inventoryData &&
-      rest.inventoryData.labels &&
-      rest.inventoryData.values
-    ) {
-      inventoryItems = rest.inventoryData.labels.map((label, index) => {
-        return {
-          name: label,
-          quantity: rest.inventoryData.values[index] || 0,
-        };
-      });
-
-      // Data for the chart
-      inventoryDataForChart = inventoryItems.map((item) => ({
-        label: item.name,
-        value: item.quantity,
-      }));
-
-      // Data for the table - use the same structure as restaurant.inventoryData
-      inventoryDataForTable = {
-        labels: rest.inventoryData.labels,
-        values: rest.inventoryData.values,
-      };
-    }
-
-    // Get recent reservations (last 10)
-    const recentReservations = rest.reservations.slice(-10);
-
-    res.render("staffDashboard", {
-      orders: orders,
-      reservations: recentReservations,
-      inventory: inventoryItems.filter((item) => item.quantity < 10), // Show only low stock items
-      ordersData,
-      inventoryData: inventoryDataForChart, // For the chart
-      inventoryDataForTable: inventoryDataForTable, // For the table
-      restaurant: rest,
-      rest_name: r_name.name,
-    });
-  } catch (error) {
-    console.error("Error in getDashBoard:", error);
-    error.status = error.status || 500;
-    error.message = error.message || "Internal Server Error";
-    return next(error);
-  }
-};
-
 exports.postUpdateOrder = async (req, res, next) => {
   try {
-    const { orderId, status } = req.body;
+    const restId = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
+    if (!restId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
-    // Update order in the Order collection
-    const Order = require("../Model/Order_model").Order;
+    const { orderId, status } = req.body;
+    if (!orderId || !status) {
+      return res.status(400).json({ error: "orderId and status are required" });
+    }
+
+    const targetStatus = String(status || "").toLowerCase();
+    const mustBeSeatedStatuses = ["served", "done", "completed"];
+
+    if (mustBeSeatedStatuses.includes(targetStatus)) {
+      const orderForValidation = await Order.findById(orderId).lean();
+      if (!orderForValidation) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      const orderTableNumber = String(
+        orderForValidation.tableNumber || orderForValidation.table_id || ""
+      ).trim();
+
+      if (orderTableNumber) {
+        const restForValidation = await Restaurant.findById(restId).lean();
+        const tableForOrder = (restForValidation?.tables || []).find(
+          (table) => String(table.number) === orderTableNumber
+        );
+
+        if (tableForOrder && tableForOrder.status !== "Occupied" && tableForOrder.status !== "Allocated") {
+          return res.status(400).json({
+            error: "Cannot mark order as served before guest arrival. Mark the table as Occupied or allocate it first.",
+          });
+        }
+      }
+    }
+
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
-      { status: status },
+      { $set: { status: String(status) } },
       { new: true }
     );
 
@@ -92,31 +52,12 @@ exports.postUpdateOrder = async (req, res, next) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    // Also update the order in the Restaurant's orders array
-    let rest = await Restaurant.findById(req.session.rest_id);
-    if (rest && rest.orders) {
-      // Find the order in the restaurant's orders array
-      const orderIndex = rest.orders.findIndex((order) => {
-        // Handle both object ID references and embedded order objects
-        if (order && order._id) {
-          return order._id.toString() === orderId;
-        }
-        return false;
-      });
-
-      if (orderIndex !== -1) {
-        // Update the status of the order in the restaurant's array
-        rest.orders[orderIndex].status = status;
-        await rest.save();
-      }
-    }
-
     res.json({ success: true, message: "Order status updated successfully", order: updatedOrder });
   } catch (error) {
     console.error("Error updating order:", error);
-    error.status = error.status || 500;
-    error.message = error.message || "Internal Server Error";
-    return next(error);
+    const status = error.status || 500;
+    const message = error.message || "Internal Server Error";
+    return res.status(status).json({ error: message });
   }
 };
 
@@ -125,7 +66,7 @@ exports.postAllocateTable = async (req, res, next) => {
     const { Reservation } = require("../Model/Reservation_model");
     const { reservationId, tableNumber } = req.body;
 
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
@@ -147,6 +88,13 @@ exports.postAllocateTable = async (req, res, next) => {
         .json({ error: "Table is not available. Please choose another table." });
     }
 
+    // Check if table has enough seats for the guests
+    if (table.seats && reservation.guests && table.seats < reservation.guests) {
+      return res.status(400).json({
+        error: `Table ${tableNumber} only has ${table.seats} seats but the reservation is for ${reservation.guests} guests. Please choose a larger table.`
+      });
+    }
+
     // Mark reservation as allocated / confirmed
     reservation.allocated = true;
     reservation.status = "confirmed";
@@ -162,7 +110,33 @@ exports.postAllocateTable = async (req, res, next) => {
     // Update table status so it is no longer available
     table.status = "Allocated";
 
+    // Keep linked order(s) in sync so live queue immediately reflects table assignment
+    await Order.updateMany(
+      {
+        reservation_id: String(reservationId),
+        rest_id: String(rest._id),
+        status: { $in: ["pending", "active", "waiting", "preparing", "ready"] },
+      },
+      {
+        $set: {
+          table_id: String(tableNumber),
+          tableNumber: String(tableNumber),
+        },
+      }
+    );
+
     await reservation.save();
+
+    // Sync the embedded reservations array so all views stay consistent
+    const embeddedReservation = (rest.reservations || []).find(
+      (r) => String(r.id) === String(reservation._id)
+    );
+    if (embeddedReservation) {
+      embeddedReservation.allocated = reservation.allocated;
+      embeddedReservation.tables = Array.isArray(reservation.tables) ? reservation.tables : [];
+      embeddedReservation.status = reservation.status;
+    }
+
     await rest.save();
 
     return res.json({
@@ -227,7 +201,7 @@ exports.getHomePage = async (req, res, next) => {
 };
 
 exports.postHomePageTask = async (req, res, next) => {
-  const restaurant = await Restaurant.findById(req.session.rest_id);
+  const restaurant = await Restaurant.findById(req.user.rest_id);
   if (!restaurant) {
     return res.status(404).send("Restaurant not found");
   }
@@ -244,7 +218,7 @@ exports.postHomePageTask = async (req, res, next) => {
 
 exports.deleteHomePageTasks = async (req, res, next) => {
   try {
-    const restaurant = await Restaurant.findById(req.session.rest_id);
+    const restaurant = await Restaurant.findById(req.user.rest_id);
     if (!restaurant) {
       console.error("Restaurant not found");
       return res.status(404).send("Restaurant not found");
@@ -274,7 +248,7 @@ exports.postRemoveReservation = async (req, res, next) => {
     const { Reservation } = require("../Model/Reservation_model");
     const reservationId = req.params.id;
 
-    const rest = await Restaurant.findById(req.session.rest_id);
+    const rest = await Restaurant.findById(req.user.rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
@@ -317,21 +291,38 @@ exports.postRemoveReservation = async (req, res, next) => {
 exports.postAddTable = async (req, res, next) => {
   try {
     const { number, capacity } = req.body;
-    const rest = await Restaurant.findById(req.session.rest_id);
+
+    const rest_id = req.user.rest_id;
+    if (!rest_id) {
+      return res.status(400).json({ error: "No restaurant ID found" });
+    }
+
+    const tableNumber = Number(number);
+    const tableCapacity = Number(capacity);
+
+    if (!Number.isInteger(tableNumber) || tableNumber <= 0) {
+      return res.status(400).json({ error: "Table number must be a positive integer" });
+    }
+
+    if (!Number.isInteger(tableCapacity) || tableCapacity <= 0) {
+      return res.status(400).json({ error: "Capacity must be a positive integer" });
+    }
+
+    const rest = await Restaurant.findById(rest_id);
     if (!rest) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
     // Check if table number already exists
-    const existingTable = rest.tables.find(t => t.number == number);
+    const existingTable = rest.tables.find(t => Number(t.number) === tableNumber);
     if (existingTable) {
       return res.status(400).json({ error: "Table number already exists" });
     }
 
     // Add new table
     rest.tables.push({
-      number: number,
-      seats: capacity || 4,
+      number: tableNumber,
+      seats: tableCapacity,
       status: "Available"
     });
 
@@ -349,7 +340,7 @@ exports.postUpdateInventory = async (req, res, next) => {
   try {
     const { item, action } = req.body;
 
-    const restaurant = await Restaurant.findById(req.session.rest_id);
+    const restaurant = await Restaurant.findById(req.user.rest_id);
     if (!restaurant || !restaurant.inventoryData)
       return res.status(404).send("Restaurant not found");
 
@@ -378,149 +369,282 @@ exports.postAutoAllocateTable = async (req, res, next) => {
   res.status(200).send("postAutoAllocateTable endpoint is under construction");
 };
 
-exports.getStaffHomepageData = async (req, res, next) => {
-  // Explicitly set Content-Type to JSON for all responses
-  res.setHeader('Content-Type', 'application/json');
-  
-  console.log("...........................................")
-  console.log("getStaffHomepageData endpoint called");
-  console.log("Request path:", req.path);
-  console.log("Request URL:", req.url);
-  console.log("Request originalUrl:", req.originalUrl);
-  console.log("Request baseUrl:", req.baseUrl);
-  console.log("Session username:", req.session.username);
-  console.log("Session rest_id:", req.session.rest_id);
-  
+exports.postUpdateTableStatus = async (req, res, next) => {
   try {
-    if (!req.session.username) {
-      console.error("❌ No username in session");
+    const { tableNumber, status } = req.body;
+
+    const rest = await Restaurant.findById(req.user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const table = rest.tables.find(t => String(t.number) === String(tableNumber));
+    if (!table) return res.status(404).json({ error: "Table not found" });
+
+    const validStatuses = ['Available', 'Occupied', 'Reserved', 'Cleaning', 'Allocated'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status. Must be one of: " + validStatuses.join(', ') });
+    }
+
+    table.status = status;
+    await rest.save();
+
+    res.json({ success: true, message: `Table ${tableNumber} marked as ${status}`, table });
+  } catch (error) {
+    console.error("Error updating table status:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
+exports.postDeleteTable = async (req, res, next) => {
+  try {
+    const { tableNumber } = req.params;
+
+    const rest = await Restaurant.findById(req.user.rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const idx = rest.tables.findIndex(t => String(t.number) === String(tableNumber));
+    if (idx === -1) return res.status(404).json({ error: "Table not found" });
+
+    rest.tables.splice(idx, 1);
+    await rest.save();
+
+    res.json({ success: true, message: `Table ${tableNumber} removed` });
+  } catch (error) {
+    console.error("Error deleting table:", error);
+    error.status = error.status || 500;
+    error.message = error.message || "Internal Server Error";
+    return next(error);
+  }
+};
+
+exports.getStaffHomepageData = async (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+
+  try {
+    const staffMember = req.user;
+    if (!staffMember) {
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const staffMember = await User.findOne({ username: req.session.username });
-    if (!staffMember) {
-      console.error("❌ Staff member not found in database");
-      return res.status(404).json({ error: "Staff member not found" });
-    }
-
-    // Ensure rest_id is set in session if available (important for first visit)
-    if (!req.session.rest_id && staffMember.rest_id) {
-      req.session.rest_id = String(staffMember.rest_id);
-      console.log("✅ Set rest_id in session for homepage:", req.session.rest_id);
-    }
+    const { Reservation } = require("../Model/Reservation_model");
+    const Feedback = require("../Model/feedback");
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
-      console.warn(
-        "Staff homepage: restaurant not found for rest_id",
-        staffMember.rest_id,
-        "– returning fallback JSON so frontend can render"
-      );
-
-      const fallbackStaffData = {
-        staff: {
-          name: staffMember.username,
-          role: staffMember.role,
-          branch: "Unassigned",
-        },
-        announcements: [],
-        shifts: [],
-        tasks: [],
-        performance: {
-          ordersServed: 0,
-          avgRating: 4.5,
-          avgServeTime: 7,
-          efficiencyScore: 90,
-        },
-      };
-
-      return res.status(200).json(fallbackStaffData);
+      return res.status(200).json({
+        staff: { name: staffMember.username, role: staffMember.role, branch: "Unassigned" },
+        announcements: [], shifts: [], tasks: [], supportMessages: [],
+        performance: { ordersServed: 0, avgRating: 0, avgServeTime: 0, efficiencyScore: 0 },
+        orders: [], reservations: [], tables: [], alerts: [], recentFeedback: [],
+      });
     }
 
     const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
 
-    console.log(`Looking for orders for restaurant: ${restaurant._id}`);
-    console.log(`Date range: ${startOfDay} to ${endOfDay}`);
-
+    // --- Announcements ---
     const activeAnnouncements = (restaurant.announcements || [])
       .filter((a) => a.active)
-      .map((a) => ({
-        id: a._id,
-        text: a.message,
-        priority: a.priority,
-      }));
+      .map((a) => ({ id: a._id, text: a.message, priority: a.priority }));
 
+    // --- Shifts ---
     const todayShifts = (restaurant.staffShifts || [])
       .filter((shift) => {
-        const shiftDate = new Date(shift.date);
-        return (
-          shiftDate.toDateString() === new Date().toDateString() &&
-          shift.assignedStaff.includes(staffMember.username)
-        );
+        const shiftDate = shift.date instanceof Date ? shift.date : new Date(shift.date);
+        const isToday = shiftDate.toDateString() === today.toDateString();
+        const isAssigned = Array.isArray(shift.assignedStaff) && shift.assignedStaff.includes(staffMember.username);
+        return isToday && isAssigned;
       })
       .map((shift) => ({
-        id: shift._id,
-        name: shift.name,
+        id: shift._id, name: shift.name,
         time: `${shift.startTime} - ${shift.endTime}`,
         staff: shift.assignedStaff,
       }));
 
-    
+    // --- Staff Tasks ---
     const staffTasks = (restaurant.staffTasks || [])
       .filter((task) => task.assignedTo.includes(staffMember.username))
       .map((task) => ({
-        id: task._id,
-        name: task.description,
-        status: task.status,
-        priority: task.priority,
+        id: task._id, name: task.description, status: task.status, priority: task.priority,
       }));
 
+    // --- Support Messages (from both embedded and SupportTicket model) ---
+    const SupportTicket = require("../Model/SupportTicket_model");
+    const embeddedMessages = (restaurant.supportMessages || [])
+      .filter((msg) => msg.from === staffMember.username)
+      .map((msg) => ({ id: msg._id, message: msg.message, timestamp: msg.timestamp, status: msg.status, source: 'embedded' }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // Also fetch staff's SupportTicket-based tickets
+    const staffTickets = await SupportTicket.find({
+      createdBy: staffMember.username,
+      createdByRole: 'staff',
+      rest_id: staffMember.rest_id
+    }).sort({ createdAt: -1 }).lean().catch(() => []);
+
+    const ticketMessages = (staffTickets || []).map((t) => ({
+      id: t._id,
+      ticketNumber: t.ticketNumber,
+      message: t.subject,
+      timestamp: t.createdAt,
+      status: t.status,
+      source: 'ticket'
+    }));
+
+    const supportMessages = [...embeddedMessages, ...ticketMessages]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    // --- Today's Orders (from Order collection) ---
     const todaysOrders = await Order.find({
       rest_id: restaurant._id,
-      date: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-    });
+      date: { $gte: startOfDay, $lte: endOfDay },
+    }).lean();
 
-    console.log(
-      `Found ${todaysOrders.length} orders for today from Order collection`
-    );
-
+    // All orders for performance calc
     const staffOrders = todaysOrders.filter(
-      (order) =>
-        order.assignedStaff &&
-        order.assignedStaff.includes(staffMember.username)
+      (o) => o.assignedStaff && o.assignedStaff.includes(staffMember.username)
     );
 
-    console.log(
-      `Found ${staffOrders.length} orders assigned to ${staffMember.username}`
-    );
+    // Active orders (all staff can see)
+    const activeOrders = todaysOrders.filter(
+      (o) => o.status === "active" || o.status === "waiting" || o.status === "pending" || o.status === "preparing" || o.status === "ready"
+    ).map((o) => ({
+      _id: o._id,
+      dishes: o.dishes || [],
+      customerName: o.customerName || "Walk-in",
+      tableNumber: o.tableNumber || o.table_id || "N/A",
+      status: o.status,
+      totalAmount: o.totalAmount || 0,
+      orderTime: o.orderTime || o.date,
+      estimatedTime: o.estimatedTime || 0,
+    }));
 
-    staffOrders.forEach((order, index) => {
-      console.log(`Order ${index + 1}:`, {
-        rating: order.rating,
-        orderTime: order.orderTime,
-        completionTime: order.completionTime,
-        estimatedTime: order.estimatedTime,
-        assignedStaff: order.assignedStaff,
-      });
+    // Completed orders count
+    const completedOrdersToday = todaysOrders.filter(
+      (o) => o.status === "done" || o.status === "completed" || o.status === "served"
+    ).length;
+
+    // --- Reservations ---
+    const restIdStr = String(restaurant._id);
+    let reservations = await Reservation.find({ rest_id: restIdStr }).lean();
+    if (!reservations.length) {
+      reservations = await Reservation.find({ rest_id: String(staffMember.rest_id) }).lean();
+    }
+
+    const todayReservations = reservations.filter((r) => {
+      const rDate = new Date(r.date);
+      return rDate >= startOfDay && rDate <= endOfDay;
+    }).map((r) => ({
+      _id: r._id,
+      customerName: r.customerName || "Guest",
+      time: r.time,
+      guests: r.guests || 1,
+      status: r.status,
+      allocated: r.allocated || false,
+      table_id: r.table_id || null,
+      tables: r.tables || [],
+    })).sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    // --- Tables ---
+    const tables = (restaurant.tables || []).map((t) => ({
+      number: String(t.number),
+      seats: Number(t.seats || 4),
+      status: t.status || "Available",
+    }));
+
+    const totalTables = tables.length;
+    const occupiedTables = tables.filter((t) => t.status !== "Available").length;
+    const availableTables = tables.filter((t) => t.status === "Available");
+    const totalGuests = todayReservations
+      .filter((r) => r.allocated && (r.status === "confirmed" || r.status === "seated"))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    // --- Alerts ---
+    const alerts = [];
+
+    // Low stock alerts
+    if (restaurant.inventoryData && restaurant.inventoryData.labels) {
+      for (let i = 0; i < restaurant.inventoryData.labels.length; i++) {
+        const qty = (restaurant.inventoryData.values && restaurant.inventoryData.values[i]) || 0;
+        const minStock = (restaurant.inventoryData.minStocks && restaurant.inventoryData.minStocks[i]) || 0;
+        if (minStock > 0 && qty <= minStock && qty > 0) {
+          alerts.push({
+            type: "low-stock",
+            icon: "inventory",
+            message: `${restaurant.inventoryData.labels[i]} is running low (${qty} left)`,
+            severity: "warning",
+          });
+        } else if (qty <= 0 && minStock > 0) {
+          alerts.push({
+            type: "out-of-stock",
+            icon: "inventory",
+            message: `${restaurant.inventoryData.labels[i]} is out of stock!`,
+            severity: "critical",
+          });
+        }
+      }
+    }
+
+    // Upcoming reservation alerts (arriving within 30 min)
+    const now = Date.now();
+    todayReservations.forEach((r) => {
+      if (!r.allocated && (r.status === "pending" || r.status === "confirmed")) {
+        const rTime = new Date(r.time).getTime();
+        const minutesAway = Math.round((rTime - now) / 60000);
+        if (minutesAway > 0 && minutesAway <= 30) {
+          alerts.push({
+            type: "reservation-soon",
+            icon: "reservation",
+            message: `${r.customerName} (${r.guests} guests) arriving in ${minutesAway} min — no table assigned`,
+            severity: "warning",
+          });
+        } else if (minutesAway <= 0 && minutesAway >= -15) {
+          alerts.push({
+            type: "reservation-overdue",
+            icon: "reservation",
+            message: `${r.customerName} (${r.guests} guests) reservation was ${Math.abs(minutesAway)} min ago — no table assigned`,
+            severity: "critical",
+          });
+        }
+      }
     });
 
+    // Delayed order alerts
+    activeOrders.forEach((o) => {
+      if (o.orderTime && o.estimatedTime) {
+        const elapsed = (now - new Date(o.orderTime).getTime()) / 60000;
+        if (elapsed > o.estimatedTime + 10) {
+          alerts.push({
+            type: "order-delayed",
+            icon: "order",
+            message: `Order #${String(o._id).slice(-4)} at Table ${o.tableNumber} is ${Math.round(elapsed - o.estimatedTime)} min overdue`,
+            severity: "critical",
+          });
+        }
+      }
+    });
+
+    // Recent feedback
+    const recentFeedback = await Feedback.find({ rest_id: staffMember.rest_id })
+      .sort({ createdAt: -1 }).limit(5).lean().catch(() => []);
+
+    // --- Performance ---
     const performance = {
-      ordersServed: staffOrders.length,
-      avgRating: calculateAverageRating(staffOrders),
-      avgServeTime: calculateAverageServeTime(staffOrders),
-      efficiencyScore: calculateEfficiencyScore(staffOrders),
+      ordersServed: staffOrders.length > 0 ? staffOrders.length : completedOrdersToday,
+      avgRating: calculateAverageRating(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      avgServeTime: calculateAverageServeTime(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      efficiencyScore: calculateEfficiencyScore(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      totalOrdersToday: todaysOrders.length,
+      completedOrders: completedOrdersToday,
+      activeOrderCount: activeOrders.length,
+      totalRevenue: todaysOrders
+        .filter((o) => o.status === "done" || o.status === "completed" || o.status === "served")
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
     };
 
-    console.log("Performance data:", performance);
-
-    const staffData = {
+    res.json({
       staff: {
         name: staffMember.username,
         role: staffMember.role,
@@ -529,11 +653,21 @@ exports.getStaffHomepageData = async (req, res, next) => {
       announcements: activeAnnouncements,
       shifts: todayShifts,
       tasks: staffTasks,
+      supportMessages,
       performance,
-    };
-
-    console.log("Sending staff data successfully");
-    res.json(staffData);
+      // Operational data
+      orders: activeOrders,
+      reservations: todayReservations,
+      tables,
+      availableTables,
+      tableStats: { total: totalTables, occupied: occupiedTables, available: totalTables - occupiedTables, guests: totalGuests },
+      alerts: alerts.sort((a, b) => (a.severity === "critical" ? -1 : 1)),
+      recentFeedback: (recentFeedback || []).map((f) => ({
+        customerName: f.customerName,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
+        feedback: f.additionalFeedback || f.feedback, createdAt: f.createdAt,
+      })),
+    });
   } catch (error) {
     console.error("Error fetching staff homepage data:", error);
     error.status = error.status || 500;
@@ -544,30 +678,57 @@ exports.getStaffHomepageData = async (req, res, next) => {
 
 exports.postSupportMessage = async (req, res, next) => {
   try {
-    const { message } = req.body;
-    const staffMember = await User.findOne({ username: req.session.username });
+    const { message, text, subject, category, orderId } = req.body;
+    const finalMessage = String(message || text || "").trim();
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+    if (!finalMessage) {
+      return res.status(400).json({ error: "Message is required" });
+    }
 
+    const SupportTicket = require("../Model/SupportTicket_model");
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
+    // Create a proper support ticket instead of embedded message
+    const ticket = new SupportTicket({
+      createdBy: staffMember.username,
+      createdByRole: "staff",
+      rest_id: staffMember.rest_id,
+      restaurantName: restaurant.name,
+      category: category || "web_issue",
+      subject: subject || "Staff support request",
+      priority: "medium",
+      status: "open",
+      relatedOrderId: orderId || null,
+      messages: [{
+        senderRole: "staff",
+        senderName: staffMember.username,
+        text: finalMessage,
+        timestamp: new Date(),
+      }],
+    });
+
+    await ticket.save();
+
+    // Also keep backward compatibility with embedded supportMessages
     if (!restaurant.supportMessages) {
       restaurant.supportMessages = [];
     }
-
     restaurant.supportMessages.push({
       from: staffMember.username,
-      message: message,
+      message: finalMessage,
       timestamp: new Date(),
       status: "pending",
     });
-
     await restaurant.save();
 
     res.json({
       success: true,
-      message: "Message sent to manager successfully",
+      message: "Support ticket created successfully",
+      ticketNumber: ticket.ticketNumber,
     });
   } catch (error) {
     console.error("Error sending support message:", error);
@@ -578,7 +739,7 @@ exports.postSupportMessage = async (req, res, next) => {
 };
 
 exports.changePassword = async (req, res, next) => {
-  const currentStaffUsername = req.session.username;
+  const currentStaffUsername = req.user?.username;
   if (!currentStaffUsername) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -620,7 +781,8 @@ exports.updateTaskStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const staffMember = await User.findOne({ username: req.session.username });
+    const staffMember = req.user;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
 
     const restaurant = await Restaurant.findById(staffMember.rest_id);
     if (!restaurant) {
@@ -632,11 +794,18 @@ exports.updateTaskStatus = async (req, res, next) => {
       return res.status(404).json({ error: "Task not found" });
     }
 
-    task.status = status;
+    const normalizedStatus = ["done", "completed"].includes(String(status).toLowerCase())
+      ? "Completed"
+      : "Pending";
+
+    task.status = normalizedStatus;
     task.updatedAt = new Date();
 
-    if (status === "Done" && !task.completedBy) {
-      task.completedBy = [staffMember.username];
+    if (normalizedStatus === "Completed") {
+      task.completedBy = Array.isArray(task.completedBy) ? task.completedBy : [];
+      if (!task.completedBy.includes(staffMember.username)) {
+        task.completedBy.push(staffMember.username);
+      }
     }
 
     await restaurant.save();
@@ -688,6 +857,556 @@ function calculateEfficiencyScore(orders) {
   return Math.round((onTimeOrders.length / orders.length) * 100);
 }
 
+// ─── REST-style dashboard endpoints (broken into parts) ───
+
+const getRestId = (req) => (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
+
+exports.getStaffDashboardSummary = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Order } = require("../Model/Order_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const rest = await Restaurant.findById(rest_id).populate("orders").lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let orders = rest.orders || [];
+    if (!orders.length) orders = await Order.find({ rest_id }).lean();
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const staffInfo = req.user ? { name: req.user.username, role: req.user.role || "staff" } : { name: "Staff", role: "staff" };
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = orders.filter((o) => {
+      const d = new Date(o.date || o.createdAt);
+      return d >= startOfDay && d <= endOfDay;
+    });
+    const completedToday = todaysOrders.filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase()));
+    const activeToday = todaysOrders.filter((o) => ["pending", "active", "waiting", "preparing", "ready"].includes((o.status || "").toLowerCase()));
+    const todayRevenue = completedToday.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const todayReservations = reservations.filter((r) => {
+      const d = new Date(r.date);
+      return d >= startOfDay && d <= endOfDay;
+    });
+    const totalGuests = todayReservations
+      .filter((r) => r.allocated && ["confirmed", "completed"].includes(r.status || ""))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    const avgServeTime = completedToday.length > 0
+      ? Math.round(completedToday.reduce((sum, o) => {
+          if (o.orderTime && o.completionTime) return sum + (new Date(o.completionTime) - new Date(o.orderTime)) / 60000;
+          return sum + 15;
+        }, 0) / completedToday.length)
+      : 0;
+
+    res.json({
+      rest_name: rest.name,
+      staff: staffInfo,
+      todayStats: {
+        totalOrders: todaysOrders.length,
+        activeOrders: activeToday.length,
+        completedOrders: completedToday.length,
+        revenue: todayRevenue,
+        totalGuests,
+        avgServeTime,
+        totalReservations: todayReservations.length,
+        pendingReservations: todayReservations.filter((r) => !r.allocated && r.status !== "cancelled").length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getStaffDashboardSummary:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffOrders = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Order } = require("../Model/Order_model");
+
+    const rest = await Restaurant.findById(rest_id).populate("orders").lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let orders = rest.orders || [];
+    if (!orders.length) orders = await Order.find({ rest_id }).lean();
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Error in getStaffOrders:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffReservations = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error in getStaffReservations:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffTables = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const allocatedReservations = reservations.filter((r) => r.allocated && r.status === "confirmed");
+    const allocatedTableNumbers = new Set();
+    allocatedReservations.forEach((r) => {
+      if (Array.isArray(r.tables)) r.tables.forEach((t) => allocatedTableNumbers.add(String(t)));
+      if (r.table_id) allocatedTableNumbers.add(String(r.table_id));
+    });
+
+    let tables = rest.tables || [];
+    let tablesUpdated = false;
+    tables.forEach((t) => {
+      if (t.status === "Allocated" && !allocatedTableNumbers.has(String(t.number))) {
+        t.status = "Available";
+        tablesUpdated = true;
+      }
+    });
+    if (tablesUpdated) await Restaurant.findByIdAndUpdate(rest._id, { tables });
+
+    const allTables = tables.map((t) => ({
+      number: String(t.number || ""),
+      seats: Number(t.seats || 4),
+      status: t.status || "Available",
+    }));
+
+    res.json(allTables);
+  } catch (error) {
+    console.error("Error in getStaffTables:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffInventory = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const inventoryStatus = [];
+    if (rest.inventoryData?.labels?.length) {
+      for (let i = 0; i < rest.inventoryData.labels.length; i++) {
+        const quantity = rest.inventoryData.values?.[i] ?? 0;
+        const minStock = rest.inventoryData.minStocks?.[i] ?? 0;
+        const unit = rest.inventoryData.units?.[i] ?? "pieces";
+        let status = "Available";
+        if (quantity <= 0) status = "Out of Stock";
+        else if (quantity <= minStock) status = "Low Stock";
+        inventoryStatus.push({ item: rest.inventoryData.labels[i], quantity: `${quantity} ${unit}`, quantityValue: quantity, minStock, status });
+      }
+    }
+
+    res.json(inventoryStatus);
+  } catch (error) {
+    console.error("Error in getStaffInventory:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffTasks = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const currentUsername = (req.user && req.user.username) || (req.auth && req.auth.username) || "";
+    const staffTasks = (rest.staffTasks || [])
+      .filter((t) => Array.isArray(t.assignedTo) && t.assignedTo.includes(currentUsername))
+      .map((t) => ({ id: t._id, name: t.description, status: t.status, priority: t.priority, assignedTo: t.assignedTo }));
+
+    res.json(staffTasks);
+  } catch (error) {
+    console.error("Error in getStaffTasks:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffFeedback = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const Feedback = require("../Model/feedback");
+
+    const feedback = await Feedback.find({ rest_id }).sort({ createdAt: -1 }).limit(10).lean();
+    res.json(feedback.map((f) => ({ ...f, rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0 })));
+  } catch (error) {
+    console.error("Error in getStaffFeedback:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffAnnouncements = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const announcements = (rest.announcements || [])
+      .filter((a) => a.active)
+      .map((a) => ({ id: a._id, text: a.message, priority: a.priority }));
+
+    res.json(announcements);
+  } catch (error) {
+    console.error("Error in getStaffAnnouncements:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+// ─── REST-style homepage endpoints (broken into parts) ───
+
+exports.getStaffHomepageSummary = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) {
+      return res.json({
+        staff: { name: staffMember.username, role: staffMember.role, branch: "Unassigned" },
+        performance: { ordersServed: 0, avgRating: 0, avgServeTime: 0, efficiencyScore: 0 },
+        tableStats: { total: 0, occupied: 0, available: 0, guests: 0 },
+      });
+    }
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const staffOrders = todaysOrders.filter((o) => o.assignedStaff && o.assignedStaff.includes(staffMember.username));
+    const completedToday = todaysOrders.filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase())).length;
+    const activeCount = todaysOrders.filter((o) => ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase())).length;
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+    const todayReservations = reservations.filter((r) => {
+      const rDate = new Date(r.date);
+      return rDate >= startOfDay && rDate <= endOfDay;
+    });
+    const totalGuests = todayReservations
+      .filter((r) => r.allocated && (r.status === "confirmed" || r.status === "seated"))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    const tables = restaurant.tables || [];
+    const total = tables.length;
+    const occupied = tables.filter((t) => t.status !== "Available").length;
+
+    const performance = {
+      ordersServed: staffOrders.length > 0 ? staffOrders.length : completedToday,
+      avgRating: calculateAverageRating(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      avgServeTime: calculateAverageServeTime(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      efficiencyScore: calculateEfficiencyScore(staffOrders.length > 0 ? staffOrders : todaysOrders),
+      totalOrdersToday: todaysOrders.length,
+      completedOrders: completedToday,
+      activeOrderCount: activeCount,
+      totalRevenue: todaysOrders
+        .filter((o) => ["done", "completed", "served"].includes((o.status || "").toLowerCase()))
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+    };
+
+    res.json({
+      staff: { name: staffMember.username, role: staffMember.role, branch: restaurant.name },
+      performance,
+      tableStats: { total, occupied, available: total - occupied, guests: totalGuests },
+    });
+  } catch (error) {
+    console.error("Error in getStaffHomepageSummary:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageOrders = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const active = todaysOrders
+      .filter((o) => ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase()))
+      .map((o) => ({
+        _id: o._id,
+        dishes: o.dishes || [],
+        customerName: o.customerName || "Walk-in",
+        tableNumber: o.tableNumber || o.table_id || "N/A",
+        status: o.status,
+        totalAmount: o.totalAmount || 0,
+        orderTime: o.orderTime || o.date,
+        estimatedTime: o.estimatedTime || 0,
+      }));
+
+    res.json(active);
+  } catch (error) {
+    console.error("Error in getStaffHomepageOrders:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageReservations = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+
+    const todayRes = reservations
+      .filter((r) => {
+        const rDate = new Date(r.date);
+        return rDate >= startOfDay && rDate <= endOfDay;
+      })
+      .map((r) => ({
+        _id: r._id,
+        customerName: r.customerName || "Guest",
+        time: r.time,
+        guests: r.guests || 1,
+        status: r.status,
+        allocated: r.allocated || false,
+        table_id: r.table_id || null,
+        tables: r.tables || [],
+      }))
+      .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    res.json(todayRes);
+  } catch (error) {
+    console.error("Error in getStaffHomepageReservations:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageShifts = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const shifts = (restaurant.staffShifts || [])
+      .filter((shift) => {
+        const shiftDate = shift.date instanceof Date ? shift.date : new Date(shift.date);
+        const isToday = shiftDate.toDateString() === today.toDateString();
+        const isAssigned = Array.isArray(shift.assignedStaff) && shift.assignedStaff.includes(staffMember.username);
+        return isToday && isAssigned;
+      })
+      .map((shift) => ({
+        id: shift._id,
+        name: shift.name,
+        time: `${shift.startTime} - ${shift.endTime}`,
+        staff: shift.assignedStaff,
+      }));
+
+    res.json(shifts);
+  } catch (error) {
+    console.error("Error in getStaffHomepageShifts:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageAlerts = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Reservation } = require("../Model/Reservation_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = await Order.find({ rest_id: restaurant._id, date: { $gte: startOfDay, $lte: endOfDay } }).lean();
+    const activeOrders = todaysOrders.filter((o) =>
+      ["active", "waiting", "pending", "preparing", "ready"].includes((o.status || "").toLowerCase())
+    );
+
+    let reservations = await Reservation.find({ rest_id: String(rest_id) }).lean();
+    if (!reservations.length) reservations = await Reservation.find({ rest_id }).lean();
+    const todayRes = reservations.filter((r) => {
+      const rDate = new Date(r.date);
+      return rDate >= startOfDay && rDate <= endOfDay;
+    });
+
+    const alerts = [];
+    const now = Date.now();
+
+    if (restaurant.inventoryData?.labels) {
+      for (let i = 0; i < restaurant.inventoryData.labels.length; i++) {
+        const qty = restaurant.inventoryData.values?.[i] ?? 0;
+        const minStock = restaurant.inventoryData.minStocks?.[i] ?? 0;
+        if (minStock > 0 && qty <= minStock && qty > 0) {
+          alerts.push({ type: "low-stock", icon: "inventory", message: `${restaurant.inventoryData.labels[i]} is running low (${qty} left)`, severity: "warning" });
+        } else if (qty <= 0 && minStock > 0) {
+          alerts.push({ type: "out-of-stock", icon: "inventory", message: `${restaurant.inventoryData.labels[i]} is out of stock!`, severity: "critical" });
+        }
+      }
+    }
+
+    todayRes.forEach((r) => {
+      if (!r.allocated && (r.status === "pending" || r.status === "confirmed")) {
+        const rTime = new Date(r.time).getTime();
+        const minutesAway = Math.round((rTime - now) / 60000);
+        if (minutesAway > 0 && minutesAway <= 30) {
+          alerts.push({ type: "reservation-soon", icon: "reservation", message: `${r.customerName || "Guest"} (${r.guests || 1} guests) arriving in ${minutesAway} min — no table assigned`, severity: "warning" });
+        } else if (minutesAway <= 0 && minutesAway >= -15) {
+          alerts.push({ type: "reservation-overdue", icon: "reservation", message: `${r.customerName || "Guest"} (${r.guests || 1} guests) reservation was ${Math.abs(minutesAway)} min ago — no table assigned`, severity: "critical" });
+        }
+      }
+    });
+
+    activeOrders.forEach((o) => {
+      if (o.orderTime && o.estimatedTime) {
+        const elapsed = (now - new Date(o.orderTime).getTime()) / 60000;
+        if (elapsed > o.estimatedTime + 10) {
+          alerts.push({ type: "order-delayed", icon: "order", message: `Order #${String(o._id).slice(-4)} at Table ${o.tableNumber || o.table_id || "?"} is ${Math.round(elapsed - o.estimatedTime)} min overdue`, severity: "critical" });
+        }
+      }
+    });
+
+    res.json(alerts.sort((a, b) => (a.severity === "critical" ? -1 : 1)));
+  } catch (error) {
+    console.error("Error in getStaffHomepageAlerts:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageSupportMessages = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+    const staffMember = req.user || req.auth;
+    if (!staffMember) return res.status(401).json({ error: "Not authenticated" });
+
+    const SupportTicket = require("../Model/SupportTicket_model");
+
+    const restaurant = await Restaurant.findById(rest_id).lean();
+    if (!restaurant) return res.json([]);
+
+    const embedded = (restaurant.supportMessages || [])
+      .filter((msg) => msg.from === staffMember.username)
+      .map((msg) => ({ id: msg._id, message: msg.message, timestamp: msg.timestamp, status: msg.status, source: "embedded" }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    const tickets = await SupportTicket.find({
+      createdBy: staffMember.username,
+      createdByRole: "staff",
+      rest_id,
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+      .catch(() => []);
+
+    const ticketMsgs = (tickets || []).map((t) => ({
+      id: t._id,
+      ticketNumber: t.ticketNumber,
+      message: t.subject,
+      timestamp: t.createdAt,
+      status: t.status,
+      source: "ticket",
+    }));
+
+    res.json([...embedded, ...ticketMsgs].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)));
+  } catch (error) {
+    console.error("Error in getStaffHomepageSupportMessages:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+exports.getStaffHomepageFeedback = async (req, res) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const Feedback = require("../Model/feedback");
+    const feedback = await Feedback.find({ rest_id }).sort({ createdAt: -1 }).limit(5).lean().catch(() => []);
+    res.json(
+      (feedback || []).map((f) => ({
+        customerName: f.customerName,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
+        feedback: f.additionalFeedback || f.feedback,
+        createdAt: f.createdAt,
+      }))
+    );
+  } catch (error) {
+    console.error("Error in getStaffHomepageFeedback:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
 exports.getDashBoardData = async (req, res, next) => {
    console.log("==============================================================")
   // console.log("🚀🚀🚀 getDashBoardData function called!");
@@ -708,26 +1427,20 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log("------ STAFF DASHBOARD DEBUG START ------");
     // console.log("Session data:", req.session);
 
-    // Recover rest_id if missing - ensure it's always set for staff
-    if (!req.session.rest_id && req.session.username) {
-      const staffUser = await User.findOne({ username: req.session.username });
-      if (staffUser && staffUser.rest_id) {
-        req.session.rest_id = staffUser.rest_id;
-        // console.log("✅ Recovered rest_id in dashboard:", req.session.rest_id);
-      }
-    }
+    // Recover rest_id from auth (set by auth middleware; stateless req.auth or req.user)
+    const rest_id = (req.auth && req.auth.rest_id) || (req.user && req.user.rest_id);
 
-    if (!req.session.rest_id) {
-      return res.status(400).json({ error: "No restaurant ID in session" });
+    if (!rest_id) {
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     // ✅ Fetch restaurant
-    const rest = await Restaurant.findById(req.session.rest_id)
+    const rest = await Restaurant.findById(rest_id)
       .populate("orders")
       .lean();
 
     if (!rest) {
-      // console.log("❌ Restaurant not found for ID:", req.session.rest_id);
+      // console.log("❌ Restaurant not found for ID:", rest_id);
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
@@ -736,11 +1449,11 @@ exports.getDashBoardData = async (req, res, next) => {
     // ✅ Get Orders
     let orders = rest.orders || [];
     if (!orders.length) {
-      orders = await Order.find({ rest_id: req.session.rest_id });
+      orders = await Order.find({ rest_id: rest_id });
     }
 
     // ✅ Get Reservations - ensure rest_id is string for query
-    const restIdString = String(req.session.rest_id);
+    const restIdString = String(rest_id);
     // console.log('🔍 Querying reservations for rest_id:', restIdString);
 
     // Try multiple query formats to ensure we find reservations
@@ -749,7 +1462,7 @@ exports.getDashBoardData = async (req, res, next) => {
     // If no results, try querying without string conversion (in case rest_id is stored differently)
     if (reservations.length === 0) {
       // console.log('⚠️ No reservations found with string rest_id, trying with original rest_id');
-      reservations = await Reservation.find({ rest_id: req.session.rest_id }).lean();
+      reservations = await Reservation.find({ rest_id: rest_id }).lean();
     }
 
     // Also try querying all reservations to debug
@@ -792,7 +1505,7 @@ exports.getDashBoardData = async (req, res, next) => {
     }
 
     // ✅ Get Feedback
-    const feedback = await Feedback.find({ rest_id: req.session.rest_id })
+    const feedback = await Feedback.find({ rest_id: rest_id })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean();
@@ -838,30 +1551,96 @@ exports.getDashBoardData = async (req, res, next) => {
     // console.log('📊 Available tables:', availableTables.length, availableTables);
     // console.log('🏢 All tables:', allTables.length, allTables);
 
-    // ✅ Get Staff Tasks
-    const staffTasks = (rest.staffTasks || []).map((task) => ({
-      id: task._id,
-      name: task.description,
-      status: task.status,
-      priority: task.priority,
-      assignedTo: task.assignedTo,
-    }));
-     console.log(staffTasks+"================================================")
+    // ✅ Get Staff Tasks — filter by logged-in staff username
+    const currentUsername = req.user.username;
+    const staffTasks = (rest.staffTasks || [])
+      .filter((task) => Array.isArray(task.assignedTo) && task.assignedTo.includes(currentUsername))
+      .map((task) => ({
+        id: task._id,
+        name: task.description,
+        status: task.status,
+        priority: task.priority,
+        assignedTo: task.assignedTo,
+      }));
 
     // ✅ Calculate pending tasks count
     const pendingTasksCount = staffTasks.filter(task => task.status === "Pending").length;
 
+    // ✅ Staff info
+    const staffInfo = req.user ? {
+      name: req.user.username,
+      role: req.user.role || 'staff',
+    } : { name: 'Staff', role: 'staff' };
+
+    // ✅ Today's performance stats
+    const today = new Date();
+    const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
+
+    const todaysOrders = orders.filter(o => {
+      const d = new Date(o.date || o.createdAt);
+      return d >= startOfDay && d <= endOfDay;
+    });
+
+    const completedToday = todaysOrders.filter(o =>
+      o.status === 'done' || o.status === 'completed' || o.status === 'served'
+    );
+
+    const activeToday = todaysOrders.filter(o =>
+      o.status === 'pending' || o.status === 'active' || o.status === 'waiting' || o.status === 'preparing' || o.status === 'ready'
+    );
+
+    const todayRevenue = completedToday.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    const todayReservations = reservations.filter(r => {
+      const d = new Date(r.date);
+      return d >= startOfDay && d <= endOfDay;
+    });
+
+    const totalGuests = todayReservations
+      .filter(r => r.allocated && (r.status === 'confirmed' || r.status === 'completed'))
+      .reduce((sum, r) => sum + (r.guests || 0), 0);
+
+    const avgServeTime = completedToday.length > 0
+      ? Math.round(completedToday.reduce((sum, o) => {
+          if (o.orderTime && o.completionTime) {
+            return sum + (new Date(o.completionTime) - new Date(o.orderTime)) / 60000;
+          }
+          return sum + 15;
+        }, 0) / completedToday.length)
+      : 0;
+
+    // ✅ Announcements
+    const announcements = (rest.announcements || [])
+      .filter(a => a.active)
+      .map(a => ({ id: a._id, text: a.message, priority: a.priority }));
+
     // ✅ Send data
     res.json({
       rest_name: rest.name,
+      staff: staffInfo,
       orders,
       reservations,
-      feedback,
-      inventoryStatus, // 👈 add this field for frontend
+      feedback: (feedback || []).map((f) => ({
+        ...f,
+        rating: f.rating ?? f.diningRating ?? f.orderRating ?? 0,
+      })),
+      inventoryStatus,
       availableTables,
-      allTables, // 👈 add all tables for occupied count
-      staffTasks, // 👈 add staffTasks for pending tasks
-      pendingTasksCount, // 👈 add pending tasks count
+      allTables,
+      staffTasks,
+      pendingTasksCount,
+      announcements,
+      todayStats: {
+        totalOrders: todaysOrders.length,
+        activeOrders: activeToday.length,
+        completedOrders: completedToday.length,
+        revenue: todayRevenue,
+        totalGuests: totalGuests,
+        avgServeTime: avgServeTime,
+        totalReservations: todayReservations.length,
+        pendingReservations: todayReservations.filter(r => !r.allocated && r.status !== 'cancelled').length,
+      },
     });
 
     // console.log("------ STAFF DASHBOARD DEBUG END ------");
@@ -870,6 +1649,223 @@ exports.getDashBoardData = async (req, res, next) => {
     error.status = error.status || 500;
     error.message = error.message || "Internal Server Error";
     return next(error);
+  }
+};
+
+
+// ===========================================
+// LEFTOVERS MANAGEMENT ROUTES
+// ===========================================
+
+/**
+ * Get all leftovers for the restaurant
+ * GET /api/staff/leftovers
+ */
+exports.getLeftovers = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id).lean();
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    const leftovers = rest.leftovers || [];
+    
+    // Sort by expiry date (soonest first)
+    leftovers.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+
+    res.json(leftovers);
+  } catch (error) {
+    console.error("Error in getLeftovers:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Add a new leftover item
+ * POST /api/staff/leftovers
+ * Body: { itemName: string, quantity: number, expiryDate: string (ISO date) }
+ */
+exports.addLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { itemName, quantity, expiryDate } = req.body;
+
+    // Validation
+    if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
+      return res.status(400).json({ error: "Item name is required" });
+    }
+
+    if (quantity === undefined || quantity === null || isNaN(quantity) || quantity <= 0) {
+      return res.status(400).json({ error: "Quantity must be a positive number" });
+    }
+
+    if (!expiryDate || isNaN(new Date(expiryDate).getTime())) {
+      return res.status(400).json({ error: "Valid expiry date is required" });
+    }
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    // Create new leftover item
+    const newLeftover = {
+      itemName: itemName.trim(),
+      quantity: Number(quantity),
+      expiryDate: new Date(expiryDate),
+    };
+
+    if (!rest.leftovers) {
+      rest.leftovers = [];
+    }
+
+    rest.leftovers.push(newLeftover);
+    await rest.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Leftover item added successfully",
+      leftover: newLeftover,
+    });
+  } catch (error) {
+    console.error("Error in addLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Update an existing leftover item
+ * PUT /api/staff/leftovers/:id
+ * Body: { itemName?: string, quantity?: number, expiryDate?: string }
+ */
+exports.updateLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { id } = req.params;
+    const { itemName, quantity, expiryDate } = req.body;
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.status(404).json({ error: "No leftovers found" });
+    }
+
+    // Find the leftover item by _id
+    const leftoverIndex = rest.leftovers.findIndex(item => String(item._id) === String(id));
+    if (leftoverIndex === -1) {
+      return res.status(404).json({ error: "Leftover item not found" });
+    }
+
+    // Update fields if provided
+    if (itemName !== undefined && typeof itemName === 'string' && itemName.trim() !== '') {
+      rest.leftovers[leftoverIndex].itemName = itemName.trim();
+    }
+
+    if (quantity !== undefined && quantity !== null && !isNaN(quantity) && quantity > 0) {
+      rest.leftovers[leftoverIndex].quantity = Number(quantity);
+    }
+
+    if (expiryDate !== undefined && expiryDate !== null && !isNaN(new Date(expiryDate).getTime())) {
+      rest.leftovers[leftoverIndex].expiryDate = new Date(expiryDate);
+    }
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: "Leftover item updated successfully",
+      leftover: rest.leftovers[leftoverIndex],
+    });
+  } catch (error) {
+    console.error("Error in updateLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Delete a leftover item
+ * DELETE /api/staff/leftovers/:id
+ */
+exports.deleteLeftover = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { id } = req.params;
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.status(404).json({ error: "No leftovers found" });
+    }
+
+    const initialLength = rest.leftovers.length;
+    rest.leftovers = rest.leftovers.filter(item => String(item._id) !== String(id));
+
+    if (rest.leftovers.length === initialLength) {
+      return res.status(404).json({ error: "Leftover item not found" });
+    }
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: "Leftover item deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteLeftover:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
+  }
+};
+
+/**
+ * Delete expired leftovers (utility endpoint)
+ * DELETE /api/staff/leftovers/expired
+ */
+exports.deleteExpiredLeftovers = async (req, res, next) => {
+  try {
+    const rest_id = getRestId(req);
+    if (!rest_id) return res.status(401).json({ error: "Not authenticated" });
+
+    const { Restaurant } = require("../Model/Restaurents_model");
+
+    const rest = await Restaurant.findById(rest_id);
+    if (!rest) return res.status(404).json({ error: "Restaurant not found" });
+
+    if (!rest.leftovers || rest.leftovers.length === 0) {
+      return res.json({ success: true, message: "No leftovers to clean up", deletedCount: 0 });
+    }
+
+    const now = new Date();
+    const initialLength = rest.leftovers.length;
+    
+    rest.leftovers = rest.leftovers.filter(item => new Date(item.expiryDate) > now);
+    const deletedCount = initialLength - rest.leftovers.length;
+
+    await rest.save();
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} expired leftover item(s)`,
+      deletedCount,
+      remainingCount: rest.leftovers.length,
+    });
+  } catch (error) {
+    console.error("Error in deleteExpiredLeftovers:", error);
+    return res.status(error.status || 500).json({ error: error.message || "Internal Server Error" });
   }
 };
 
