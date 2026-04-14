@@ -52,6 +52,9 @@ const config = {
   smtpHost: (process.env.SMTP_HOST || "").trim(),
   smtpPort: Number(process.env.SMTP_PORT || 587),
   smtpSecure: parseBoolean(process.env.SMTP_SECURE, false),
+  cacheEnabled: parseBoolean(process.env.CACHE_ENABLED, false),
+  perfRunLabel: (process.env.PERF_RUN_LABEL || "baseline_no_cache").trim(),
+  cacheDefaultTtlSeconds: Number(process.env.CACHE_DEFAULT_TTL_SECONDS || 120),
 };
 
 const validateConfig = () => {

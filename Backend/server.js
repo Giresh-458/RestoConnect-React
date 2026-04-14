@@ -19,6 +19,12 @@ const { Restaurant } = require("./Model/Restaurents_model.js");
 const config = require("./config/env");
 const { getClearCookieOptions, getCsrfCookieOptions, getSessionCookieOptions } = require("./util/cookies");
 const { createSessionStoreManager } = require("./util/sessionStore");
+const { performanceMetricsMiddleware } = require("./middleware/performanceMetrics");
+const { connectDataCache } = require("./util/dataCache");
+const {
+  redisReadCacheMiddleware,
+  redisInvalidateOnMutationMiddleware,
+} = require("./middleware/redisCache");
 
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
@@ -37,6 +43,8 @@ app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
 app.use(cookieParser());
+app.use(performanceMetricsMiddleware);
+app.use(redisInvalidateOnMutationMiddleware);
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -293,26 +301,26 @@ app.get("/logout", (req, res) => {
 app.use("/loginPage", loginPage);
 
 //  public
-app.use("/api/customer", customerPublicRoutes);
+app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 // Support routes must be mounted BEFORE generic role routers to ensure proper matching
-app.use("/api/customer/support", authentication("customer"), customerSupportRouter);
+app.use("/api/customer/support", authentication("customer"), redisReadCacheMiddleware, customerSupportRouter);
 app.use("/customer", authentication("customer"), customerRouter);
-app.use("/api/customer", authentication("customer"), customerRouter);
+app.use("/api/customer", authentication("customer"), redisReadCacheMiddleware, customerRouter);
 
-app.use("/api/admin/support", authentication(["admin", "employee"]), adminSupportRouter);
-app.use("/api/superadmin", authentication("admin"), superadminRouter);
+app.use("/api/admin/support", authentication(["admin", "employee"]), redisReadCacheMiddleware, adminSupportRouter);
+app.use("/api/superadmin", authentication("admin"), redisReadCacheMiddleware, superadminRouter);
 app.use("/admin", authentication(["admin", "employee"]), adminRouter);
-app.use("/api/admin", authentication(["admin", "employee"]), adminRouter);
+app.use("/api/admin", authentication(["admin", "employee"]), redisReadCacheMiddleware, adminRouter);
 
-app.use("/api/employee/support", authentication("employee"), adminSupportRouter);
+app.use("/api/employee/support", authentication("employee"), redisReadCacheMiddleware, adminSupportRouter);
 app.use("/employee", authentication("employee"), adminRouter);
-app.use("/api/employee", authentication("employee"), adminRouter);
+app.use("/api/employee", authentication("employee"), redisReadCacheMiddleware, adminRouter);
 
-app.use("/api/owner/support", authentication("owner"), ownerSupportRouter);
+app.use("/api/owner/support", authentication("owner"), redisReadCacheMiddleware, ownerSupportRouter);
 app.use("/owner", authentication("owner"), ownerRouter);
-app.use("/api/owner", authentication("owner"), ownerRouter);
+app.use("/api/owner", authentication("owner"), redisReadCacheMiddleware, ownerRouter);
 
 
 
@@ -321,7 +329,7 @@ app.use("/reservations", authentication("owner"), reservationRouter);
 
 
 // Staff routes - use router for all /staff and /api/staff paths
-app.use('/api/staff', authentication('staff'), staffRouter);
+app.use('/api/staff', authentication('staff'), redisReadCacheMiddleware, staffRouter);
 // Also mount staffRouter at /staff for API routes (like /staff/homepage)
 app.use('/staff', authentication('staff'),
 staffRouter);
@@ -350,6 +358,7 @@ app.get("/", async (req, res, next) => {
 app.get(
   "/menu/:restid",
   authentication("customer"),
+  redisReadCacheMiddleware,
   async (req, res, next) => {
     try {
       await menuController.getMenu(req, res, next);
@@ -428,7 +437,7 @@ app.get("/check-session", async (req, res) => {
   }
 });
 
-app.get("/api/restaurants", async (req, res) => {
+app.get("/api/restaurants", redisReadCacheMiddleware, async (req, res) => {
   try {
     const restaurants = await Restaurant.find({});
     
@@ -449,6 +458,7 @@ app.get("/api/restaurants", async (req, res) => {
 
 const startServer = async () => {
   await sessionStoreManager.connect();
+  await connectDataCache();
   await connectDB();
 
   app.listen(config.port, () => {

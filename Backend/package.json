@@ -18,6 +18,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "perf:report": "node scripts/generatePerfReport.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
