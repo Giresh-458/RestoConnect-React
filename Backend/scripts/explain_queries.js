@@ -84,17 +84,13 @@ async function runAggExplain(coll, pipeline) {
 }
 
 async function run() {
-  console.log(
-    "═══════════════════════════════════════════════════════════════",
-  );
-  console.log("  RestoConnect – Explain Query Verification");
-  console.log(
-    "═══════════════════════════════════════════════════════════════\n",
-  );
+  console.log("===============================================================");
+  console.log("  RestoConnect - Explain Query Verification");
+  console.log("===============================================================\n");
 
   await mongoose.connect(MONGO_URI);
   const db = mongoose.connection.db;
-  console.log(`✅ Connected to MongoDB: ${MONGO_URI}\n`);
+  console.log(`Connected to MongoDB: ${MONGO_URI}\n`);
 
   const ordersColl = db.collection("orders");
   const reservationsColl = db.collection("reservations");
@@ -179,7 +175,7 @@ async function run() {
   const comparisonRows = [];
 
   console.log(
-    "─── Before vs After (Find Queries) ───────────────────────────\n",
+    "--- Before vs After (Find Queries) ---------------------------\n",
   );
   for (const spec of querySpecs) {
     try {
@@ -197,7 +193,7 @@ async function run() {
       );
       comparisonRows.push({ query: spec.label, before, after });
 
-      console.log(`📊 ${spec.label}`);
+      console.log(`Query: ${spec.label}`);
       console.log(
         `   BEFORE -> plan=${before.winningPlan}, keys=${before.keysExamined}, docs=${before.docsExamined}, n=${before.returned}, ms=${before.executionMs}, indexUsed=${before.indexUsed}`,
       );
@@ -205,12 +201,12 @@ async function run() {
         `   AFTER  -> plan=${after.winningPlan}, keys=${after.keysExamined}, docs=${after.docsExamined}, n=${after.returned}, ms=${after.executionMs}, indexUsed=${after.indexUsed}`,
       );
     } catch (err) {
-      console.log(`⚠️  ${spec.label}: ${err.message}`);
+      console.log(`WARN  ${spec.label}: ${err.message}`);
     }
   }
 
   console.log(
-    "\n─── Aggregation Explain (Current) ────────────────────────────\n",
+    "\n--- Aggregation Explain (Current) ----------------------------\n",
   );
   const aggSpecs = [
     {
@@ -263,17 +259,17 @@ async function run() {
     try {
       const stat = await runAggExplain(spec.coll, spec.pipeline);
       aggRows.push({ query: spec.label, ...stat });
-      console.log(`📊 ${spec.label}`);
+      console.log(`Query: ${spec.label}`);
       console.log(
         `   plan=${stat.winningPlan}, keys=${stat.keysExamined}, docs=${stat.docsExamined}, n=${stat.returned}, ms=${stat.executionMs}, indexUsed=${stat.indexUsed}`,
       );
     } catch (err) {
-      console.log(`⚠️  ${spec.label}: ${err.message}`);
+      console.log(`WARN  ${spec.label}: ${err.message}`);
     }
   }
 
   console.log(
-    "\n─── Index Inventory ──────────────────────────────────────────\n",
+    "\n--- Index Inventory ------------------------------------------\n",
   );
   const collections = [
     "orders",
@@ -287,17 +283,17 @@ async function run() {
     try {
       const indexes = await db.collection(name).indexes();
       const custom = indexes.filter((idx) => idx.name !== "_id_");
-      console.log(`📋 ${name}: ${custom.length} custom indexes`);
+      console.log(`${name}: ${custom.length} custom indexes`);
       custom.forEach((idx) =>
         console.log(`   ${idx.name}: ${JSON.stringify(idx.key)}`),
       );
     } catch {
-      console.log(`⚠️  ${name}: collection not found`);
+      console.log(`WARN  ${name}: collection not found`);
     }
   }
 
   console.log(
-    "\n─── Markdown: Find Query Before vs After ─────────────────────\n",
+    "\n--- Markdown: Find Query Before vs After ---------------------\n",
   );
   console.log(
     "| Query | Phase | Winning Plan | Keys Examined | Docs Examined | Returned | Time (ms) | Index Used | ",
@@ -314,7 +310,7 @@ async function run() {
 
   if (aggRows.length) {
     console.log(
-      "\n─── Markdown: Aggregation Explain (Current) ──────────────────\n",
+      "\n--- Markdown: Aggregation Explain (Current) ------------------\n",
     );
     console.log(
       "| Query | Winning Plan | Keys Examined | Docs Examined | Returned | Time (ms) | Index Used | ",
@@ -328,7 +324,7 @@ async function run() {
   }
 
   await mongoose.disconnect();
-  console.log("\n✅ Done");
+  console.log("\nDone");
 }
 
 run().catch((err) => {
