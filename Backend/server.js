@@ -439,16 +439,15 @@ app.get("/check-session", async (req, res) => {
 
 app.get("/api/restaurants", redisReadCacheMiddleware, async (req, res) => {
   try {
-    const restaurants = await Restaurant.find({});
-    
-    // Get unique cities for the dropdown
-    const uniqueCities = [
-      ...new Set(restaurants.map((r) => r.city).filter(Boolean)),
-    ].sort();
+    // Run both queries in parallel — distinct avoids loading all docs just for city names
+    const [restaurants, uniqueCities] = await Promise.all([
+      Restaurant.find({}),
+      Restaurant.distinct("city"),
+    ]);
 
     res.json({
       restaurants: restaurants,
-      cities: ["All", ...uniqueCities], // Include "All" option
+      cities: ["All", ...(uniqueCities || []).filter(Boolean).sort()],
     });
   } catch (err) {
     console.error("Error fetching restaurants:", err);

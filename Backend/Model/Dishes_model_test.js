@@ -39,6 +39,10 @@ const dishSchema = new mongoose.Schema({
   }
 });
 
+// Indexes for common query patterns
+dishSchema.index({ name: 1 });       // findByName queries
+dishSchema.index({ rest_id: 1 });    // Dish lookup per restaurant
+
 dishSchema.methods.addDish = async function(rest_id) {
   this.rest_id = rest_id;
   await mongoose.model('Restaurant').updateOne(

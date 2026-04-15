@@ -6,9 +6,10 @@ const { User } = require("../Model/userRoleModel");
 const { Restaurant } = require("../Model/Restaurents_model");
 const RestaurantRequest = require("../Model/restaurent_request_model");
 const { Dish } = require("../Model/Dishes_model_test");
-const { Order } = require("../Model/Order_model");           // ✅ Add this
-const { Reservation } = require("../Model/Reservation_model"); // ✅ Add this
-const Feedback = require("../Model/feedback");                // ✅ Add this
+const { Order } = require("../Model/Order_model");
+const { Reservation } = require("../Model/Reservation_model");
+const Feedback = require("../Model/feedback");
+
 // Admin Dashboard
 exports.getAdminDashboard = async (req, res, next) => {
   try {
@@ -37,7 +38,6 @@ exports.getAdminDashboard = async (req, res, next) => {
       return sum;
     }, 0);
 
-   
     const currentAdminUsername =
       (req.auth && req.auth.username) ||
       (req.user && req.user.username) ||
@@ -46,7 +46,7 @@ exports.getAdminDashboard = async (req, res, next) => {
     if (currentAdminUsername) {
       currentAdminProfile = await User.findOne({
         username: currentAdminUsername,
-      }).select('-password');
+      }).select("-password");
     }
 
     let users = [];
@@ -55,9 +55,9 @@ exports.getAdminDashboard = async (req, res, next) => {
       users = await User.find({
         ...userFilter,
         username: { $ne: currentAdminUsername },
-      }).select('-password');
+      }).select("-password");
     } else {
-      users = await User.find(userFilter).select('-password');
+      users = await User.find(userFilter).select("-password");
     }
 
     users = users.map((user) => {
@@ -86,33 +86,33 @@ exports.getAdminDashboard = async (req, res, next) => {
 
 exports.getStatisticsGraphs = async (req, res, next) => {
   try {
-    const period = req.query.period || 'monthly'; // daily, monthly, yearly
+    const period = req.query.period || "monthly"; // daily, monthly, yearly
     const now = new Date();
     let startDate, groupBy, sortBy;
 
     // Set date range and grouping based on period
-    if (period === 'daily') {
+    if (period === "daily") {
       // Last 30 days
       startDate = new Date(now);
       startDate.setDate(startDate.getDate() - 30);
       groupBy = {
         year: { $year: "$payments.date" },
         month: { $month: "$payments.date" },
-        day: { $dayOfMonth: "$payments.date" }
+        day: { $dayOfMonth: "$payments.date" },
       };
       sortBy = { year: 1, month: 1, day: 1 };
-    } else if (period === 'yearly') {
+    } else if (period === "yearly") {
       // Last 5 years
       startDate = new Date(now.getFullYear() - 4, 0, 1);
       groupBy = {
-        year: { $year: "$payments.date" }
+        year: { $year: "$payments.date" },
       };
       sortBy = { year: 1 };
     } else {
       // Monthly (default) - current year
       startDate = new Date(now.getFullYear(), 0, 1);
       groupBy = {
-        month: { $month: "$payments.date" }
+        month: { $month: "$payments.date" },
       };
       sortBy = { month: 1 };
     }
@@ -130,15 +130,19 @@ exports.getStatisticsGraphs = async (req, res, next) => {
       {
         $project: {
           _id: 0,
-          ...(period === 'daily' ? {
-            year: "$_id.year",
-            month: "$_id.month",
-            day: "$_id.day"
-          } : period === 'yearly' ? {
-            year: "$_id.year"
-          } : {
-            month: "$_id.month"
-          }),
+          ...(period === "daily"
+            ? {
+                year: "$_id.year",
+                month: "$_id.month",
+                day: "$_id.day",
+              }
+            : period === "yearly"
+              ? {
+                  year: "$_id.year",
+                }
+              : {
+                  month: "$_id.month",
+                }),
           totalPayments: 1,
           countPayments: 1,
           restaurantFee: { $multiply: ["$totalPayments", 0.1] },
@@ -163,9 +167,9 @@ exports.getAllUsers = async (req, res, next) => {
       users = await User.find({
         ...filter,
         username: { $ne: currentAdminUsername },
-      }).select('-password');
+      }).select("-password");
     } else {
-      users = await User.find(filter).select('-password');
+      users = await User.find(filter).select("-password");
     }
     res.json(users);
   } catch (error) {
@@ -177,13 +181,15 @@ exports.getAllUsers = async (req, res, next) => {
 // Get statistics
 exports.getStatistics = async (req, res, next) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalRestaurants = await Restaurant.countDocuments();
-    const restaurants = await Restaurant.findAll();
-    const totalRevenue = restaurants.reduce(
-      (sum, r) => sum + (r.amount || 0),
-      0
-    );
+    const [totalUsers, totalRestaurants, revenueResult] = await Promise.all([
+      User.countDocuments(),
+      Restaurant.countDocuments(),
+      Restaurant.aggregate([
+        { $group: { _id: null, totalRevenue: { $sum: "$amount" } } },
+      ]),
+    ]);
+    const totalRevenue =
+      revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
     res.json({ totalUsers, totalRestaurants, totalRevenue });
   } catch (error) {
     console.error("Error in getStatistics:", error);
@@ -238,7 +244,7 @@ exports.suspendUser = async (req, res, next) => {
     const startOfToday = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate()
+      now.getDate(),
     );
     if (parsed < startOfToday) {
       return res
@@ -276,7 +282,7 @@ exports.unsuspendUser = async (req, res, next) => {
           suspensionEndDate: null,
           suspensionReason: null,
         },
-      }
+      },
     );
     if (expectsJson(req))
       return res.status(200).json({ message: "User unsuspended successfully" });
@@ -289,7 +295,7 @@ exports.unsuspendUser = async (req, res, next) => {
   }
 };
 
-// 🌟 FIX: Edit admin profile
+//  FIX: Edit admin profile
 exports.editProfile = async (req, res, next) => {
   try {
     const currentAdminUsername =
@@ -341,17 +347,17 @@ exports.editProfile = async (req, res, next) => {
 
     const updateData = { username, email };
     if (newpassword && newpassword.trim() !== "") {
-      if(newpassword.trim().length<6){
-      return res.status(400).json({
-  message: "password must be at least 6 letters"
-});
+      if (newpassword.trim().length < 6) {
+        return res.status(400).json({
+          message: "password must be at least 6 letters",
+        });
       }
       updateData.password = await bcrypt.hash(newpassword.trim(), 10);
     }
 
     await User.updateOne(
       { username: currentAdminUsername },
-      { $set: updateData }
+      { $set: updateData },
     );
     // Username is carried via JWT; no need to mutate session username.
 
@@ -369,9 +375,7 @@ exports.editProfile = async (req, res, next) => {
 // 🌟 FIX: Change Admin Password
 exports.changePassword = async (req, res, next) => {
   const currentAdminUsername =
-    (req.auth && req.auth.username) ||
-    (req.user && req.user.username) ||
-    null;
+    (req.auth && req.auth.username) || (req.user && req.user.username) || null;
   if (!currentAdminUsername)
     return res.status(401).json({ error: "Unauthorized" });
 
@@ -380,11 +384,10 @@ exports.changePassword = async (req, res, next) => {
     if (!currentPassword || !newPassword)
       return res.status(400).json({ error: "Missing password fields" });
 
-    if(newPassword.trim().length<6){
-    return res.status(400).json({
-  message: "password must be at least 6 letters"
-});
-
+    if (newPassword.trim().length < 6) {
+      return res.status(400).json({
+        message: "password must be at least 6 letters",
+      });
     }
     const user = await User.findOne({ username: currentAdminUsername });
     if (!user) return res.status(404).json({ error: "Admin not found" });
@@ -394,12 +397,11 @@ exports.changePassword = async (req, res, next) => {
     if (!isMatch)
       return res.status(401).json({ error: "Incorrect current password" });
 
-
     // 2. Hash and update new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.updateOne(
       { username: currentAdminUsername },
-      { $set: { password: hashedPassword } }
+      { $set: { password: hashedPassword } },
     );
 
     res.status(200).json({ message: "Password changed successfully!" });
@@ -412,9 +414,7 @@ exports.changePassword = async (req, res, next) => {
 // 🌟 FIX: Delete Admin Account
 exports.deleteAccount = async (req, res, next) => {
   const currentAdminUsername =
-    (req.auth && req.auth.username) ||
-    (req.user && req.user.username) ||
-    null;
+    (req.auth && req.auth.username) || (req.user && req.user.username) || null;
   if (!currentAdminUsername) {
     if (expectsJson(req))
       return res.status(401).json({ error: "Unauthorized" });
@@ -504,7 +504,7 @@ exports.postEditRestaurent = async (req, res, next) => {
 
     await Restaurant.updateOne(
       { _id: id },
-      { $set: { name, location, amount } }
+      { $set: { name, location, amount } },
     );
     res.redirect("/admin/dashboard");
   } catch (error) {
@@ -533,7 +533,7 @@ exports.suspendRestaurant = async (req, res, next) => {
     const startOfToday = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate()
+      now.getDate(),
     );
     if (parsed < startOfToday) {
       return res
@@ -573,7 +573,7 @@ exports.unsuspendRestaurant = async (req, res, next) => {
           suspensionEndDate: null,
           suspensionReason: null,
         },
-      }
+      },
     );
     if (expectsJson(req))
       return res
@@ -590,7 +590,7 @@ exports.unsuspendRestaurant = async (req, res, next) => {
 
 // Delete restaurant
 exports.postDeleteRestaurent = async (req, res, next) => {
-  console.log("in the the admin controller delete restarant")
+  console.log("in the the admin controller delete restarant");
   try {
     const id = req.params.id;
     const restaurant = await Restaurant.findById(id);
@@ -616,20 +616,23 @@ exports.postDeleteRestaurent = async (req, res, next) => {
 exports.getAllRestaurants = async (req, res, next) => {
   try {
     const restaurants = await Restaurant.findAll();
-    const restaurantsWithOwners = await Promise.all(
-      restaurants.map(async (restaurant) => {
-        const owner = await User.findOne({ rest_id: restaurant._id });
-        return {
-          ...restaurant.toObject(),
-          owner: owner
-            ? {
-                name: owner.username,
-                email: owner.email,
-              }
-            : null,
-        };
-      })
+    // Fetch all owners at once to avoid per-restaurant queries
+    const restIds = restaurants.map((r) => r._id);
+    const owners = await User.find({
+      rest_id: { $in: restIds },
+      role: "owner",
+    }).select("username email rest_id");
+    const ownerMap = new Map(
+      owners.map((o) => [
+        String(o.rest_id),
+        { name: o.username, email: o.email },
+      ]),
     );
+
+    const restaurantsWithOwners = restaurants.map((restaurant) => ({
+      ...restaurant.toObject(),
+      owner: ownerMap.get(String(restaurant._id)) || null,
+    }));
 
     res.json(restaurantsWithOwners);
   } catch (error) {
@@ -642,7 +645,7 @@ exports.getAllRestaurants = async (req, res, next) => {
 exports.getaceptreq = async (req, res, next) => {
   try {
     const ownername = req.params.owner_username;
-    console.log(ownername)
+    console.log(ownername);
     const request = await RestaurantRequest.findOne({
       owner_username: ownername,
     });
@@ -659,20 +662,19 @@ exports.getaceptreq = async (req, res, next) => {
     });
     await newRestaurant.save();
 
-    try{
-    const newOwner = new User({
-      username: request.owner_username,
-      password: request.owner_password,
-      role: "owner",
-      restaurantName: request.name,
-      rest_id: newRestaurant._id,
-      email: request.email,
-    });
-    await newOwner.save();
-  }
-  catch(err){
-    console.log(err+"===================================================")
-  }
+    try {
+      const newOwner = new User({
+        username: request.owner_username,
+        password: request.owner_password,
+        role: "owner",
+        restaurantName: request.name,
+        rest_id: newRestaurant._id,
+        email: request.email,
+      });
+      await newOwner.save();
+    } catch (err) {
+      console.log(err + "===================================================");
+    }
 
     await RestaurantRequest.deleteOne({ _id: request._id });
 
@@ -722,7 +724,7 @@ exports.getPublicRestaurants = async (req, res, next) => {
 // ── Admin: Get all orders across all restaurants ──
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const {Order} = require("../Model/Order_model");
+
     const { status, restaurant, date, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (status && status !== "all") filter.status = status;
@@ -738,21 +740,56 @@ exports.getAllOrders = async (req, res, next) => {
       Order.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
       Order.countDocuments(filter),
     ]);
-    // stats
-    const allOrders = await Order.find({});
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayOrders = allOrders.filter(o => new Date(o.date) >= todayStart);
-    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const todayRevenue = todayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const avgOrderValue = allOrders.length ? (totalRevenue / allOrders.length).toFixed(2) : 0;
+    // stats via aggregation pipeline
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const [statsResult] = await Order.aggregate([
+      {
+        $facet: {
+          totals: [
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalAmount" },
+              },
+            },
+          ],
+          todayStats: [
+            { $match: { date: { $gte: todayStart } } },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalAmount" },
+              },
+            },
+          ],
+          statusBreakdown: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+        },
+      },
+    ]);
+    const totals = statsResult.totals[0] || { count: 0, revenue: 0 };
+    const todayStats = statsResult.todayStats[0] || { count: 0, revenue: 0 };
     const statusBreakdown = {};
-    allOrders.forEach(o => { statusBreakdown[o.status] = (statusBreakdown[o.status] || 0) + 1; });
+    (statsResult.statusBreakdown || []).forEach((s) => {
+      statusBreakdown[s._id] = s.count;
+    });
+    const avgOrderValue =
+      totals.count > 0 ? (totals.revenue / totals.count).toFixed(2) : 0;
     res.json({
       orders,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
-      stats: { totalOrders: allOrders.length, todayOrders: todayOrders.length, totalRevenue, todayRevenue, avgOrderValue: parseFloat(avgOrderValue), statusBreakdown },
+      stats: {
+        totalOrders: totals.count,
+        todayOrders: todayStats.count,
+        totalRevenue: totals.revenue,
+        todayRevenue: todayStats.revenue,
+        avgOrderValue: parseFloat(avgOrderValue),
+        statusBreakdown,
+      },
     });
   } catch (error) {
     console.error("Error in getAllOrders:", error);
@@ -763,7 +800,6 @@ exports.getAllOrders = async (req, res, next) => {
 // ── Admin: Get all reservations across all restaurants ──
 exports.getAllReservations = async (req, res, next) => {
   try {
-    const Reservation = require("../Model/Reservation_model");
     const { status, restaurant, date, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (status && status !== "all") filter.status = status;
@@ -776,22 +812,52 @@ exports.getAllReservations = async (req, res, next) => {
     }
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [reservations, total] = await Promise.all([
-      Reservation.find(filter).sort({ date: -1 }).skip(skip).limit(parseInt(limit)),
+      Reservation.find(filter)
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
       Reservation.countDocuments(filter),
     ]);
-    // stats
-    const allRes = await Reservation.find({});
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayRes = allRes.filter(r => new Date(r.date) >= todayStart);
+    // stats via aggregation pipeline
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const [resStats] = await Reservation.aggregate([
+      {
+        $facet: {
+          totals: [
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+                guests: { $sum: "$guests" },
+              },
+            },
+          ],
+          todayCount: [
+            { $match: { date: { $gte: todayStart } } },
+            { $count: "count" },
+          ],
+          statusBreakdown: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+        },
+      },
+    ]);
+    const resTotals = resStats.totals[0] || { count: 0, guests: 0 };
+    const todayResCount = resStats.todayCount[0]?.count || 0;
     const statusBreakdown = {};
-    allRes.forEach(r => { statusBreakdown[r.status] = (statusBreakdown[r.status] || 0) + 1; });
-    const totalGuests = allRes.reduce((s, r) => s + (r.guests || 0), 0);
+    (resStats.statusBreakdown || []).forEach((s) => {
+      statusBreakdown[s._id] = s.count;
+    });
     res.json({
       reservations,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
-      stats: { totalReservations: allRes.length, todayReservations: todayRes.length, totalGuests, statusBreakdown },
+      stats: {
+        totalReservations: resTotals.count,
+        todayReservations: todayResCount,
+        totalGuests: resTotals.guests,
+        statusBreakdown,
+      },
     });
   } catch (error) {
     console.error("Error in getAllReservations:", error);
@@ -802,27 +868,54 @@ exports.getAllReservations = async (req, res, next) => {
 // ── Admin: Get all feedback across all restaurants ──
 exports.getAllFeedback = async (req, res, next) => {
   try {
-    const Feedback = require("../Model/feedback");
     const { status, restaurant, page = 1, limit = 50 } = req.query;
     const filter = {};
     if (status && status !== "all") filter.status = status;
     if (restaurant) filter.rest_id = restaurant;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [feedback, total] = await Promise.all([
-      Feedback.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Feedback.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
       Feedback.countDocuments(filter),
     ]);
-    const allFb = await Feedback.find({});
-    const avgDining = allFb.length ? (allFb.reduce((s, f) => s + (f.diningRating || 0), 0) / allFb.filter(f => f.diningRating).length).toFixed(1) : 0;
-    const avgOrder = allFb.length ? (allFb.reduce((s, f) => s + (f.orderRating || 0), 0) / allFb.filter(f => f.orderRating).length).toFixed(1) : 0;
-    const pending = allFb.filter(f => f.status === "Pending").length;
-    const resolved = allFb.filter(f => f.status === "Resolved").length;
+    // feedback stats via aggregation
+    const [fbStats] = await Feedback.aggregate([
+      {
+        $facet: {
+          totals: [{ $count: "count" }],
+          avgDining: [
+            { $match: { diningRating: { $exists: true, $ne: null } } },
+            { $group: { _id: null, avg: { $avg: "$diningRating" } } },
+          ],
+          avgOrder: [
+            { $match: { orderRating: { $exists: true, $ne: null } } },
+            { $group: { _id: null, avg: { $avg: "$orderRating" } } },
+          ],
+          statusBreakdown: [{ $group: { _id: "$status", count: { $sum: 1 } } }],
+        },
+      },
+    ]);
+    const fbTotal = fbStats.totals[0]?.count || 0;
+    const avgDining = fbStats.avgDining[0]?.avg?.toFixed(1) || 0;
+    const avgOrder = fbStats.avgOrder[0]?.avg?.toFixed(1) || 0;
+    const fbStatusMap = {};
+    (fbStats.statusBreakdown || []).forEach((s) => {
+      fbStatusMap[s._id] = s.count;
+    });
     res.json({
       feedback,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / parseInt(limit)),
-      stats: { totalFeedback: allFb.length, avgDiningRating: parseFloat(avgDining), avgOrderRating: parseFloat(avgOrder), pending, resolved },
+      stats: {
+        totalFeedback: fbTotal,
+        avgDiningRating: parseFloat(avgDining),
+        avgOrderRating: parseFloat(avgOrder),
+        pending: fbStatusMap["Pending"] || 0,
+        resolved: fbStatusMap["Resolved"] || 0,
+      },
     });
   } catch (error) {
     console.error("Error in getAllFeedback:", error);
@@ -830,91 +923,143 @@ exports.getAllFeedback = async (req, res, next) => {
   }
 };
 
-// ── Admin: Analytics endpoint ──
+// Admin: Analytics overview
 exports.getAnalytics = async (req, res, next) => {
   try {
-    const Order = require("../Model/Order_model");
-    const Reservation = require("../Model/Reservation_model");
-    const Feedback = require("../Model/feedback");
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
 
-    const restaurants = await Restaurant.findAll();
-    const allOrders = await Order.find({});
-    const allReservations = await Reservation.find({});
-    const allFeedback = await Feedback.find({});
-    const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
+    // Run all aggregations in parallel
+    const [restaurants, totalUsers, orderAgg, totalReservations, feedbackAgg] =
+      await Promise.all([
+        Restaurant.find({ isSuspended: { $ne: true } })
+          .select("name _id rating isSuspended")
+          .lean(),
+        User.countDocuments({ role: { $ne: "admin" } }),
+        Order.aggregate([
+          {
+            $facet: {
+              overview: [
+                {
+                  $group: {
+                    _id: null,
+                    totalOrders: { $sum: 1 },
+                    totalRevenue: { $sum: "$totalAmount" },
+                  },
+                },
+              ],
+              byRestaurant: [
+                {
+                  $group: {
+                    _id: "$rest_id",
+                    orders: { $sum: 1 },
+                    revenue: { $sum: "$totalAmount" },
+                  },
+                },
+                { $sort: { revenue: -1 } },
+                { $limit: 15 },
+              ],
+              peakHours: [
+                {
+                  $group: {
+                    _id: { $hour: { $ifNull: ["$orderTime", "$date"] } },
+                    count: { $sum: 1 },
+                  },
+                },
+                { $sort: { _id: 1 } },
+              ],
+              monthlyRevenue: [
+                { $match: { date: { $gte: twelveMonthsAgo } } },
+                {
+                  $group: {
+                    _id: { y: { $year: "$date" }, m: { $month: "$date" } },
+                    revenue: { $sum: "$totalAmount" },
+                    orders: { $sum: 1 },
+                  },
+                },
+                { $sort: { "_id.y": 1, "_id.m": 1 } },
+              ],
+            },
+          },
+        ]),
+        Reservation.countDocuments(),
+        Feedback.aggregate([
+          {
+            $group: {
+              _id: null,
+              count: { $sum: 1 },
+              avgRating: {
+                $avg: { $ifNull: ["$diningRating", "$orderRating"] },
+              },
+            },
+          },
+        ]),
+      ]);
 
-    // Top restaurants by order count
-    const restOrderCount = {};
-    const restRevenue = {};
-    allOrders.forEach(o => {
-      const rid = o.rest_id?.toString() || "unknown";
-      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
-      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
-    });
+    const oa = orderAgg[0];
+    const overview = oa.overview[0] || { totalOrders: 0, totalRevenue: 0 };
+    const fb = feedbackAgg[0] || { count: 0, avgRating: 0 };
 
-    // Filter out suspended restaurants from top performing
+    // Build restaurant revenue map from aggregation
+    const revMap = new Map(oa.byRestaurant.map((r) => [String(r._id), r]));
     const topRestaurants = restaurants
-      .filter(r => !r.isSuspended) // Exclude suspended restaurants
-      .map(r => ({
+      .map((r) => ({
         _id: r._id.toString(),
         name: r.name,
-        orders: restOrderCount[r._id.toString()] || 0,
-        revenue: restRevenue[r._id.toString()] || 0,
+        orders: revMap.get(String(r._id))?.orders || 0,
+        revenue: revMap.get(String(r._id))?.revenue || 0,
         rating: r.rating || 0,
         isSuspended: r.isSuspended,
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    // Peak hours
-    const hourCounts = Array(24).fill(0);
-    allOrders.forEach(o => {
-      if (o.orderTime) {
-        const h = new Date(o.orderTime).getHours();
-        hourCounts[h]++;
-      } else if (o.date) {
-        const h = new Date(o.date).getHours();
-        hourCounts[h]++;
-      }
-    });
-    const peakHours = hourCounts.map((count, hour) => ({ hour: `${hour}:00`, count }));
+    // Peak hours — fill all 24 hours
+    const hourMap = new Map(oa.peakHours.map((h) => [h._id, h.count]));
+    const peakHours = Array.from({ length: 24 }, (_, h) => ({
+      hour: `${h}:00`,
+      count: hourMap.get(h) || 0,
+    }));
 
-    // Monthly revenue trend (last 12 months)
+    // Monthly revenue — fill all 12 months
+    const mMap = new Map(
+      oa.monthlyRevenue.map((m) => [`${m._id.y}-${m._id.m}`, m]),
+    );
     const monthlyRevenue = [];
-    const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      const monthOrders = allOrders.filter(o => {
-        const od = new Date(o.date);
-        return od >= d && od <= monthEnd;
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      const entry = mMap.get(key) || { revenue: 0, orders: 0 };
+      monthlyRevenue.push({
+        month: monthNames[d.getMonth()] + " " + d.getFullYear(),
+        revenue: entry.revenue,
+        orders: entry.orders,
       });
-      const revenue = monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      monthlyRevenue.push({ month: months[d.getMonth()] + " " + d.getFullYear(), revenue, orders: monthOrders.length });
     }
-
-    // Customer activity - reservations per restaurant
-    const restReservationCount = {};
-    allReservations.forEach(r => {
-      const rid = r.rest_id?.toString() || "unknown";
-      restReservationCount[rid] = (restReservationCount[rid] || 0) + 1;
-    });
-
-    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const avgRating = allFeedback.length
-      ? (allFeedback.reduce((s, f) => s + (f.diningRating || f.orderRating || 0), 0) / allFeedback.length).toFixed(1)
-      : 0;
 
     res.json({
       overview: {
         totalRestaurants: restaurants.length,
         totalUsers,
-        totalOrders: allOrders.length,
-        totalReservations: allReservations.length,
-        totalRevenue,
-        avgRating: parseFloat(avgRating),
-        totalFeedback: allFeedback.length,
+        totalOrders: overview.totalOrders,
+        totalReservations,
+        totalRevenue: overview.totalRevenue,
+        avgRating: parseFloat((fb.avgRating || 0).toFixed(1)),
+        totalFeedback: fb.count,
       },
       topRestaurants,
       peakHours,
@@ -965,27 +1110,44 @@ exports.getRecentActivities = async (req, res, next) => {
 // ── Employee Performance Analytics ──
 exports.getEmployeePerformance = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
-    const employees = await User.find({ role: "employee" }).select(
-      "username email _id isSuspended createdAt"
+    const [employees, restaurants, orderStats] = await Promise.all([
+      User.find({ role: "employee" })
+        .select("username email _id isSuspended createdAt")
+        .lean(),
+      Restaurant.find({}).select("_id").lean(),
+      Order.aggregate([
+        {
+          $group: {
+            _id: "$rest_id",
+            totalOrders: { $sum: 1 },
+            revenueGenerated: { $sum: "$totalAmount" },
+          },
+        },
+      ]),
+    ]);
+
+    const orderStatsMap = new Map(
+      orderStats.map((row) => [String(row._id), row]),
     );
-    const restaurants = await Restaurant.find({});
-    const allOrders = await Order.find({});
 
     const employeeCount = employees.length || 1;
 
     const performance = employees.map((emp, idx) => {
       const managedRestaurants = restaurants.filter(
-        (_, i) => i % employeeCount === idx
+        (_, i) => i % employeeCount === idx,
       );
       const managedRestIds = managedRestaurants.map((r) => r._id.toString());
-      const managedOrders = allOrders.filter((o) =>
-        managedRestIds.includes(o.rest_id?.toString())
-      );
       const totalApprovals = managedRestaurants.length;
-      const totalOrdersHandled = managedOrders.length;
-      const revenueGenerated = managedOrders.reduce(
-        (s, o) => s + (o.totalAmount || 0), 0
+      const totals = managedRestIds.reduce(
+        (acc, rid) => {
+          const stat = orderStatsMap.get(String(rid));
+          if (stat) {
+            acc.totalOrdersHandled += stat.totalOrders || 0;
+            acc.revenueGenerated += stat.revenueGenerated || 0;
+          }
+          return acc;
+        },
+        { totalOrdersHandled: 0, revenueGenerated: 0 },
       );
       return {
         _id: emp._id,
@@ -993,13 +1155,16 @@ exports.getEmployeePerformance = async (req, res) => {
         email: emp.email,
         isSuspended: emp.isSuspended,
         totalApprovals,
-        totalOrdersHandled,
-        revenueGenerated,
+        totalOrdersHandled: totals.totalOrdersHandled,
+        revenueGenerated: totals.revenueGenerated,
         rating:
-          totalApprovals > 5 ? 4.5
-          : totalApprovals > 2 ? 3.8
-          : totalApprovals > 0 ? 3.0
-          : 0,
+          totalApprovals > 5
+            ? 4.5
+            : totalApprovals > 2
+              ? 3.8
+              : totalApprovals > 0
+                ? 3.0
+                : 0,
       };
     });
 
@@ -1017,41 +1182,56 @@ exports.addEmployee = async (req, res) => {
     let { username, email, password } = req.body;
 
     // Trim and sanitize
-    username = username ? username.trim() : '';
-    email = email ? email.trim().toLowerCase() : '';
-    password = password ? password.trim() : '';
+    username = username ? username.trim() : "";
+    email = email ? email.trim().toLowerCase() : "";
+    password = password ? password.trim() : "";
 
     // Validate required fields
     if (!username || !email || !password) {
-      return res.status(400).json({ success: false, error: 'Username, email, and password are required' });
+      return res.status(400).json({
+        success: false,
+        error: "Username, email, and password are required",
+      });
     }
 
     // Validate username: 3-20 chars, letters/numbers/underscores
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      return res.status(400).json({ success: false, error: 'Username must be 3-20 characters (letters, numbers, underscores only)' });
+      return res.status(400).json({
+        success: false,
+        error:
+          "Username must be 3-20 characters (letters, numbers, underscores only)",
+      });
     }
 
     // Validate email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ success: false, error: 'Please provide a valid email address' });
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid email address",
+      });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long' });
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 6 characters long",
+      });
     }
 
     // Check if username or email already exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
-      return res.status(409).json({ success: false, error: 'Username or email already exists' });
+      return res
+        .status(409)
+        .json({ success: false, error: "Username or email already exists" });
     }
 
     // Create employee user
     const newEmployee = new User({
       username,
       email,
-      role: 'employee',
+      role: "employee",
       password,
       restaurantName: null,
       rest_id: null,
@@ -1061,52 +1241,61 @@ exports.addEmployee = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Employee '${username}' created successfully`,
-      employee: { _id: newEmployee._id, username: newEmployee.username, email: newEmployee.email, role: 'employee' },
+      employee: {
+        _id: newEmployee._id,
+        username: newEmployee.username,
+        email: newEmployee.email,
+        role: "employee",
+      },
     });
   } catch (error) {
-    console.error('Error in addEmployee:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
+    console.error("Error in addEmployee:", error);
+    res.status(500).json({ success: false, error: "Internal Server Error" });
   }
 };
 
-// ── Restaurant Revenue / Platform Fee Analytics ──
+// Restaurant Revenue / Platform Fee Analytics
 exports.getRestaurantRevenue = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
     const { period = "all" } = req.query;
-    const restaurants = await Restaurant.find({});
-    const allOrders = await Order.find({});
-
     const now = new Date();
-    let filteredOrders = allOrders;
 
+    // Build date filter
+    const dateMatch = {};
     if (period === "today") {
-      const start = new Date(now); start.setHours(0, 0, 0, 0);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      const s = new Date(now);
+      s.setHours(0, 0, 0, 0);
+      dateMatch.date = { $gte: s };
     } else if (period === "week") {
-      const start = new Date(now); start.setDate(start.getDate() - 7);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      const s = new Date(now);
+      s.setDate(s.getDate() - 7);
+      dateMatch.date = { $gte: s };
     } else if (period === "month") {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      dateMatch.date = { $gte: new Date(now.getFullYear(), now.getMonth(), 1) };
     } else if (period === "year") {
-      const start = new Date(now.getFullYear(), 0, 1);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      dateMatch.date = { $gte: new Date(now.getFullYear(), 0, 1) };
     }
 
-    const restRevenue = {};
-    const restOrderCount = {};
-    filteredOrders.forEach((o) => {
-      const rid = o.rest_id?.toString() || "unknown";
-      restRevenue[rid] = (restRevenue[rid] || 0) + (o.totalAmount || 0);
-      restOrderCount[rid] = (restOrderCount[rid] || 0) + 1;
-    });
+    const [restaurants, revenueAgg] = await Promise.all([
+      Restaurant.find({})
+        .select("name _id location city image rating isOpen")
+        .lean(),
+      Order.aggregate([
+        ...(Object.keys(dateMatch).length > 0 ? [{ $match: dateMatch }] : []),
+        {
+          $group: {
+            _id: "$rest_id",
+            revenue: { $sum: "$totalAmount" },
+            orders: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+    const revMap = new Map(revenueAgg.map((r) => [String(r._id), r]));
 
     const restaurantData = restaurants
       .map((r) => {
-        const revenue = restRevenue[r._id.toString()] || 0;
-        const orders = restOrderCount[r._id.toString()] || 0;
-        const platformFee = revenue * 0.1;
+        const d = revMap.get(String(r._id)) || { revenue: 0, orders: 0 };
         return {
           _id: r._id,
           name: r.name,
@@ -1114,17 +1303,20 @@ exports.getRestaurantRevenue = async (req, res) => {
           city: r.city,
           image: r.image,
           rating: r.rating || 0,
-          revenue,
-          orders,
-          platformFee,
-          avgOrderValue: orders > 0 ? Math.round(revenue / orders) : 0,
+          revenue: d.revenue,
+          orders: d.orders,
+          platformFee: d.revenue * 0.1,
+          avgOrderValue: d.orders > 0 ? Math.round(d.revenue / d.orders) : 0,
           isOpen: r.isOpen,
         };
       })
       .sort((a, b) => b.revenue - a.revenue);
 
     const totalRevenue = restaurantData.reduce((s, r) => s + r.revenue, 0);
-    const totalPlatformFee = restaurantData.reduce((s, r) => s + r.platformFee, 0);
+    const totalPlatformFee = restaurantData.reduce(
+      (s, r) => s + r.platformFee,
+      0,
+    );
     const totalOrders = restaurantData.reduce((s, r) => s + r.orders, 0);
 
     res.json({
@@ -1133,7 +1325,8 @@ exports.getRestaurantRevenue = async (req, res) => {
         totalRevenue,
         totalPlatformFee,
         totalOrders,
-        avgOrderValue: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+        avgOrderValue:
+          totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
       },
     });
   } catch (error) {
@@ -1145,47 +1338,81 @@ exports.getRestaurantRevenue = async (req, res) => {
 // ── Dish & Category Trends ──
 exports.getDishTrends = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
-    const allOrders = await Order.find({});
-    const allDishes = await Dish.find({});
-    const restaurants = await Restaurant.find({});
-
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-    const currentMonthOrders = allOrders.filter(
-      (o) => new Date(o.date) >= currentMonthStart
+    const [allDishes, currentCounts, prevCounts, monthlyAgg, restDishMap] =
+      await Promise.all([
+        Dish.find({}).lean(),
+        Order.aggregate([
+          { $match: { date: { $gte: currentMonthStart } } },
+          { $unwind: "$dishes" },
+          { $group: { _id: "$dishes", count: { $sum: 1 } } },
+        ]),
+        Order.aggregate([
+          { $match: { date: { $gte: prevMonthStart, $lte: prevMonthEnd } } },
+          { $unwind: "$dishes" },
+          { $group: { _id: "$dishes", count: { $sum: 1 } } },
+        ]),
+        Order.aggregate([
+          { $match: { date: { $gte: sixMonthsAgo } } },
+          {
+            $facet: {
+              revenueByMonth: [
+                {
+                  $group: {
+                    _id: { y: { $year: "$date" }, m: { $month: "$date" } },
+                    revenue: { $sum: "$totalAmount" },
+                  },
+                },
+              ],
+              dishByMonth: [
+                { $unwind: "$dishes" },
+                {
+                  $group: {
+                    _id: { y: { $year: "$date" }, m: { $month: "$date" } },
+                    totalDishesOrdered: { $sum: 1 },
+                    uniqueDishSet: { $addToSet: "$dishes" },
+                  },
+                },
+                {
+                  $project: {
+                    _id: 1,
+                    totalDishesOrdered: 1,
+                    uniqueDishes: { $size: "$uniqueDishSet" },
+                  },
+                },
+              ],
+            },
+          },
+        ]),
+        Restaurant.aggregate([
+          { $project: { name: 1, dishes: 1 } },
+          { $unwind: "$dishes" },
+          { $group: { _id: "$dishes", restaurants: { $addToSet: "$name" } } },
+        ]),
+      ]);
+
+    const currentMap = new Map(
+      currentCounts.map((r) => [String(r._id), r.count]),
     );
-    const prevMonthOrders = allOrders.filter((o) => {
-      const d = new Date(o.date);
-      return d >= prevMonthStart && d <= prevMonthEnd;
-    });
-
-    const countDishes = (orders) => {
-      const counts = {};
-      orders.forEach((o) => {
-        if (o.dishes && Array.isArray(o.dishes)) {
-          o.dishes.forEach((dishId) => {
-            const id = dishId?.toString();
-            if (id) counts[id] = (counts[id] || 0) + 1;
-          });
-        }
-      });
-      return counts;
-    };
-
-    const currentCounts = countDishes(currentMonthOrders);
-    const prevCounts = countDishes(prevMonthOrders);
+    const prevMap = new Map(prevCounts.map((r) => [String(r._id), r.count]));
+    const restMap = new Map(
+      restDishMap.map((r) => [String(r._id), r.restaurants]),
+    );
 
     const dishTrends = allDishes.map((dish) => {
-      const current = currentCounts[dish._id.toString()] || 0;
-      const previous = prevCounts[dish._id.toString()] || 0;
-      const change = previous > 0 ? ((current - previous) / previous) * 100 : current > 0 ? 100 : 0;
-      const servingRestaurants = restaurants
-        .filter((r) => r.dishes?.some((d) => d.toString() === dish._id.toString()))
-        .map((r) => r.name);
+      const current = currentMap.get(String(dish._id)) || 0;
+      const previous = prevMap.get(String(dish._id)) || 0;
+      const change =
+        previous > 0
+          ? ((current - previous) / previous) * 100
+          : current > 0
+            ? 100
+            : 0;
 
       return {
         _id: dish._id,
@@ -1197,7 +1424,7 @@ exports.getDishTrends = async (req, res) => {
         prevMonthOrders: previous,
         changePercent: Math.round(change),
         trend: change > 0 ? "up" : change < 0 ? "down" : "stable",
-        restaurants: servingRestaurants,
+        restaurants: restMap.get(String(dish._id)) || [],
       };
     });
 
@@ -1207,16 +1434,20 @@ exports.getDishTrends = async (req, res) => {
     const categories = {};
     dishTrends.forEach((d) => {
       const cat = d.category;
-      if (!categories[cat]) categories[cat] = { current: 0, previous: 0, dishes: 0 };
+      if (!categories[cat])
+        categories[cat] = { current: 0, previous: 0, dishes: 0 };
       categories[cat].current += d.currentMonthOrders;
       categories[cat].previous += d.prevMonthOrders;
       categories[cat].dishes++;
     });
 
     const categoryTrends = Object.entries(categories).map(([name, data]) => {
-      const change = data.previous > 0
-        ? ((data.current - data.previous) / data.previous) * 100
-        : data.current > 0 ? 100 : 0;
+      const change =
+        data.previous > 0
+          ? ((data.current - data.previous) / data.previous) * 100
+          : data.current > 0
+            ? 100
+            : 0;
       return {
         category: name,
         currentMonthOrders: data.current,
@@ -1228,21 +1459,46 @@ exports.getDishTrends = async (req, res) => {
     });
 
     // Monthly trend (last 6 months)
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     const monthlyData = [];
+    const monthlyFacet = monthlyAgg[0] || {
+      revenueByMonth: [],
+      dishByMonth: [],
+    };
+    const revMonthMap = new Map(
+      monthlyFacet.revenueByMonth.map((r) => [
+        `${r._id.y}-${r._id.m}`,
+        r.revenue,
+      ]),
+    );
+    const dishMonthMap = new Map(
+      monthlyFacet.dishByMonth.map((r) => [`${r._id.y}-${r._id.m}`, r]),
+    );
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      const monthOrders = allOrders.filter((o) => {
-        const od = new Date(o.date);
-        return od >= d && od <= mEnd;
-      });
-      const counts = countDishes(monthOrders);
+      const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+      const dishStat = dishMonthMap.get(key) || {
+        totalDishesOrdered: 0,
+        uniqueDishes: 0,
+      };
       monthlyData.push({
         month: months[d.getMonth()],
-        totalDishesOrdered: Object.values(counts).reduce((s, c) => s + c, 0),
-        uniqueDishes: Object.keys(counts).length,
-        revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
+        totalDishesOrdered: dishStat.totalDishesOrdered,
+        uniqueDishes: dishStat.uniqueDishes,
+        revenue: revMonthMap.get(key) || 0,
       });
     }
 
@@ -1250,8 +1506,14 @@ exports.getDishTrends = async (req, res) => {
       dishes: dishTrends.slice(0, 30),
       categoryTrends,
       monthlyData,
-      topGainers: dishTrends.filter((d) => d.trend === "up").sort((a, b) => b.changePercent - a.changePercent).slice(0, 5),
-      topDecliners: dishTrends.filter((d) => d.trend === "down").sort((a, b) => a.changePercent - b.changePercent).slice(0, 5),
+      topGainers: dishTrends
+        .filter((d) => d.trend === "up")
+        .sort((a, b) => b.changePercent - a.changePercent)
+        .slice(0, 5),
+      topDecliners: dishTrends
+        .filter((d) => d.trend === "down")
+        .sort((a, b) => a.changePercent - b.changePercent)
+        .slice(0, 5),
     });
   } catch (error) {
     console.error("Error in getDishTrends:", error);
@@ -1259,61 +1521,66 @@ exports.getDishTrends = async (req, res) => {
   }
 };
 
-// ── Top Customers Analytics ──
+// Top Customers Analytics
 exports.getTopCustomers = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
     const { period = "all" } = req.query;
-    const allOrders = await Order.find({});
-    const customers = await User.find({ role: "customer" }).select("username email _id");
-
     const now = new Date();
-    let filteredOrders = allOrders;
 
+    // Build date filter
+    const dateMatch = {};
     if (period === "month") {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      dateMatch.date = { $gte: new Date(now.getFullYear(), now.getMonth(), 1) };
     } else if (period === "quarter") {
-      const start = new Date(now); start.setMonth(start.getMonth() - 3);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      const s = new Date(now);
+      s.setMonth(s.getMonth() - 3);
+      dateMatch.date = { $gte: s };
     } else if (period === "year") {
-      const start = new Date(now.getFullYear(), 0, 1);
-      filteredOrders = allOrders.filter((o) => new Date(o.date) >= start);
+      dateMatch.date = { $gte: new Date(now.getFullYear(), 0, 1) };
     }
 
-    const customerSpending = {};
-    const customerOrderCount = {};
-    const customerItems = {};
-    const customerLastOrder = {};
-
-    filteredOrders.forEach((o) => {
-      const cname = o.customerName || "unknown";
-      customerSpending[cname] = (customerSpending[cname] || 0) + (o.totalAmount || 0);
-      customerOrderCount[cname] = (customerOrderCount[cname] || 0) + 1;
-      if (o.dishes && Array.isArray(o.dishes))
-        customerItems[cname] = (customerItems[cname] || 0) + o.dishes.length;
-      const orderDate = new Date(o.date);
-      if (!customerLastOrder[cname] || orderDate > new Date(customerLastOrder[cname]))
-        customerLastOrder[cname] = o.date;
-    });
+    const [customerAgg, customers] = await Promise.all([
+      Order.aggregate([
+        ...(Object.keys(dateMatch).length > 0 ? [{ $match: dateMatch }] : []),
+        {
+          $group: {
+            _id: "$customerName",
+            totalSpent: { $sum: "$totalAmount" },
+            totalOrders: { $sum: 1 },
+            totalItems: { $sum: { $size: { $ifNull: ["$dishes", []] } } },
+            lastOrderDate: { $max: "$date" },
+          },
+        },
+        { $sort: { totalSpent: -1 } },
+        { $limit: 50 },
+      ]),
+      User.find({ role: "customer" }).select("username email _id").lean(),
+    ]);
+    const spendMap = new Map(customerAgg.map((c) => [c._id, c]));
 
     const topCustomers = customers
-      .map((c) => ({
-        _id: c._id,
-        username: c.username,
-        email: c.email,
-        totalSpent: customerSpending[c.username] || 0,
-        totalOrders: customerOrderCount[c.username] || 0,
-        totalItems: customerItems[c.username] || 0,
-        avgOrderValue: customerOrderCount[c.username] > 0
-          ? Math.round((customerSpending[c.username] || 0) / customerOrderCount[c.username])
-          : 0,
-        lastOrderDate: customerLastOrder[c.username] || null,
-      }))
-      .filter((c) => c.totalOrders > 0)
+      .map((c) => {
+        const d = spendMap.get(c.username);
+        if (!d) return null;
+        return {
+          _id: c._id,
+          username: c.username,
+          email: c.email,
+          totalSpent: d.totalSpent,
+          totalOrders: d.totalOrders,
+          totalItems: d.totalItems,
+          avgOrderValue:
+            d.totalOrders > 0 ? Math.round(d.totalSpent / d.totalOrders) : 0,
+          lastOrderDate: d.lastOrderDate,
+        };
+      })
+      .filter((c) => c !== null)
       .sort((a, b) => b.totalSpent - a.totalSpent);
 
-    const totalCustomerSpend = topCustomers.reduce((s, c) => s + c.totalSpent, 0);
+    const totalCustomerSpend = topCustomers.reduce(
+      (s, c) => s + c.totalSpent,
+      0,
+    );
     const maxSpender = topCustomers[0] || null;
 
     res.json({
@@ -1321,8 +1588,13 @@ exports.getTopCustomers = async (req, res) => {
       summary: {
         totalActiveCustomers: topCustomers.length,
         totalCustomerSpend,
-        avgSpendPerCustomer: topCustomers.length > 0 ? Math.round(totalCustomerSpend / topCustomers.length) : 0,
-        topSpender: maxSpender ? { username: maxSpender.username, totalSpent: maxSpender.totalSpent } : null,
+        avgSpendPerCustomer:
+          topCustomers.length > 0
+            ? Math.round(totalCustomerSpend / topCustomers.length)
+            : 0,
+        topSpender: maxSpender
+          ? { username: maxSpender.username, totalSpent: maxSpender.totalSpent }
+          : null,
       },
     });
   } catch (error) {
@@ -1331,35 +1603,44 @@ exports.getTopCustomers = async (req, res) => {
   }
 };
 
-// ── Admin Overview Dashboard (Analytics-focused) ──
+// Admin Overview Dashboard
 exports.getAdminOverview = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
-    const { Reservation } = require("../Model/Reservation_model");
+    const [
+      totalUsers,
+      totalEmployees,
+      totalRestaurants,
+      orderStats,
+      totalReservations,
+    ] = await Promise.all([
+      User.countDocuments({ role: { $nin: ["admin", "employee"] } }),
+      User.countDocuments({ role: "employee" }),
+      Restaurant.countDocuments(),
+      Order.aggregate([
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            revenue: { $sum: "$totalAmount" },
+          },
+        },
+      ]),
+      Reservation.countDocuments(),
+    ]);
 
-    const [totalUsers, totalEmployees, totalRestaurants, totalOrders, totalReservations] =
-      await Promise.all([
-        User.countDocuments({ role: { $nin: ["admin", "employee"] } }),
-        User.countDocuments({ role: "employee" }),
-        Restaurant.countDocuments(),
-        Order.countDocuments(),
-        Reservation.countDocuments(),
-      ]);
-
-    const allOrders = await Order.find({});
-    const totalRevenue = allOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const platformFee = totalRevenue * 0.1;
-
-    const { password: _pw, ...safeAdmin } = req.user.toObject ? req.user.toObject() : req.user;
+    const stats = orderStats[0] || { count: 0, revenue: 0 };
+    const { password: _pw, ...safeAdmin } = req.user.toObject
+      ? req.user.toObject()
+      : req.user;
     res.json({
       current_admin: safeAdmin,
       totalUsers,
       totalEmployees,
       totalRestaurants,
-      totalOrders,
+      totalOrders: stats.count,
       totalReservations,
-      totalRevenue,
-      platformFee,
+      totalRevenue: stats.revenue,
+      platformFee: stats.revenue * 0.1,
     });
   } catch (error) {
     console.error("Error in getAdminOverview:", error);
@@ -1367,62 +1648,102 @@ exports.getAdminOverview = async (req, res) => {
   }
 };
 
-// ── Revenue Over Time (for admin charts) ──
+// Revenue Over Time
 exports.getRevenueOverTime = async (req, res) => {
   try {
-    const { Order } = require("../Model/Order_model");
     const { period = "monthly" } = req.query;
-    const allOrders = await Order.find({});
     const now = new Date();
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     let data = [];
 
     if (period === "daily") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      const agg = await Order.aggregate([
+        { $match: { date: { $gte: start } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+            revenue: { $sum: "$totalAmount" },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+      const m = new Map(agg.map((d) => [d._id, d]));
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(now); d.setDate(d.getDate() - i);
-        const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-        const dayOrders = allOrders.filter((o) => {
-          const od = new Date(o.date);
-          return od >= dayStart && od < dayEnd;
-        });
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const k = d.toISOString().slice(0, 10);
+        const e = m.get(k) || { revenue: 0, orders: 0 };
         data.push({
           label: `${d.getMonth() + 1}/${d.getDate()}`,
-          revenue: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
-          orders: dayOrders.length,
-          platformFee: dayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+          revenue: e.revenue,
+          orders: e.orders,
+          platformFee: e.revenue * 0.1,
         });
       }
     } else if (period === "yearly") {
+      const start = new Date(now.getFullYear() - 4, 0, 1);
+      const agg = await Order.aggregate([
+        { $match: { date: { $gte: start } } },
+        {
+          $group: {
+            _id: { $year: "$date" },
+            revenue: { $sum: "$totalAmount" },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]);
+      const m = new Map(agg.map((y) => [y._id, y]));
       for (let i = 4; i >= 0; i--) {
         const yr = now.getFullYear() - i;
-        const yearStart = new Date(yr, 0, 1);
-        const yearEnd = new Date(yr + 1, 0, 1);
-        const yearOrders = allOrders.filter((o) => {
-          const od = new Date(o.date);
-          return od >= yearStart && od < yearEnd;
-        });
+        const e = m.get(yr) || { revenue: 0, orders: 0 };
         data.push({
           label: String(yr),
-          revenue: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
-          orders: yearOrders.length,
-          platformFee: yearOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+          revenue: e.revenue,
+          orders: e.orders,
+          platformFee: e.revenue * 0.1,
         });
       }
     } else {
+      const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      const agg = await Order.aggregate([
+        { $match: { date: { $gte: start } } },
+        {
+          $group: {
+            _id: { y: { $year: "$date" }, m: { $month: "$date" } },
+            revenue: { $sum: "$totalAmount" },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { "_id.y": 1, "_id.m": 1 } },
+      ]);
+      const m = new Map(agg.map((x) => [`${x._id.y}-${x._id.m}`, x]));
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const monthOrders = allOrders.filter((o) => {
-          const od = new Date(o.date);
-          return od >= d && od <= mEnd;
-        });
+        const k = `${d.getFullYear()}-${d.getMonth() + 1}`;
+        const e = m.get(k) || { revenue: 0, orders: 0 };
         data.push({
           label: `${months[d.getMonth()]} ${d.getFullYear()}`,
-          revenue: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0),
-          orders: monthOrders.length,
-          platformFee: monthOrders.reduce((s, o) => s + (o.totalAmount || 0), 0) * 0.1,
+          revenue: e.revenue,
+          orders: e.orders,
+          platformFee: e.revenue * 0.1,
         });
       }
     }
