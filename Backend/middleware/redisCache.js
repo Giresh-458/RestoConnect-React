@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const redis = require("../config/redis");  
 
 const {
 
@@ -204,21 +205,38 @@ const redisReadCacheMiddleware = async (req, res, next) => {
 
 
 
-  const key = cacheKeyFor(req);
+  // const key = cacheKeyFor(req);
 
+
+let key;
+
+if (req.path === "/api/customer/search") {
+  // 🔥 FORCE SAME KEY FOR READ + WRITE
+  key = "search:" + JSON.stringify(req.query);
+} else {
+  key = cacheKeyFor(req);
+}
+
+console.log("Cache Key Used:", key);
 
 
   try {
 
-    const cached = await getJson(key);
+const cachedRaw = await redis.get(key);
 
-    if (cached) {
+let cached = null;
+if (cachedRaw) {
+  try {
+    cached = JSON.parse(cachedRaw);
+  } catch (e) {
+    cached = null;
+  }
+}
 
-      req.cacheStatus = "HIT";
-
-      return res.status(cached.statusCode || 200).json(cached.body);
-
-    }
+if (cached) {
+  req.cacheStatus = "HIT";
+  return res.status(cached.statusCode || 200).json(cached.body);
+}
 
   } catch (error) {
 
@@ -238,33 +256,49 @@ const redisReadCacheMiddleware = async (req, res, next) => {
 
   const originalJson = res.json.bind(res);
 
-  res.json = (body) => {
+  // res.json = (body) => {
 
-    if (res.statusCode < 400) {
+  //   if (res.statusCode < 400) {
 
-      setJsonWithTags(
+  //     setJsonWithTags(
 
-        key,
+  //       key,
 
-        { statusCode: res.statusCode, body },
+  //       { statusCode: res.statusCode, body },
 
-        getCacheTtlSeconds(),
+  //       getCacheTtlSeconds(),
 
-        tags,
+  //       tags,
 
-      ).catch((error) => {
+  //     ).catch((error) => {
 
-        console.error("Redis cache write failed:", error.message);
+  //       console.error("Redis cache write failed:", error.message);
 
-      });
+  //     });
 
-    }
+  //   }
 
-    return originalJson(body);
+  //   return originalJson(body);
 
-  };
+  // };
 
+res.json = (body) => {
+  if (res.statusCode < 400) {
+    console.log("👉 Writing to Redis cache...");
 
+    redis.setEx(
+      key,
+      getCacheTtlSeconds(),
+      JSON.stringify({ statusCode: res.statusCode, body })
+    ).then(() => {
+      console.log("✅ Cache stored successfully");
+    }).catch((error) => {
+      console.error("❌ Redis cache write failed:", error.message);
+    });
+  }
+
+  return originalJson(body);
+};
 
   return next();
 
