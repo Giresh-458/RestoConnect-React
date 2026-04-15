@@ -109,108 +109,80 @@ exports.getCustomerDashboard = async (req, res, next) => {
     // =================== RECENT ORDERS ===================
     const orders = await Order.find({ customerName })
       .sort({ date: -1 })
-      .limit(10); // Get more orders to have enough for both tabs
+      .limit(10);
 
-    const recentOrders = await Promise.all(
-      orders.map(async (order) => {
-        let dishName = "No items";
-        let dishImage = "/dish-placeholder.png";
+    // Fetch all dish docs at once for the orders below
+    const allDishIdentifiers = [
+      ...new Set(orders.flatMap((o) => o.dishes || [])),
+    ];
+    let dishDocs = [];
+    if (allDishIdentifiers.length > 0) {
+      dishDocs = await Dish.find({
+        $or: [
+          { name: { $in: allDishIdentifiers } },
+          { _id: { $in: allDishIdentifiers } },
+        ],
+      });
+    }
+    const dishMap = new Map();
+    dishDocs.forEach((d) => {
+      dishMap.set(d.name, d);
+      dishMap.set(String(d._id), d);
+    });
 
-        // Orders store dish NAMES (not IDs) in the dishes array, but some may have IDs
-        if (
-          order.dishes &&
-          Array.isArray(order.dishes) &&
-          order.dishes.length > 0
-        ) {
-          const firstDishIdentifier = order.dishes[0];
+    const recentOrders = orders.map((order) => {
+      let dishName = "No items";
+      let dishImage = "/dish-placeholder.png";
 
-          // Try to find the dish by name first
-          let dish = null;
-          try {
-            dish = await Dish.findOne({ name: firstDishIdentifier });
-          } catch (err) {
-            console.error("Error finding dish by name:", err);
-          }
+      if (
+        order.dishes &&
+        Array.isArray(order.dishes) &&
+        order.dishes.length > 0
+      ) {
+        const firstDishIdentifier = order.dishes[0];
+        const dish =
+          dishMap.get(firstDishIdentifier) ||
+          dishMap.get(String(firstDishIdentifier));
 
-          // If not found by name, try to find by ID (in case the order stores IDs)
-          if (!dish) {
-            try {
-              dish = await Dish.findById(firstDishIdentifier);
-            } catch (err) {
-              console.error("Error finding dish by ID:", err);
-            }
-          }
-
-          if (dish) {
-            dishName = dish.name;
-            dishImage = dish.image || dish.img_url || "/dish-placeholder.png";
-          } else {
-            // If dish not found in DB, use the identifier from order as fallback
-            dishName = firstDishIdentifier;
-          }
-
-          // If multiple dishes, show first dish name + count
-          if (order.dishes.length > 1) {
-            dishName = `${dishName} + ${order.dishes.length - 1} more`;
-          }
+        if (dish) {
+          dishName = dish.name;
+          dishImage = dish.image || dish.img_url || "/dish-placeholder.png";
+        } else {
+          dishName = firstDishIdentifier;
         }
 
-        // Generate consistent order ID using hash method (same as owner dashboard)
-        let hash = 0;
-        for (let i = 0; i < order._id.length; i++) {
-          const char = order._id.charCodeAt(i);
-          hash = (hash << 5) - hash + char;
-          hash = hash & hash; // Convert to 32bit integer
+        if (order.dishes.length > 1) {
+          dishName = `${dishName} + ${order.dishes.length - 1} more`;
         }
-        // Convert to positive 3-digit number (100-999)
-        const orderNumber = ((Math.abs(hash) % 900) + 100).toString();
-        const consistentOrderId = `OR${orderNumber}`;
+      }
 
-        let totalAmount = Number(order.totalAmount) || 0;
-        if (
-          (!totalAmount || Number.isNaN(totalAmount)) &&
-          Array.isArray(order.dishes)
-        ) {
-          totalAmount = order.dishes.reduce((sum, dishName) => {
-            try {
-              const dishDoc = Dish.findByName
-                ? Dish.findByName(dishName)
-                : null;
-              return sum + (dishDoc?.price || 0);
-            } catch {
-              return sum;
-            }
-          }, 0);
-        }
+      // Generate consistent order ID
+      let hash = 0;
+      for (let i = 0; i < order._id.length; i++) {
+        const char = order._id.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash = hash & hash;
+      }
+      const orderNumber = ((Math.abs(hash) % 900) + 100).toString();
+      const consistentOrderId = `OR${orderNumber}`;
 
-        // Fetch restaurant ID if not present in order
-        let restId = order.rest_id || null;
-        if (!restId && order.restaurant) {
-          try {
-            const restaurant = await Restaurant.findOne({
-              name: order.restaurant,
-            });
-            if (restaurant) {
-              restId = restaurant._id;
-            }
-          } catch (err) {
-            console.error("Error finding restaurant:", err);
-          }
-        }
+      let totalAmount = Number(order.totalAmount) || 0;
 
-        return {
-          orderId: consistentOrderId,
-          recordId: order._id || null,
-          dishName: dishName,
-          price: Number(totalAmount.toFixed(2)),
-          status: order.status || "pending",
-          date: order.date,
-          image: dishImage,
-          restaurant: order.restaurant || "Unknown Restaurant",
-          restId: restId,
-        };
-      }),
-    );
+      // Resolve restaurant ID from map if needed
+      let restId = order.rest_id || null;
+
+      return {
+        orderId: consistentOrderId,
+        recordId: order._id || null,
+        dishName: dishName,
+        price: Number(totalAmount.toFixed(2)),
+        status: order.status || "pending",
+        date: order.date,
+        image: dishImage,
+        restaurant: order.restaurant || "Unknown Restaurant",
+        restId: restId,
+      };
+    });
 
     // =================== FAVORITE RESTAURANTS ===================
     const topRestaurants = restaurantList.slice(0, 3);
@@ -238,15 +210,21 @@ exports.getCustomerDashboard = async (req, res, next) => {
     const customerReservations = await Reservation.find({
       customerName,
     }).lean();
-    const allReservations = [];
 
-    for (const reservation of customerReservations) {
-      // Look up the restaurant name for display
-      const restaurant = await Restaurant.findById(reservation.rest_id)
-        .select("name")
-        .lean();
+    // Get restaurant names for the reservation list
+    const reservationRestIds = [
+      ...new Set(customerReservations.map((r) => r.rest_id).filter(Boolean)),
+    ];
+    const reservationRests = await Restaurant.find({
+      _id: { $in: reservationRestIds },
+    })
+      .select("name")
+      .lean();
+    const restNameMap = new Map(
+      reservationRests.map((r) => [String(r._id), r.name]),
+    );
 
-      // Create proper datetime by combining date and time
+    const allReservations = customerReservations.map((reservation) => {
       let reservationDateTime = new Date(reservation.date);
       if (reservation.time) {
         const [hours, minutes] = reservation.time.split(":");
@@ -257,8 +235,9 @@ exports.getCustomerDashboard = async (req, res, next) => {
           0,
         );
       }
-      allReservations.push({
-        restaurant: restaurant ? restaurant.name : "Unknown Restaurant",
+      return {
+        restaurant:
+          restNameMap.get(String(reservation.rest_id)) || "Unknown Restaurant",
         date: reservation.date,
         time: reservation.time,
         guests: reservation.guests,
@@ -266,8 +245,8 @@ exports.getCustomerDashboard = async (req, res, next) => {
         status: reservation.status || "pending",
         cancellationReason: reservation.cancellationReason || "",
         reservationDate: reservationDateTime,
-      });
-    }
+      };
+    });
 
     const now = new Date();
     const upcoming = allReservations
@@ -295,12 +274,18 @@ exports.getCustomerDashboard = async (req, res, next) => {
     });
 
     // =================== USER STATS ===================
-    const allOrders = await Order.find({ customerName });
-    const totalOrders = allOrders.length;
-    const totalSpent = allOrders.reduce(
-      (sum, order) => sum + order.totalAmount,
-      0,
-    );
+    const [userStatsResult] = await Order.aggregate([
+      { $match: { customerName } },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: "$totalAmount" },
+        },
+      },
+    ]);
+    const totalOrders = userStatsResult?.totalOrders || 0;
+    const totalSpent = userStatsResult?.totalSpent || 0;
     const avgSpend =
       totalOrders > 0 ? (totalSpent / totalOrders).toFixed(2) : "0.00";
     const totalVisits = totalOrders;
@@ -1348,13 +1333,11 @@ exports.apiCheckout = async (req, res, next) => {
         .json({ success: false, message: "", error: "Restaurant not found" });
     }
     if (!rest.isOpen) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "",
-          error: "Restaurant is currently closed",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "",
+        error: "Restaurant is currently closed",
+      });
     }
 
     // Calculate final amount with promo discount
@@ -1538,12 +1521,10 @@ exports.apiCheckoutPay = async (req, res, next) => {
         }
         const promoValidation = promoCodeDoc.isValid(baseAmount);
         if (!promoValidation.valid) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: promoValidation.error || "Invalid promo code",
-            });
+          return res.status(400).json({
+            success: false,
+            error: promoValidation.error || "Invalid promo code",
+          });
         }
         promoDiscount = promoCodeDoc.calculateDiscount(baseAmount);
         resolvedPromoCode = promoCodeDoc.code;
@@ -1994,63 +1975,18 @@ exports.searchRestaurants = async (req, res, next) => {
       query.distance = { $lte: parseFloat(maxDistance) };
     }
 
-    let restaurants = await Restaurant.find(query);
-
-    // Filter by open now (simplified - check isOpen field and operating hours)
+    // Open-now filter is pushed to DB on the indexed isOpen field.
     if (openNow === "true") {
-      const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-
-      restaurants = restaurants.filter((restaurant) => {
-        if (!restaurant.isOpen) return false;
-
-        // Check operating hours if they exist
-        if (
-          restaurant.operatingHours &&
-          restaurant.operatingHours.open &&
-          restaurant.operatingHours.close
-        ) {
-          try {
-            const [openHour, openMin] = restaurant.operatingHours.open
-              .split(":")
-              .map(Number);
-            const [closeHour, closeMin] = restaurant.operatingHours.close
-              .split(":")
-              .map(Number);
-            const openTime = openHour * 60 + openMin;
-            const closeTime = closeHour * 60 + closeMin;
-            const currentTime = currentHour * 60 + currentMinute;
-
-            return currentTime >= openTime && currentTime <= closeTime;
-          } catch (e) {
-            // If parsing fails, just check isOpen
-            return restaurant.isOpen;
-          }
-        }
-
-        return restaurant.isOpen;
-      });
+      query.isOpen = true;
     }
 
-    // Sort results
-    if (sortBy) {
-      switch (sortBy) {
-        case "rating":
-          restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          break;
-        case "name":
-          restaurants.sort((a, b) => a.name.localeCompare(b.name));
-          break;
-        case "distance":
-          restaurants.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-          break;
-        default:
-          restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-      }
-    } else {
-      restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
+    // Sort at DB level instead of in-memory sorting.
+    let dbSort = { rating: -1 };
+    if (sortBy === "name") dbSort = { name: 1 };
+    if (sortBy === "distance") dbSort = { distance: 1 };
+    if (sortBy === "rating") dbSort = { rating: -1 };
+
+    const restaurants = await Restaurant.find(query).sort(dbSort).lean();
 
     // Format response with open/closed status
     const now = new Date();
@@ -2101,18 +2037,12 @@ exports.searchRestaurants = async (req, res, next) => {
       };
     });
 
-    // Get all unique cuisines from all restaurants
-    const allRestaurants = await Restaurant.find({});
-    const allCuisines = new Set();
-    allRestaurants.forEach((rest) => {
-      if (rest.cuisine && Array.isArray(rest.cuisine)) {
-        rest.cuisine.forEach((c) => allCuisines.add(c));
-      }
-    });
+    // Get unique cuisines for the filter dropdown
+    const allCuisines = await Restaurant.distinct("cuisine");
 
     res.json({
       restaurants: restaurantsWithStatus,
-      availableCuisines: Array.from(allCuisines).sort(),
+      availableCuisines: (allCuisines || []).filter(Boolean).sort(),
     });
   } catch (error) {
     console.error("Error in searchRestaurants:", error);
@@ -2461,17 +2391,11 @@ exports.getAvailablePromoCodes = async (req, res, next) => {
 
 exports.getPublicCuisines = async (req, res, next) => {
   try {
-    const restaurants = await Restaurant.find({}, "cuisine");
-    const cuisineSet = new Set();
-
-    restaurants.forEach((r) => {
-      if (Array.isArray(r.cuisine)) {
-        r.cuisine.forEach((c) => cuisineSet.add(c));
-      }
-    });
+    // Get unique cuisine values from the DB directly
+    const allCuisines = await Restaurant.distinct("cuisine");
 
     res.json({
-      cuisines: Array.from(cuisineSet).sort(),
+      cuisines: (allCuisines || []).filter(Boolean).sort(),
     });
   } catch (error) {
     console.error("Error fetching cuisines:", error);
