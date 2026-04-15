@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const customerController = require("../Controller/customerController");
+const { searchRestaurants } = require("../Controller/searchController");
+const { redisReadCacheMiddleware } = require("../middleware/redisCache");
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -32,5 +34,43 @@ router.get(
   "/restaurants/public-cuisines",
   customerController.getPublicCuisines,
 );
+
+/**
+ * @swagger
+ * /api/customer/search:
+ *   get:
+ *     summary: Search restaurants with filters
+ *     tags: [Customer]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Search keyword (name, cuisine, city)
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: cuisine
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: open
+ *         schema:
+ *           type: boolean
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get("/search", searchRestaurants);
 
 module.exports = router;

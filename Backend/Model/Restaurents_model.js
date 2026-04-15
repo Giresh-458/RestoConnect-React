@@ -223,6 +223,22 @@ restaurantSchema.statics.updateFull = function (obj) {
   return this.updateOne({ _id }, { $set: updateData });
 };
 
+// 🔍 TEXT INDEX FOR SEARCH 
+restaurantSchema.index(
+  {
+    name: "text",
+    city: "text",
+    cuisine: "text"
+  },
+  {
+    weights: {
+      name: 5,
+      city: 3,
+      cuisine: 2
+    }
+  }
+);
 const Restaurant = mongoose.model("Restaurant", restaurantSchema);
+
 
 module.exports = { Restaurant };

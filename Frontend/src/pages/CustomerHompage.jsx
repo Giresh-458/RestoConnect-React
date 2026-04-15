@@ -37,7 +37,7 @@ export async function loader() {
 
   try {
     const response = await fetch(
-      `${API_BASE}/api/customer/restaurants/search`,
+      `$${API_BASE}/api/customer/search`,
       { credentials: "include" }
     );
     const data = await response.json();
@@ -85,18 +85,18 @@ export function CustomerHomepage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchQuery) params.append("search", searchQuery);
-      if (openNow) params.append("openNow", "true");
+      if (searchQuery) params.append("q", searchQuery);
+      if (openNow) params.append("open", "true");
       if (sortBy) params.append("sortBy", sortBy);
       if (selectedCuisine && selectedCuisine !== "All") params.append("cuisine", selectedCuisine);
-      if (location && location !== "All") params.append("location", location);
-
+      if (location && location !== "All") params.append("city", location);
+      
       const res = await fetch(
-        `${API_BASE}/api/customer/restaurants/search?${params.toString()}`,
+        `${API_BASE}/api/customer/search?${params.toString()}`,
         { credentials: "include" }
       );
       const data = await res.json();
-      setRestaurants(data.restaurants || []);
+      setRestaurants(data.results || []);
       if (data.availableCuisines?.length) {
         setCuisines(["All", ...data.availableCuisines]);
       }
