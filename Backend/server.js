@@ -301,7 +301,9 @@ app.get("/logout", (req, res) => {
 app.use("/loginPage", loginPage);
 
 //  public
-app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
+// app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
+
+app.use("/api/customer", customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 // Support routes must be mounted BEFORE generic role routers to ensure proper matching
