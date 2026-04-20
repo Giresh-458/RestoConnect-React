@@ -48,3 +48,5 @@ npm start
 - OpenAPI JSON: `/api-docs.json`
 
 See [../DEPLOYMENT.md](../DEPLOYMENT.md) for Docker and deployment setup.
+
+## Nitin is Great
