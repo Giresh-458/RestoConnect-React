@@ -25,6 +25,7 @@ const {
   redisInvalidateOnMutationMiddleware,
 } = require("./middleware/redisCache");
 const { createGraphQLOptions } = require("./graphql/schema");
+const { registerGraphQLDocumentationRoutes } = require("./graphql/documentationRoutes");
 
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
@@ -125,6 +126,7 @@ app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerS
   }
 }));
 
+registerGraphQLDocumentationRoutes(app);
 
 app.use('/graphql', graphqlHTTP(createGraphQLOptions));
 
@@ -140,7 +142,7 @@ app.use((req, res, next) => {
   // csrf token sent by client
   //console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
 
-  if (req.path.startsWith('/api-docs')) return next();
+  if (req.path.startsWith('/api-docs') || req.path.startsWith('/graphql-docs')) return next();
   // Auth endpoints that establish session - no CSRF (user not logged in yet)
   if (req.path === '/api/auth/login' || req.path === '/api/auth/signup') return next();
   if (req.path.startsWith('/api/auth/forgot-password')) return next();

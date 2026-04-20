@@ -130,57 +130,129 @@ const ensureInventoryAccess = (auth, requestedRestId) => {
 
 const LeftoverType = new GraphQLObjectType({
   name: "Leftover",
+  description: "A leftover menu item that can still be offered before it expires.",
   fields: {
     _id: { type: GraphQLID },
-    itemName: { type: GraphQLNonNull(GraphQLString) },
-    quantity: { type: GraphQLFloat },
-    expiryDate: { type: GraphQLString },
-    createdAt: { type: GraphQLString },
+    itemName: {
+      type: GraphQLNonNull(GraphQLString),
+      description: "Display name of the leftover food item.",
+    },
+    quantity: {
+      type: GraphQLFloat,
+      description: "Remaining quantity available for the leftover item.",
+    },
+    expiryDate: {
+      type: GraphQLString,
+      description: "ISO timestamp after which the leftover should no longer be shown.",
+    },
+    createdAt: {
+      type: GraphQLString,
+      description: "ISO timestamp for when the leftover record was created.",
+    },
   },
 });
 
 const InventoryItemType = new GraphQLObjectType({
   name: "InventoryItem",
+  description: "A single inventory line item derived from a restaurant inventory snapshot.",
   fields: {
     _id: { type: GraphQLID },
     id: { type: GraphQLID },
-    name: { type: GraphQLNonNull(GraphQLString) },
-    quantity: { type: GraphQLFloat },
-    unit: { type: GraphQLString },
-    supplier: { type: GraphQLString },
-    minStock: { type: GraphQLFloat },
-    status: { type: GraphQLString },
-    isLowStock: { type: GraphQLBoolean },
-    isOutOfStock: { type: GraphQLBoolean },
-    rest_id: { type: GraphQLID },
+    name: {
+      type: GraphQLNonNull(GraphQLString),
+      description: "Human-readable inventory item name.",
+    },
+    quantity: {
+      type: GraphQLFloat,
+      description: "Current stock level for the item.",
+    },
+    unit: {
+      type: GraphQLString,
+      description: "Measurement unit used for the quantity value.",
+    },
+    supplier: {
+      type: GraphQLString,
+      description: "Supplier name when one is stored for the item.",
+    },
+    minStock: {
+      type: GraphQLFloat,
+      description: "Configured minimum stock threshold for low-stock warnings.",
+    },
+    status: {
+      type: GraphQLString,
+      description: "Computed inventory state such as Available, Low Stock, or Out of Stock.",
+    },
+    isLowStock: {
+      type: GraphQLBoolean,
+      description: "True when quantity is above zero but at or below the minimum threshold.",
+    },
+    isOutOfStock: {
+      type: GraphQLBoolean,
+      description: "True when the quantity has reached zero or lower.",
+    },
+    rest_id: {
+      type: GraphQLID,
+      description: "Restaurant identifier associated with the inventory item.",
+    },
   },
 });
 
 const RestaurantInventoryType = new GraphQLObjectType({
   name: "RestaurantInventory",
+  description: "Inventory summary for a restaurant along with computed stock flags.",
   fields: {
-    restaurantId: { type: GraphQLNonNull(GraphQLID) },
-    restaurantName: { type: GraphQLNonNull(GraphQLString) },
-    city: { type: GraphQLString },
-    lowStockCount: { type: GraphQLFloat },
-    outOfStockCount: { type: GraphQLFloat },
-    inventory: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(InventoryItemType))) },
+    restaurantId: {
+      type: GraphQLNonNull(GraphQLID),
+      description: "Unique identifier of the restaurant that owns this inventory snapshot.",
+    },
+    restaurantName: {
+      type: GraphQLNonNull(GraphQLString),
+      description: "Restaurant display name.",
+    },
+    city: {
+      type: GraphQLString,
+      description: "City where the restaurant operates.",
+    },
+    lowStockCount: {
+      type: GraphQLFloat,
+      description: "Number of inventory items currently flagged as low stock.",
+    },
+    outOfStockCount: {
+      type: GraphQLFloat,
+      description: "Number of inventory items currently out of stock.",
+    },
+    inventory: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(InventoryItemType))),
+      description: "Expanded inventory rows for the selected restaurant.",
+    },
   },
 });
 
 const RestaurantType = new GraphQLObjectType({
   name: "Restaurant",
+  description: "Public restaurant information exposed through GraphQL queries.",
   fields: {
     _id: { type: GraphQLID },
     id: {
       type: GraphQLID,
+      description: "Restaurant identifier mirrored from the database _id field.",
       resolve: (parent) => parent._id,
     },
-    name: { type: GraphQLNonNull(GraphQLString) },
-    city: { type: GraphQLString },
-    image: { type: GraphQLString },
+    name: {
+      type: GraphQLNonNull(GraphQLString),
+      description: "Restaurant display name.",
+    },
+    city: {
+      type: GraphQLString,
+      description: "City where the restaurant is located.",
+    },
+    image: {
+      type: GraphQLString,
+      description: "Primary restaurant image URL or relative asset path.",
+    },
     leftovers: {
       type: new GraphQLList(LeftoverType),
+      description: "Non-expired leftovers sorted by nearest expiry time.",
       resolve: (parent) => {
         if (!parent.leftovers || parent.leftovers.length === 0) return [];
 
@@ -201,6 +273,7 @@ const RestaurantType = new GraphQLObjectType({
 
 const RootQueryType = new GraphQLObjectType({
   name: "Query",
+  description: "Root query operations available in the RestoConnect GraphQL API.",
   fields: {
     publicRestaurants: {
       type: new GraphQLList(RestaurantType),
@@ -221,7 +294,11 @@ const RootQueryType = new GraphQLObjectType({
       description:
         "Get inventory for the authenticated restaurant. Owner/staff use their own restaurant automatically; admin/employee may pass restId.",
       args: {
-        restId: { type: GraphQLID },
+        restId: {
+          type: GraphQLID,
+          description:
+            "Optional restaurant identifier. Required for admin or employee accounts without a default restaurant.",
+        },
       },
       async resolve(_source, { restId }, context) {
         const effectiveRestId = ensureInventoryAccess(context?.auth, restId);
