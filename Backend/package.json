@@ -19,7 +19,10 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "perf:report": "node scripts/generatePerfReport.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
+    "test:report": "jest --coverage --runInBand --reporters=default --reporters=jest-junit"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -45,6 +48,13 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "jest": "^30.3.0",
+    "jest-junit": "^16.0.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.2.2"
+  },
+  "jest-junit": {
+    "outputDirectory": "./reports/junit",
+    "outputName": "backend-junit.xml"
   }
 }

@@ -1,4 +1,14 @@
 {
+  "private": true,
+  "scripts": {
+    "test": "npm run test --prefix Backend && npm run test --prefix Frontend",
+    "test:backend": "npm run test --prefix Backend",
+    "test:frontend": "npm run test --prefix Frontend",
+    "test:coverage": "npm run test:coverage --prefix Backend && npm run test:coverage --prefix Frontend",
+    "test:report": "npm run test:report --prefix Backend && npm run test:report --prefix Frontend",
+    "build": "npm run build --prefix Frontend",
+    "ci": "npm run test:report && npm run build"
+  },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.1",
     "@stripe/stripe-js": "^8.10.0",

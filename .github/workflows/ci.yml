@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            Backend/package-lock.json
+            Frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --prefix Backend
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix Frontend
+
+      - name: Run backend tests with coverage and reports
+        run: npm run test:report --prefix Backend
+
+      - name: Run frontend tests with coverage and reports
+        run: npm run test:report --prefix Frontend
+
+      - name: Build frontend
+        run: npm run build --prefix Frontend
+
+      - name: Upload test reports and coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            Backend/coverage
+            Backend/reports
+            Frontend/coverage
+            Frontend/reports
+            Frontend/dist
+          if-no-files-found: warn

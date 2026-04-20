@@ -38,5 +38,26 @@ export default defineConfig(({ mode }) => {
       port: devPort,
       proxy,
     },
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      css: true,
+      setupFiles: './src/test/setup.js',
+      reporters: ['default'],
+      outputFile: {
+        junit: './reports/junit/frontend-junit.xml',
+      },
+      coverage: {
+        provider: 'v8',
+        reportsDirectory: './coverage',
+        reporter: ['text', 'html', 'lcov', 'json-summary'],
+        include: [
+          'src/components/Search/Search.jsx',
+          'src/components/common/ConfirmDialog.jsx',
+          'src/components/RestaurantCard/RestaurantCard.jsx',
+          'src/store/CartSlice.js',
+        ],
+      },
+    },
   }
 })
