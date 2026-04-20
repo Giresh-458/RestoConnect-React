@@ -3,6 +3,8 @@
  * tags:
  *   - name: Payments
  *     description: Stripe payment endpoints
+ *   - name: GraphQL
+ *     description: GraphQL endpoint and supported query patterns
  *   - name: Admin Support
  *     description: Admin and employee support ticket operations
  *   - name: Owner Support
@@ -72,6 +74,122 @@
  *           type: integer
  *         urgent:
  *           type: integer
+ *     GraphQLRequest:
+ *       type: object
+ *       properties:
+ *         query:
+ *           type: string
+ *         variables:
+ *           type: object
+ *           additionalProperties: true
+ *         operationName:
+ *           type: string
+ */
+
+/**
+ * @swagger
+ * /graphql:
+ *   get:
+ *     summary: Open the GraphiQL explorer
+ *     tags: [GraphQL]
+ *     description: |
+ *       Opens the interactive GraphiQL UI.
+ *
+ *       Supported queries:
+ *
+ *       `publicRestaurants`
+ *       Public query that returns restaurant basics with non-expired leftovers.
+ *
+ *       `restaurantInventory(restId: ID)`
+ *       Authenticated B2B query for owner, staff, admin, or employee users.
+ *       Owner and staff users read their own restaurant inventory automatically.
+ *       Admin and employee users may pass `restId` to inspect a specific restaurant.
+ *     responses:
+ *       200:
+ *         description: GraphiQL HTML page
+ *   post:
+ *     summary: Execute a GraphQL query
+ *     tags: [GraphQL]
+ *     description: |
+ *       Execute GraphQL queries against the backend.
+ *
+ *       Example public query:
+ *       ```graphql
+ *       query {
+ *         publicRestaurants {
+ *           id
+ *           name
+ *           city
+ *           leftovers {
+ *             itemName
+ *             quantity
+ *             expiryDate
+ *           }
+ *         }
+ *       }
+ *       ```
+ *
+ *       Example authenticated inventory query:
+ *       ```graphql
+ *       query GetInventory($restId: ID) {
+ *         restaurantInventory(restId: $restId) {
+ *           restaurantId
+ *           restaurantName
+ *           city
+ *           lowStockCount
+ *           outOfStockCount
+ *           inventory {
+ *             id
+ *             name
+ *             quantity
+ *             unit
+ *             supplier
+ *             minStock
+ *             status
+ *             isLowStock
+ *             isOutOfStock
+ *           }
+ *         }
+ *       }
+ *       ```
+ *
+ *       Auth for `restaurantInventory` can be provided through the existing auth cookie
+ *       or an `Authorization: Bearer <jwt>` header.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/GraphQLRequest'
+ *           examples:
+ *             publicRestaurants:
+ *               summary: Public restaurant query
+ *               value:
+ *                 query: "query { publicRestaurants { id name city leftovers { itemName quantity expiryDate } } }"
+ *             restaurantInventory:
+ *               summary: Authenticated inventory query
+ *               value:
+ *                 query: "query GetInventory($restId: ID) { restaurantInventory(restId: $restId) { restaurantId restaurantName city lowStockCount outOfStockCount inventory { id name quantity unit supplier minStock status isLowStock isOutOfStock } } }"
+ *                 variables:
+ *                   restId: "restaurant_123"
+ *                 operationName: "GetInventory"
+ *     responses:
+ *       200:
+ *         description: GraphQL execution result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       message:
+ *                         type: string
  */
 
 /**
