@@ -528,15 +528,18 @@ exports.getStaffHomepageData = async (req, res, next) => {
 
     // --- Reservations ---
     const restIdStr = String(restaurant._id);
-    let reservations = await Reservation.find({ rest_id: restIdStr }).lean();
+    let reservations = await Reservation.find({
+      rest_id: restIdStr,
+      date: { $gte: startOfDay, $lte: endOfDay },
+    }).lean();
     if (!reservations.length) {
-      reservations = await Reservation.find({ rest_id: String(staffMember.rest_id) }).lean();
+      reservations = await Reservation.find({
+        rest_id: String(staffMember.rest_id),
+        date: { $gte: startOfDay, $lte: endOfDay },
+      }).lean();
     }
 
-    const todayReservations = reservations.filter((r) => {
-      const rDate = new Date(r.date);
-      return rDate >= startOfDay && rDate <= endOfDay;
-    }).map((r) => ({
+    const todayReservations = reservations.map((r) => ({
       _id: r._id,
       customerName: r.customerName || "Guest",
       time: r.time,
@@ -1466,7 +1469,7 @@ exports.getDashBoardData = async (req, res, next) => {
     }
 
     // Also try querying all reservations to debug
-    const allReservations = await Reservation.find({}).lean();
+    const allReservations = [];
     // console.log(`📊 Total reservations in DB: ${allReservations.length}`);
     if (allReservations.length > 0) {
       // console.log('📋 Sample reservation rest_id values:', allReservations.slice(0, 3).map(r => ({ id: r._id, rest_id: r.rest_id, type: typeof r.rest_id })));

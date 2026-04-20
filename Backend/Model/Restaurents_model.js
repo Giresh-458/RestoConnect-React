@@ -196,6 +196,7 @@ const restaurantSchema = new mongoose.Schema({
 restaurantSchema.index({ city: 1 });       // Homepage city filter
 restaurantSchema.index({ cuisine: 1 });    // Homepage cuisine filter
 restaurantSchema.index({ isOpen: 1 });     // Open status filter
+restaurantSchema.index({ city: 1, cuisine: 1, isOpen: 1, rating: -1 }); // Combined discovery filters
 
 // Instance method to add restaurant
 restaurantSchema.methods.addRestaurant = async function () {

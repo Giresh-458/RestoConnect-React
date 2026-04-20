@@ -13,6 +13,10 @@ const {
   getProfilePicUrl,
   getRestaurantImageUrl,
 } = require("../util/fileUpload");
+const {
+  buildRestaurantSearchQuery,
+  getRestaurantSearchSort,
+} = require("./searchController");
 // Removed duplicate Restaurant import to avoid redeclaration
 
 const formatRelativeTime = (targetDate) => {
@@ -1947,46 +1951,26 @@ exports.postEditProfile = async (req, res, next) => {
 // Search and filter restaurants for customer homepage
 exports.searchRestaurants = async (req, res, next) => {
   try {
-    const { search, cuisine, openNow, maxDistance, sortBy, location } =
-      req.query;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 24));
+    const { filter, searchTerm } = buildRestaurantSearchQuery(req.query);
 
-    let query = {};
-
-    // Search by name or location
-    if (search) {
-      query.$or = [
-        { name: { $regex: new RegExp(search.trim(), "i") } },
-        { location: { $regex: new RegExp(search.trim(), "i") } },
-      ];
+    if (req.query.maxDistance) {
+      const maxDistance = Number.parseFloat(req.query.maxDistance);
+      if (Number.isFinite(maxDistance) && maxDistance >= 0) {
+        filter.distance = { $lte: maxDistance };
+      }
     }
 
-    // Filter by location (use city field for filtering)
-    if (location && location !== "All") {
-      query.city = { $regex: new RegExp(location.trim(), "i") };
-    }
+    const projection = searchTerm ? { score: { $meta: "textScore" } } : {};
+    const dbSort = getRestaurantSearchSort(searchTerm, req.query.sortBy);
+    const skip = (page - 1) * limit;
 
-    // Filter by cuisine
-    if (cuisine && cuisine !== "All") {
-      query.cuisine = { $in: [cuisine] };
-    }
-
-    // Filter by distance (if distance field exists)
-    if (maxDistance) {
-      query.distance = { $lte: parseFloat(maxDistance) };
-    }
-
-    // Open-now filter is pushed to DB on the indexed isOpen field.
-    if (openNow === "true") {
-      query.isOpen = true;
-    }
-
-    // Sort at DB level instead of in-memory sorting.
-    let dbSort = { rating: -1 };
-    if (sortBy === "name") dbSort = { name: 1 };
-    if (sortBy === "distance") dbSort = { distance: 1 };
-    if (sortBy === "rating") dbSort = { rating: -1 };
-
-    const restaurants = await Restaurant.find(query).sort(dbSort).lean();
+    const [restaurants, total, allCuisines] = await Promise.all([
+      Restaurant.find(filter, projection).sort(dbSort).skip(skip).limit(limit).lean(),
+      Restaurant.countDocuments(filter),
+      Restaurant.distinct("cuisine"),
+    ]);
 
     // Format response with open/closed status
     const now = new Date();
@@ -2037,11 +2021,13 @@ exports.searchRestaurants = async (req, res, next) => {
       };
     });
 
-    // Get unique cuisines for the filter dropdown
-    const allCuisines = await Restaurant.distinct("cuisine");
-
     res.json({
       restaurants: restaurantsWithStatus,
+      results: restaurantsWithStatus,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      totalResults: total,
       availableCuisines: (allCuisines || []).filter(Boolean).sort(),
     });
   } catch (error) {

@@ -19,6 +19,8 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "perf:report": "node scripts/generatePerfReport.js",
+    "db:indexes": "node scripts/sync_indexes.js",
+    "db:explain": "node scripts/explain_queries.js",
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",

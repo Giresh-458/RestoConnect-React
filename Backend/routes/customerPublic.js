@@ -39,14 +39,20 @@ router.get(
  * @swagger
  * /api/customer/search:
  *   get:
- *     summary: Search restaurants with filters
+ *     summary: Search restaurants with filters and pagination
  *     tags: [Customer]
+ *     description: Public optimized restaurant search. Uses MongoDB text search for query/q/search, exact indexed filters for city/cuisine/open status, and paginated results.
  *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         description: Search keyword for restaurant name, cuisine, or city. Alias of q/search.
  *       - in: query
  *         name: q
  *         schema:
  *           type: string
- *         description: Search keyword (name, cuisine, city)
+ *         description: Search keyword alias.
  *       - in: query
  *         name: city
  *         schema:
@@ -70,6 +76,25 @@ router.get(
  *     responses:
  *       200:
  *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 page:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 totalResults:
+ *                   type: integer
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Restaurant'
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  */
 router.get("/search", searchRestaurants);
 

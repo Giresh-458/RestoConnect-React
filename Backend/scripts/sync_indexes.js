@@ -1,11 +1,11 @@
 /**
  * sync_indexes.js – Ensure all Mongoose schema indexes exist on the database.
  *
- * Usage: MONGO_URI="mongodb+srv://..." node scripts/sync_indexes.js
+ * Usage: MONGODB_URI="mongodb+srv://..." node scripts/sync_indexes.js
  */
 const mongoose = require("mongoose");
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/test";
 
 async function run() {
   console.log("═══════════════════════════════════════════════════════════════");

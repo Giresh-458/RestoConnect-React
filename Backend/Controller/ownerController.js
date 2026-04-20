@@ -298,87 +298,174 @@ exports.getDashboardSummary = async (req, res, next) => {
       }
     });
 
-    // Orders metrics
-    const ordersToday = await Order.countDocuments({
-      rest_id: user.rest_id,
-      date: { $gte: startOfToday, $lt: tomorrow }
-    });
+    const restId = String(user.rest_id);
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
 
-    const pendingOrders = await Order.countDocuments({
-      rest_id: user.rest_id,
-      status: "pending"
-    });
+    const [
+      orderFacetRows,
+      hourlyOrderRows,
+      todayReservations,
+      reservationFacetRows,
+      activeStaff,
+      recentOrders,
+      upcomingReservations,
+      popularDishes,
+      recentFeedback,
+      pendingFeedback,
+    ] = await Promise.all([
+      Order.aggregate([
+        { $match: { rest_id: restId } },
+        {
+          $facet: {
+            today: [
+              { $match: { date: { $gte: startOfToday, $lt: tomorrow } } },
+              { $count: "count" },
+            ],
+            yesterday: [
+              { $match: { date: { $gte: startOfYesterday, $lt: startOfToday } } },
+              { $count: "count" },
+            ],
+            pending: [{ $match: { status: "pending" } }, { $count: "count" }],
+            preparing: [{ $match: { status: "preparing" } }, { $count: "count" }],
+            served: [{ $match: { status: "served" } }, { $count: "count" }],
+            completedToday: [
+              {
+                $match: {
+                  date: { $gte: startOfToday, $lt: tomorrow },
+                  status: { $in: ["completed", "done", "served"] },
+                },
+              },
+              { $count: "count" },
+            ],
+            month: [
+              { $match: { date: { $gte: startOfMonth, $lte: endOfMonth } } },
+              {
+                $group: {
+                  _id: null,
+                  count: { $sum: 1 },
+                  totalAmount: { $sum: { $ifNull: ["$totalAmount", 0] } },
+                },
+              },
+            ],
+            ratings: [
+              { $match: { rating: { $exists: true, $ne: null } } },
+              {
+                $group: {
+                  _id: null,
+                  avgRating: { $avg: "$rating" },
+                  totalRatings: { $sum: 1 },
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      Order.aggregate([
+        { $match: { rest_id: restId, date: { $gte: startOfToday, $lt: tomorrow } } },
+        {
+          $group: {
+            _id: { $hour: { $ifNull: ["$orderTime", "$date"] } },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Reservation.find({
+        rest_id: restId,
+        date: { $gte: startOfToday, $lt: tomorrow },
+        status: { $nin: ["cancelled"] },
+      })
+        .sort({ time: 1 })
+        .select("_id customerName time guests status")
+        .lean(),
+      Reservation.aggregate([
+        { $match: { rest_id: restId } },
+        {
+          $facet: {
+            yesterdayGuests: [
+              {
+                $match: {
+                  date: { $gte: startOfYesterday, $lt: startOfToday },
+                  status: { $nin: ["cancelled"] },
+                },
+              },
+              { $group: { _id: null, guests: { $sum: { $ifNull: ["$guests", 0] } } } },
+            ],
+            pending: [{ $match: { status: "pending" } }, { $count: "count" }],
+          },
+        },
+      ]),
+      User.countDocuments({ rest_id: restId, role: "staff" }),
+      Order.find({ rest_id: restId })
+        .sort({ date: -1 })
+        .limit(8)
+        .select("_id customerName totalAmount status tableNumber date orderTime")
+        .lean(),
+      Reservation.find({
+        rest_id: restId,
+        date: { $gte: startOfToday },
+        status: { $nin: ["cancelled", "completed"] },
+      })
+        .sort({ date: 1 })
+        .limit(8)
+        .select("_id customerName time guests status date")
+        .lean(),
+      Order.aggregate([
+        { $match: { rest_id: restId, date: { $gte: thirtyDaysAgo } } },
+        { $unwind: "$dishes" },
+        { $group: { _id: "$dishes", orderCount: { $sum: 1 } } },
+        { $sort: { orderCount: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: "dishes",
+            localField: "_id",
+            foreignField: "_id",
+            as: "dishDoc",
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            name: { $ifNull: [{ $arrayElemAt: ["$dishDoc.name", 0] }, "$_id"] },
+            orderCount: 1,
+          },
+        },
+      ]),
+      Feedback.find({ rest_id: restId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("customerName diningRating orderRating status createdAt")
+        .lean(),
+      Feedback.countDocuments({ rest_id: restId, status: "Pending" }),
+    ]);
 
-    const completedOrdersToday = await Order.countDocuments({
-      rest_id: user.rest_id,
-      date: { $gte: startOfToday, $lt: tomorrow },
-      status: "completed"
-    });
+    const orderFacets = orderFacetRows[0] || {};
+    const reservationFacets = reservationFacetRows[0] || {};
+    const facetCount = (facet, name) => facet?.[name]?.[0]?.count || 0;
+    const monthStats = orderFacets.month?.[0] || { count: 0, totalAmount: 0 };
+    const ratingStats = orderFacets.ratings?.[0] || { avgRating: 0, totalRatings: 0 };
 
-    const ordersYesterday = await Order.countDocuments({
-      rest_id: user.rest_id,
-      date: { $gte: startOfYesterday, $lt: startOfToday }
-    });
-
-    const preparingOrders = await Order.countDocuments({
-      rest_id: user.rest_id,
-      status: "preparing"
-    });
-
-    const servedOrders = await Order.countDocuments({
-      rest_id: user.rest_id,
-      status: "served"
-    });
-
-    // Hourly order distribution for today
-    const todayAllOrders = await Order.find({
-      rest_id: user.rest_id,
-      date: { $gte: startOfToday, $lt: tomorrow }
-    }).select("date orderTime");
+    const ordersToday = facetCount(orderFacets, "today");
+    const ordersYesterday = facetCount(orderFacets, "yesterday");
+    const pendingOrders = facetCount(orderFacets, "pending");
+    const preparingOrders = facetCount(orderFacets, "preparing");
+    const servedOrders = facetCount(orderFacets, "served");
+    const completedOrdersToday = facetCount(orderFacets, "completedToday");
+    const totalOrdersThisMonth = monthStats.count || 0;
+    const avgOrderValue =
+      totalOrdersThisMonth > 0 ? (monthStats.totalAmount || 0) / totalOrdersThisMonth : 0;
 
     const hourlyOrders = Array(24).fill(0);
-    todayAllOrders.forEach((order) => {
-      const d = new Date(order.orderTime || order.date);
-      if (!isNaN(d.getTime())) hourlyOrders[d.getHours()]++;
+    hourlyOrderRows.forEach((row) => {
+      if (Number.isInteger(row._id) && row._id >= 0 && row._id < 24) {
+        hourlyOrders[row._id] = row.count || 0;
+      }
     });
-
-    // Today's reservations for timeline
-    const todayReservations = await Reservation.find({
-      rest_id: String(user.rest_id),
-      date: { $gte: startOfToday, $lt: tomorrow },
-      status: { $nin: ["cancelled"] }
-    }).sort({ time: 1 }).select("_id customerName time guests status");
 
     const guestsToday = todayReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
-
-    // Yesterday guests
-    const yesterdayReservations = await Reservation.find({
-      rest_id: String(user.rest_id),
-      date: { $gte: startOfYesterday, $lt: startOfToday },
-      status: { $nin: ["cancelled"] }
-    });
-    const guestsYesterday = yesterdayReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
-
-    const totalOrdersThisMonth = await Order.countDocuments({
-      rest_id: user.rest_id,
-      date: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-
-    // Average order value
-    const ordersThisMonth = await Order.find({
-      rest_id: user.rest_id,
-      date: { $gte: startOfMonth, $lte: endOfMonth }
-    }).select("totalAmount");
-
-    const avgOrderValue = ordersThisMonth.length > 0
-      ? ordersThisMonth.reduce((sum, order) => sum + (order.totalAmount || 0), 0) / ordersThisMonth.length
-      : 0;
-
-    // Staff metrics
-    const activeStaff = await User.countDocuments({
-      rest_id: user.rest_id,
-      role: "staff"
-    });
+    const guestsYesterday = reservationFacets.yesterdayGuests?.[0]?.guests || 0;
+    const pendingReservations = facetCount(reservationFacets, "pending");
 
     // Table occupancy
     const totalTables = rest.tables ? rest.tables.length : 0;
@@ -411,21 +498,8 @@ exports.getDashboardSummary = async (req, res, next) => {
       ).length;
     }
 
-    // Customer satisfaction (average rating from orders)
-    const ratedOrders = await Order.find({
-      rest_id: user.rest_id,
-      rating: { $exists: true, $ne: null }
-    }).select("rating");
-
-    const avgRating = ratedOrders.length > 0
-      ? ratedOrders.reduce((sum, order) => sum + (order.rating || 0), 0) / ratedOrders.length
-      : 0;
-
-    // Recent orders with more details
-    const recentOrders = await Order.find({ rest_id: user.rest_id })
-      .sort({ date: -1 })
-      .limit(8)
-      .select("_id customerName totalAmount status tableNumber date orderTime");
+    const avgRating = ratingStats.avgRating || 0;
+    const totalRatings = ratingStats.totalRatings || 0;
 
     const formattedOrders = recentOrders.map((order) => {
       let hash = 0;
@@ -445,59 +519,6 @@ exports.getDashboardSummary = async (req, res, next) => {
         date: order.date,
         orderTime: order.orderTime
       };
-    });
-
-    // Upcoming reservations with better filtering
-    const upcomingReservations = await Reservation.find({
-      rest_id: String(user.rest_id),
-      date: { $gte: startOfToday },
-      status: { $nin: ["cancelled", "completed"] }
-    })
-      .sort({ date: 1 })
-      .limit(8)
-      .select("_id customerName time guests status date");
-
-    // Pending reservations count
-    const pendingReservations = await Reservation.countDocuments({
-      rest_id: String(user.rest_id),
-      status: "pending"
-    });
-
-    // Popular dishes (most ordered in last 30 days)
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(now.getDate() - 30);
-
-    const recentOrdersWithDishes = await Order.find({
-      rest_id: user.rest_id,
-      date: { $gte: thirtyDaysAgo }
-    }).populate("dishes");
-
-    const dishFrequency = {};
-    recentOrdersWithDishes.forEach((order) => {
-      if (order.dishes && Array.isArray(order.dishes)) {
-        order.dishes.forEach((dish) => {
-          const name = (typeof dish === 'string') ? dish : (dish && dish.name);
-          if (name) {
-            dishFrequency[name] = (dishFrequency[name] || 0) + 1;
-          }
-        });
-      }
-    });
-
-    const popularDishes = Object.entries(dishFrequency)
-      .map(([name, count]) => ({ name, orderCount: count }))
-      .sort((a, b) => b.orderCount - a.orderCount)
-      .slice(0, 5);
-
-    // Recent feedback
-    const recentFeedback = await Feedback.find({ rest_id: user.rest_id })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("customerName diningRating orderRating status createdAt");
-
-    const pendingFeedback = await Feedback.countDocuments({
-      rest_id: user.rest_id,
-      status: "Pending"
     });
 
     // Operational alerts
@@ -561,7 +582,7 @@ exports.getDashboardSummary = async (req, res, next) => {
         occupiedTables,
         availableTables: totalTables - occupiedTables,
         avgRating: Math.round(avgRating * 10) / 10,
-        totalRatings: ratedOrders.length,
+        totalRatings,
         pendingReservations,
         guestsToday,
         guestsYesterday
@@ -601,7 +622,29 @@ exports.getRevenueOrdersTrend = async (req, res, next) => {
     const sevenDaysAgo = new Date(todayStart);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-    // Initialize data for last 7 days
+    const orderCounts = await Order.aggregate([
+      {
+        $match: {
+          rest_id: String(user.rest_id),
+          date: { $gte: sevenDaysAgo, $lt: new Date(todayStart.getTime() + 24 * 60 * 60 * 1000) },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: "%Y-%m-%d",
+              date: "$date",
+            },
+          },
+          orders: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const orderCountByDay = new Map(orderCounts.map((row) => [row._id, row.orders]));
+    const payments = rest.payments || [];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const days = [];
     const revenueData = [];
     const ordersData = [];
@@ -611,27 +654,19 @@ exports.getRevenueOrdersTrend = async (req, res, next) => {
       date.setDate(date.getDate() - i);
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
+      const key = date.toISOString().slice(0, 10);
 
-      // Get day name (Mon, Tue, etc.)
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       days.push(dayNames[date.getDay()]);
-
-      // Calculate revenue for this day
-      let dayRevenue = 0;
-      const payments = rest.payments || [];
-      payments.forEach((payment) => {
-        if (payment.date && payment.date >= date && payment.date < nextDate) {
-          dayRevenue += payment.amount || 0;
-        }
-      });
-      revenueData.push(dayRevenue);
-
-      // Count orders for this day
-      const dayOrders = await Order.countDocuments({
-        rest_id: user.rest_id,
-        date: { $gte: date, $lt: nextDate }
-      });
-      ordersData.push(dayOrders);
+      revenueData.push(
+        payments.reduce((sum, payment) => {
+          const paymentDate = payment.date instanceof Date ? payment.date : new Date(payment.date);
+          if (paymentDate >= date && paymentDate < nextDate) {
+            return sum + (payment.amount || 0);
+          }
+          return sum;
+        }, 0),
+      );
+      ordersData.push(orderCountByDay.get(key) || 0);
     }
 
     res.json({

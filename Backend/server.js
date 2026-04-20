@@ -179,7 +179,9 @@ const RootQueryType = new GraphQLObjectType({
       type: new GraphQLList(RestaurantType),
       description: 'Get all restaurants with their leftover items and expiry dates (public, no auth)',
       async resolve() {
-        const restaurants = await Restaurant.find({}).lean();
+        const restaurants = await Restaurant.find({})
+          .select("_id name city image leftovers")
+          .lean();
         return restaurants.map(r => ({
           ...r,
           _id: r._id.toString()
@@ -300,10 +302,8 @@ app.get("/logout", (req, res) => {
 
 app.use("/loginPage", loginPage);
 
-//  public
-// app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
-
-app.use("/api/customer", customerPublicRoutes);
+// Public customer discovery endpoints are cacheable and do not require auth.
+app.use("/api/customer", redisReadCacheMiddleware, customerPublicRoutes);
 
 // Mount routers at both /role and /api/role paths so frontend can call /api/* endpoints
 // Support routes must be mounted BEFORE generic role routers to ensure proper matching
@@ -443,7 +443,9 @@ app.get("/api/restaurants", redisReadCacheMiddleware, async (req, res) => {
   try {
     // Run both queries in parallel — distinct avoids loading all docs just for city names
     const [restaurants, uniqueCities] = await Promise.all([
-      Restaurant.find({}),
+      Restaurant.find({})
+        .select("_id name image rating location city cuisine isOpen operatingHours distance date")
+        .lean(),
       Restaurant.distinct("city"),
     ]);
 

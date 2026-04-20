@@ -2,19 +2,12 @@ const request = require("supertest");
 
 const mockRestaurantFind = jest.fn();
 const mockCountDocuments = jest.fn();
-const mockRedisGet = jest.fn();
-const mockRedisSetEx = jest.fn();
 
 jest.mock("../Model/Restaurents_model", () => ({
   Restaurant: {
     find: mockRestaurantFind,
     countDocuments: mockCountDocuments,
   },
-}));
-
-jest.mock("../config/redis", () => ({
-  get: mockRedisGet,
-  setEx: mockRedisSetEx,
 }));
 
 const { createTestApp } = require("./helpers/createTestApp");
@@ -42,28 +35,10 @@ beforeEach(() => {
 });
 
 describe("Search routes", () => {
-  test("GET /api/customer/search returns cached results when available", async () => {
-    const cachedResponse = {
-      page: 1,
-      totalPages: 1,
-      totalResults: 1,
-      results: [{ _id: "rest-1", name: "Cache Hit Cafe" }],
-    };
-    mockRedisGet.mockResolvedValue(JSON.stringify(cachedResponse));
-
-    const response = await request(app).get("/api/customer/search?q=cache");
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual(cachedResponse);
-    expect(mockRestaurantFind).not.toHaveBeenCalled();
-    expect(mockRedisSetEx).not.toHaveBeenCalled();
-  });
-
-  test("GET /api/customer/search queries restaurants and stores the response in cache", async () => {
+  test("GET /api/customer/search queries restaurants with filters and pagination", async () => {
     const results = [{ _id: "rest-2", name: "Spice Route", city: "Pune" }];
     const queryChain = createQueryChain(results);
 
-    mockRedisGet.mockResolvedValue(null);
     mockRestaurantFind.mockReturnValue(queryChain);
     mockCountDocuments.mockResolvedValue(1);
 
@@ -74,19 +49,52 @@ describe("Search routes", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       page: 2,
+      limit: 5,
       totalPages: 1,
       totalResults: 1,
       results,
     });
-    expect(mockRestaurantFind).toHaveBeenCalledWith({
-      city: "Pune",
-      isOpen: true,
-    });
-    expect(queryChain.skip).toHaveBeenCalledWith(5);
-    expect(mockRedisSetEx).toHaveBeenCalledWith(
-      expect.any(String),
-      60,
-      JSON.stringify(response.body),
+    expect(mockRestaurantFind).toHaveBeenCalledWith(
+      {
+        city: "Pune",
+        isOpen: true,
+      },
+      {},
     );
+    expect(queryChain.sort).toHaveBeenCalledWith({ rating: -1, name: 1 });
+    expect(queryChain.skip).toHaveBeenCalledWith(5);
+  });
+
+  test("GET /api/customer/search supports query alias and text score sort", async () => {
+    const results = [{ _id: "rest-3", name: "Mumbai Grill", city: "Mumbai" }];
+    const queryChain = createQueryChain(results);
+
+    mockRestaurantFind.mockReturnValue(queryChain);
+    mockCountDocuments.mockResolvedValue(1);
+
+    const response = await request(app).get(
+      "/api/customer/search?query=mumbai%20grill&cuisine=Indian",
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockRestaurantFind).toHaveBeenCalledWith(
+      {
+        $text: { $search: "mumbai grill" },
+        cuisine: "Indian",
+      },
+      { score: { $meta: "textScore" } },
+    );
+    expect(queryChain.sort).toHaveBeenCalledWith({
+      score: { $meta: "textScore" },
+      rating: -1,
+    });
+  });
+
+  test("GET /api/customer/search rejects invalid open filter values", async () => {
+    const response = await request(app).get("/api/customer/search?open=maybe");
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/Invalid open filter/);
+    expect(mockRestaurantFind).not.toHaveBeenCalled();
   });
 });

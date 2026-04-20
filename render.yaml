@@ -36,6 +36,12 @@ services:
           name: restoconnect-redis
           type: keyvalue
           property: connectionString
+      - key: CACHE_ENABLED
+        value: "true"
+      - key: CACHE_DEFAULT_TTL_SECONDS
+        value: "120"
+      - key: PERF_RUN_LABEL
+        value: render_cache_enabled
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS

@@ -61,6 +61,7 @@ const reservationSchema = new mongoose.Schema({
 // Indexes for common query patterns
 reservationSchema.index({ rest_id: 1, date: -1, status: 1 }); // Restaurant reservation queries with date & status filter
 reservationSchema.index({ customerName: 1 });                   // Customer reservation lookups
+reservationSchema.index({ status: 1, date: -1 });               // Admin/superadmin status and date metrics
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
 module.exports = { Reservation };

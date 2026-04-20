@@ -96,6 +96,8 @@ orderSchema.index({ rest_id: 1, date: -1 });              // Dashboard queries: 
 orderSchema.index({ rest_id: 1, status: 1 });              // Status-based filtering per restaurant
 orderSchema.index({ customerName: 1, date: -1 });          // Customer order history
 orderSchema.index({ rest_id: 1, date: -1, status: 1 });   // Combined dashboard queries (date range + status)
+orderSchema.index({ date: -1 });                           // Admin/superadmin date-range analytics
+orderSchema.index({ status: 1, date: -1 });                // Global status metrics and recent orders
 
 const Order = mongoose.model("Order", orderSchema);
 

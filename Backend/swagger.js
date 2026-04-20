@@ -1,4 +1,5 @@
 const swaggerJsdoc = require('swagger-jsdoc');
+const path = require('path');
 const config = require('./config/env');
 
 const options = {
@@ -203,7 +204,11 @@ const options = {
     csrfHeader: []
     }]
   },
-  apis: ['./routes/*.js', './server.js']
+  apis: [
+    path.join(__dirname, 'routes/*.js'),
+    path.join(__dirname, 'server.js'),
+    path.join(__dirname, 'swagger.docs.js'),
+  ]
 };
 
 const swaggerSpec = swaggerJsdoc(options);

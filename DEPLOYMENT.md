@@ -72,6 +72,8 @@ Use the Render Blueprint flow and then fill in the `sync: false` variables:
 - `CORS_ALLOWED_ORIGINS=https://your-vercel-domain`
 - `PUBLIC_API_URL=https://your-backend-domain`
 - `MONGODB_URI=your_atlas_connection_string`
+- `CACHE_ENABLED=true` if you want Redis API response caching, or `false` to run without cache
+- `CACHE_DEFAULT_TTL_SECONDS=120` or another TTL that matches your traffic
 - `SESSION_SECRET=strong_random_value`
 - `JWT_SECRET=strong_random_value`
 - `STRIPE_SECRET_KEY=your_stripe_secret_key`
@@ -105,7 +107,8 @@ Use these values for separated frontend/backend hosting:
 Add:
 
 - `MONGODB_URI` from MongoDB Atlas
-- `REDIS_URL` from Railway Redis if you want Redis-backed sessions in production
+- `REDIS_URL` from Railway Redis if you want Redis-backed sessions or API response caching in production
+- `CACHE_ENABLED=true` to enable API response caching, or `false` to run without cache
 
 ## 6. API and cookie checks
 

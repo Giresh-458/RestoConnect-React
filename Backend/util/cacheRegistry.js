@@ -149,6 +149,7 @@ const getReadTags = (req) => {
       tags.add(`user:${u}`);
     }
     if (
+      path.includes("/search") ||
       path.includes("/restaurants/public-cuisines") ||
       path.includes("/restaurants/search")
     ) {
