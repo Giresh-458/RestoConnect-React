@@ -213,5 +213,116 @@ const options = {
 
 const swaggerSpec = swaggerJsdoc(options);
 
+const cloneSpec = (value) => JSON.parse(JSON.stringify(value));
+
+const addPathAlias = (sourcePath, targetPath) => {
+  if (!swaggerSpec.paths?.[sourcePath]) return;
+  swaggerSpec.paths[targetPath] = cloneSpec(swaggerSpec.paths[sourcePath]);
+};
+
+const addMethodAlias = (sourcePath, sourceMethod, targetPath, targetMethod) => {
+  const sourceOperation = swaggerSpec.paths?.[sourcePath]?.[sourceMethod];
+  if (!sourceOperation) return;
+
+  swaggerSpec.paths[targetPath] = swaggerSpec.paths[targetPath] || {};
+  swaggerSpec.paths[targetPath][targetMethod] = {
+    ...cloneSpec(sourceOperation),
+    summary: `Legacy alias: ${sourceOperation.summary || targetPath}`,
+  };
+};
+
+const addOperation = (pathName, method, operation) => {
+  swaggerSpec.paths[pathName] = swaggerSpec.paths[pathName] || {};
+  swaggerSpec.paths[pathName][method] = operation;
+};
+
+const addAdminLegacyAliases = (basePath) => {
+  addMethodAlias(`${basePath}/restaurants/{id}`, 'put', `${basePath}/edit_restaurant/{id}`, 'post');
+  addMethodAlias(`${basePath}/restaurants/{id}`, 'delete', `${basePath}/delete_restaurant/{id}`, 'delete');
+  addMethodAlias(`${basePath}/restaurants/{id}/suspension`, 'patch', `${basePath}/suspend_restaurant/{id}`, 'post');
+  addMethodAlias(`${basePath}/restaurants/{id}/suspension/clear`, 'patch', `${basePath}/unsuspend_restaurant/{id}`, 'post');
+  addMethodAlias(`${basePath}/users/{id}`, 'delete', `${basePath}/delete_user/{id}`, 'post');
+  addMethodAlias(`${basePath}/users/{id}/suspension`, 'patch', `${basePath}/suspend_user/{id}`, 'post');
+  addMethodAlias(`${basePath}/users/{id}/suspension/clear`, 'patch', `${basePath}/unsuspend_user/{id}`, 'post');
+  addMethodAlias(`${basePath}/profile`, 'put', `${basePath}/edit_profile`, 'post');
+  addMethodAlias(`${basePath}/password`, 'put', `${basePath}/change_password`, 'post');
+  addMethodAlias(`${basePath}/account`, 'delete', `${basePath}/delete_account`, 'delete');
+  addMethodAlias(`${basePath}/requests`, 'get', `${basePath}/restaurant-requests`, 'get');
+  addMethodAlias(`${basePath}/restaurant-requests/{owner_username}/accept`, 'post', `${basePath}/accept_request/{owner_username}`, 'post');
+  addMethodAlias(`${basePath}/restaurant-requests/{owner_username}/reject`, 'post', `${basePath}/reject_request/{owner_username}`, 'post');
+  addMethodAlias(`${basePath}/add-employee`, 'post', `${basePath}/employees`, 'post');
+};
+
+addAdminLegacyAliases('/api/admin');
+
+for (const existingPath of Object.keys(swaggerSpec.paths || {})) {
+  if (existingPath.startsWith('/api/admin')) {
+    addPathAlias(existingPath, existingPath.replace('/api/admin', '/api/employee'));
+  }
+}
+
+addOperation('/api/staff/HomePage/tasks', 'post', {
+  summary: 'Create a staff homepage task',
+  tags: ['Staff - Tasks'],
+  security: [{ bearerAuth: [] }, { csrfHeader: [] }],
+  requestBody: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            description: { type: 'string' },
+            priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+            assignedTo: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  },
+  responses: {
+    200: { description: 'Task created' },
+    401: { $ref: '#/components/responses/Unauthorized' },
+  },
+});
+
+addOperation('/api/staff/HomePage/tasks/{id}', 'delete', {
+  summary: 'Delete a staff homepage task',
+  tags: ['Staff - Tasks'],
+  security: [{ bearerAuth: [] }, { csrfHeader: [] }],
+  parameters: [
+    {
+      in: 'path',
+      name: 'id',
+      required: true,
+      schema: { type: 'string' },
+    },
+  ],
+  responses: {
+    200: { description: 'Task deleted' },
+    401: { $ref: '#/components/responses/Unauthorized' },
+    404: { $ref: '#/components/responses/NotFound' },
+  },
+});
+
+addOperation('/api/staff/HomePage/tasks/delete/{id}', 'post', {
+  summary: 'Legacy alias: delete a staff homepage task',
+  tags: ['Staff - Tasks'],
+  security: [{ bearerAuth: [] }, { csrfHeader: [] }],
+  parameters: [
+    {
+      in: 'path',
+      name: 'id',
+      required: true,
+      schema: { type: 'string' },
+    },
+  ],
+  responses: {
+    200: { description: 'Task deleted' },
+    401: { $ref: '#/components/responses/Unauthorized' },
+    404: { $ref: '#/components/responses/NotFound' },
+  },
+});
+
 module.exports = { swaggerSpec };
 
