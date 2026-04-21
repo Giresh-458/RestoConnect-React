@@ -1,7 +1,7 @@
 import { isLogin } from "../util/auth";
 import { redirect } from "react-router-dom";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import "../components/StaffHomepage.css";
+import "../components/StaffHomePage.css";
 import { useToast } from "../components/common/Toast";
 
 function timeAgo(dateStr) {
