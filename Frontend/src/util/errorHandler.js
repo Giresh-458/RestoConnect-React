@@ -48,12 +48,14 @@ export const fetchWithErrorHandling = async (url, options, navigate, errorMessag
       const errorData = await response.json().catch(() => ({}));
       const message = errorData.message || errorData.error || errorMessage;
       handleApiError(navigate, response, message);
-      throw new Error(message);
+      const handledError = new Error(message);
+      handledError.redirectHandled = true;
+      throw handledError;
     }
     
     return await response.json();
   } catch (error) {
-    if (!error.message.includes('redirect')) {
+    if (!error.redirectHandled && !error.message.includes('redirect')) {
       handleFetchError(navigate, error, errorMessage);
     }
     throw error;

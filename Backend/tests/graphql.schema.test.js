@@ -10,7 +10,7 @@ jest.mock("../Model/Restaurents_model", () => ({
   },
 }));
 
-const { schema } = require("../graphql/schema");
+const { buildInventoryItems, schema } = require("../graphql/schema");
 
 const createFindChain = (result) => ({
   select: jest.fn().mockReturnValue({
@@ -187,6 +187,181 @@ describe("GraphQL schema", () => {
         isLowStock: true,
         isOutOfStock: false,
       },
+    ]);
+  });
+
+  test("publicRestaurants filters expired leftovers and sorts the remaining items by expiry", async () => {
+    mockRestaurantFind.mockReturnValue(
+      createFindChain([
+        {
+          _id: "rest-2",
+          name: "Fresh Fork",
+          city: "Mumbai",
+          image: "fresh-fork.jpg",
+          leftovers: [
+            {
+              _id: "left-expired",
+              itemName: "Expired Curry",
+              quantity: 1,
+              expiryDate: new Date(Date.now() - 30 * 60 * 1000),
+            },
+            {
+              _id: "left-late",
+              itemName: "Evening Salad",
+              quantity: 1,
+              expiryDate: new Date(Date.now() + 2 * 60 * 60 * 1000),
+            },
+            {
+              _id: "left-soon",
+              itemName: "Lunch Wrap",
+              quantity: 2,
+              expiryDate: new Date(Date.now() + 30 * 60 * 1000),
+            },
+          ],
+        },
+      ]),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        query {
+          publicRestaurants {
+            leftovers {
+              itemName
+            }
+          }
+        }
+      `,
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data.publicRestaurants[0].leftovers).toEqual([
+      { itemName: "Lunch Wrap" },
+      { itemName: "Evening Salad" },
+    ]);
+  });
+
+  test("restaurantInventory blocks owners from inspecting another restaurant", async () => {
+    const result = await graphql({
+      schema,
+      source: `
+        query {
+          restaurantInventory(restId: "rest-2") {
+            restaurantId
+          }
+        }
+      `,
+      contextValue: {
+        auth: {
+          username: "owner1",
+          role: "owner",
+          rest_id: "rest-1",
+        },
+      },
+    });
+
+    expect(result.data.restaurantInventory).toBeNull();
+    expect(result.errors[0].message).toMatch(/only access inventory for your assigned restaurant/);
+    expect(mockRestaurantFindById).not.toHaveBeenCalled();
+  });
+
+  test("restaurantInventory lets admins inspect an explicit restaurant id", async () => {
+    mockRestaurantFindById.mockReturnValue(
+      createFindByIdChain({
+        _id: "rest-9",
+        name: "Admin View",
+        city: "Delhi",
+        inventoryData: {
+          labels: ["Tea"],
+          values: [6],
+          units: ["boxes"],
+          suppliers: ["Warehouse"],
+          minStocks: [3],
+        },
+      }),
+    );
+
+    const result = await graphql({
+      schema,
+      source: `
+        query {
+          restaurantInventory(restId: "rest-9") {
+            restaurantId
+            restaurantName
+          }
+        }
+      `,
+      contextValue: {
+        auth: {
+          username: "admin1",
+          role: "admin",
+          rest_id: null,
+        },
+      },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(mockRestaurantFindById).toHaveBeenCalledWith("rest-9");
+    expect(result.data.restaurantInventory).toEqual({
+      restaurantId: "rest-9",
+      restaurantName: "Admin View",
+    });
+  });
+
+  test("restaurantInventory reports missing restaurants", async () => {
+    mockRestaurantFindById.mockReturnValue(createFindByIdChain(null));
+
+    const result = await graphql({
+      schema,
+      source: `
+        query {
+          restaurantInventory {
+            restaurantId
+          }
+        }
+      `,
+      contextValue: {
+        auth: {
+          username: "owner1",
+          role: "owner",
+          rest_id: "rest-missing",
+        },
+      },
+    });
+
+    expect(result.data.restaurantInventory).toBeNull();
+    expect(result.errors[0].message).toBe("Restaurant not found");
+  });
+
+  test("buildInventoryItems applies defaults for missing units and supplier values", () => {
+    const inventory = buildInventoryItems({
+      _id: "rest-4",
+      inventoryData: {
+        labels: ["Rice", "Sauce"],
+        values: [0, 7],
+        minStocks: [1, 3],
+      },
+    });
+
+    expect(inventory).toEqual([
+      expect.objectContaining({
+        id: "item_0",
+        isLowStock: false,
+        isOutOfStock: true,
+        rest_id: "rest-4",
+        status: "Out of Stock",
+        supplier: "",
+        unit: "pieces",
+      }),
+      expect.objectContaining({
+        id: "item_1",
+        isLowStock: false,
+        isOutOfStock: false,
+        status: "Available",
+        supplier: "",
+        unit: "pieces",
+      }),
     ]);
   });
 });
