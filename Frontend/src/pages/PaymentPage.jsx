@@ -214,7 +214,7 @@ export function PaymentPage() {
                             rest_id: restIdEffective,
                             payload: {
                               rest_id: restIdEffective,
-                              restaurant: srcPayload.restaurantName || srcPayload.restaurant || null,
+                              restaurantName: srcPayload.restaurantName || srcPayload.restaurant || null,
                               items,
                               totalAmount: subtotalWithTaxes,
                               reservation: srcPayload.reservation || null,

@@ -1575,10 +1575,13 @@ exports.apiCheckoutPay = async (req, res, next) => {
         });
       }
 
+      const resolvedRestaurantName =
+        payload.restaurantName || payload.restaurant || "";
+
       order = new Order({
         dishes,
         customerName: username || "guest",
-        restaurant: payload.restaurantName || "",
+        restaurant: resolvedRestaurantName,
         rest_id: payload.rest_id,
         status: "pending",
         totalAmount: finalAmount,
