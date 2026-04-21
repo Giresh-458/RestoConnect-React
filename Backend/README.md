@@ -46,5 +46,8 @@ npm start
 
 - Swagger UI: `/api-docs`
 - OpenAPI JSON: `/api-docs.json`
+- GraphQL docs page: `/graphql-docs`
+- GraphQL docs JSON: `/graphql-docs.json`
+- GraphiQL explorer: `/graphql`
 
 See [../DEPLOYMENT.md](../DEPLOYMENT.md) for Docker and deployment setup.

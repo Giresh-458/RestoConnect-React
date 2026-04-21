@@ -10,5 +10,9 @@ module.exports = {
     "Controller/searchController.js",
     "Controller/customerController.js",
     "Model/PromoCode_model.js",
+    "graphql/schema.js",
+    "graphql/documentation.js",
+    "graphql/documentationPage.js",
+    "graphql/documentationRoutes.js",
   ],
 };

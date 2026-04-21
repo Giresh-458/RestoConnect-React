@@ -14,7 +14,6 @@ const mongoose = require("mongoose")
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./swagger');
 const { graphqlHTTP } = require('express-graphql');
-const { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLList, GraphQLID, GraphQLFloat, GraphQLNonNull } = require('graphql');
 const { Restaurant } = require("./Model/Restaurents_model.js");
 const config = require("./config/env");
 const { getClearCookieOptions, getCsrfCookieOptions, getSessionCookieOptions } = require("./util/cookies");
@@ -25,6 +24,8 @@ const {
   redisReadCacheMiddleware,
   redisInvalidateOnMutationMiddleware,
 } = require("./middleware/redisCache");
+const { createGraphQLOptions } = require("./graphql/schema");
+const { registerGraphQLDocumentationRoutes } = require("./graphql/documentationRoutes");
 
 // Models
 const RestaurantRequest = require("./Model/restaurent_request_model.js");
@@ -125,81 +126,9 @@ app.use('/api-docs', swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerS
   }
 }));
 
+registerGraphQLDocumentationRoutes(app);
 
-const LeftoverType = new GraphQLObjectType({
-  name: 'Leftover',
-  fields: {
-    _id: { type: GraphQLID },
-    itemName: { type: GraphQLNonNull(GraphQLString) },
-    quantity: { type: GraphQLFloat },
-    expiryDate: { type: GraphQLString }, 
-    createdAt: { type: GraphQLString }
-  }
-});
-
-const RestaurantType = new GraphQLObjectType({
-  name: 'Restaurant',
-  fields: {
-    _id: { type: GraphQLID },
-    id: { 
-      type: GraphQLID,
-      resolve: (parent) => parent._id 
-    },
-    name: { type: GraphQLNonNull(GraphQLString) },
-    city: { type: GraphQLString },
-    image: { type: GraphQLString },
-    leftovers: { 
-      type: new GraphQLList(LeftoverType),
-      resolve: (parent) => {                         // no async, no extra DB call
-        if (!parent.leftovers || parent.leftovers.length === 0) return [];
-        
-        return parent.leftovers
-          .filter(item => item.expiryDate && new Date(item.expiryDate) > new Date())
-          .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
-          .map(item => ({
-            _id: item._id?.toString(),             //  explicitly map each field
-            itemName: item.itemName,
-            quantity: item.quantity,
-            expiryDate: item.expiryDate instanceof Date  //  handle both Date and string
-              ? item.expiryDate.toISOString()
-              : item.expiryDate,
-            createdAt: item.createdAt instanceof Date
-              ? item.createdAt.toISOString()
-              : item.createdAt,
-          }));
-      }
-    }
-  }
-});
-
-const RootQueryType = new GraphQLObjectType({
-  name: 'Query',
-  fields: {
-    publicRestaurants: {
-      type: new GraphQLList(RestaurantType),
-      description: 'Get all restaurants with their leftover items and expiry dates (public, no auth)',
-      async resolve() {
-        const restaurants = await Restaurant.find({})
-          .select("_id name city image leftovers")
-          .lean();
-        return restaurants.map(r => ({
-          ...r,
-          _id: r._id.toString()
-        }));
-      }
-    }
-  }
-});
-
-const schema = new GraphQLSchema({
-  query: RootQueryType
-});
-
-
-app.use('/graphql', graphqlHTTP({
-  schema: schema,
-  graphiql: true // GraphiQL playground enabled
-}));
+app.use('/graphql', graphqlHTTP(createGraphQLOptions));
 
 const csrfProtection = csrf({
   cookie: getCsrfCookieOptions(),
@@ -213,7 +142,7 @@ app.use((req, res, next) => {
   // csrf token sent by client
   //console.log("Request CSRF Header:", req.headers["x-csrf-token"]);
 
-  if (req.path.startsWith('/api-docs')) return next();
+  if (req.path.startsWith('/api-docs') || req.path.startsWith('/graphql-docs')) return next();
   // Auth endpoints that establish session - no CSRF (user not logged in yet)
   if (req.path === '/api/auth/login' || req.path === '/api/auth/signup') return next();
   if (req.path.startsWith('/api/auth/forgot-password')) return next();
