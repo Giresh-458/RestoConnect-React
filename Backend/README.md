@@ -51,3 +51,5 @@ npm start
 - GraphiQL explorer: `/graphql`
 
 See [../DEPLOYMENT.md](../DEPLOYMENT.md) for Docker and deployment setup.
+
+## Nitin is Great
