@@ -60,6 +60,7 @@ async function run() {
   console.log("\n✅ Done – all indexes synced to database");
 }
 
+
 run().catch((err) => {
   console.error(err);
   process.exit(1);
