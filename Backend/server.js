@@ -8,6 +8,7 @@ const csrf = require("csurf");
 const { connectDB } = require("./util/database");
 const cors = require("cors");
 const morgan = require("morgan");
+const compression = require("compression");
 const rfs = require("rotating-file-stream");
 const mongoose = require("mongoose")
 // Swagger imports
@@ -44,6 +45,7 @@ app.use(bodyparser.urlencoded({ extended: false }));
 app.use(bodyparser.json());
 app.use(express.json());
 app.use(cookieParser());
+app.use(compression());
 app.use(performanceMetricsMiddleware);
 app.use(redisInvalidateOnMutationMiddleware);
 app.use(
