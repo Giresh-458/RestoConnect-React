@@ -48,6 +48,13 @@ Make sure you also:
 - allow the backend host to connect
 - store the full Atlas connection string in the backend host as `MONGODB_URI`
 
+**Crucial Performance Step:**
+Once you have your Atlas connection string, you *must* sync the database indexes from your local machine to make production searches fast:
+```bash
+MONGODB_URI="your_atlas_connection_string" npm run db:indexes --prefix Backend
+```
+*(On Windows PowerShell, use `$env:MONGODB_URI="..."; npm run db:indexes --prefix Backend`)*
+
 ## 3. Frontend on Vercel
 
 Deploy the `Frontend/` directory as a Vite app.

@@ -20,6 +20,13 @@ npm run dev
 npm run build
 ```
 
+### Image Optimization
+To compress any new images added to `public/images/`:
+```bash
+# From the project root (requires sharp)
+node optimize-images.js
+```
+
 ## Deployment
 
 - `vercel.json` is included for SPA route rewrites

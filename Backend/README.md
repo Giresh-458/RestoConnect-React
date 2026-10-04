@@ -36,6 +36,7 @@ Optional email variables for forgot-password flows:
 npm install
 npm run dev
 npm start
+npm run db:indexes   # Sync MongoDB indexes (requires MONGODB_URI)
 ```
 
 ## Health check
