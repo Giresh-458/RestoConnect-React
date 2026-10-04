@@ -1,167 +1,105 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom"
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Provider } from "react-redux";
-
 import store from "./store/store";
-
 import { ToastProvider } from "./components/common/Toast";
 import { ConfirmProvider } from "./components/common/ConfirmDialog";
 import "./components/common/Toast.css";
 
 import { HomePage, loader as homeLoader } from "./pages/HomePage";
-import RestaurantListPage from "./pages/RestaurantListPage";
-
-import { CustomerNav } from "./components/CustomerNav";
-import { MenuPage,loader as menuLoader } from "./pages/MenuPage";
-import { OrderPage } from "./pages/OrderPage";
-import { PaymentPage } from "./pages/PaymentPage";
-import { OrderPlacedPage } from "./pages/OrderPlacedPage";
-import { FeedBackPage } from "./pages/FeedBackPage";
-import { DashBoardPage,loader as DashboardLoader } from "./pages/DashBoardPage";
-import { CustomerHomepage,loader as customerHomepageLoader } from "./pages/CustomerHompage";
-
-import { OwnerNav } from "./components/OwnerNav";
-import { OwnerDashBoard,loader as OwnerDashBoardLoader } from "./pages/OwnerDashBoard";
-import { OwnerManagement,loader as OwnerManagementLoader } from "./pages/OwnerManagement";
-import { OwnerHomePage ,loader as OwnerHomePageLoader} from "./pages/OwnerHomePage";
-import { OwnerOrders, loader as OwnerOrdersLoader } from "./pages/OwnerOrders";
-import { OwnerReservations, loader as OwnerReservationsLoader } from "./pages/OwnerReservations";
-import { InventoryManagement, loader as InventoryManagementLoader } from "./pages/InventoryManagement";
-import { LiveFloor, loader as LiveFloorLoader } from "./pages/LiveFloor";
-import Promotions from "./pages/Promotions";
-import OwnerSettings from "./pages/OwnerSettings";
-import StaffManagement from "./pages/StaffManagement";
-import { SupportChatPage } from "./pages/SupportChatPage";
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-
-const stripePublishableKey = (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "").trim();
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
-
-import { StaffNav } from "./components/StaffNav";
-import { StaffHomePage ,loader as StaffHomePageLoader} from "./pages/StaffHomePage";
-import { StaffDashBoardPage,loader as StaffDashboardLoader } from "./pages/StaffDashBoardPage";
-import StaffLeftoversPage from "./pages/StaffLeftoversPage";
-
-import { AdminPage, loader as adminLoader } from "./pages/AdminPage";
-import { EmployeePage, loader as employeeLoader } from "./pages/EmployeePage";
-import { SuperAdminPage, loader as superAdminLoader } from "./pages/SuperAdminPage";
-
-import { AuthPage } from "./pages/AuthPage";
-import {action as authAction} from './pages/AuthPage';
-
-import { RestaurantApplication } from "./pages/RestaurantApplication";
-import {action as restaurantApplicationAction} from './pages/RestaurantApplication';
-
 import { logout, isLogin, customerLoader, ownerLoader, staffLoader } from "./util/auth";
-import ErrorPage from "./pages/ErrorPage";
-
 
 const router = createBrowserRouter([
-  { index: true, element: <HomePage></HomePage> ,loader:homeLoader},
+  { index: true, element: <HomePage />, loader: homeLoader },
   {
     path: "/customer",
-    element: <CustomerNav></CustomerNav>,
+    lazy: () => import("./components/CustomerNav").then(m => ({ Component: m.CustomerNav })),
+    loader: customerLoader,
     children: [
-          { index: true, element: <CustomerHomepage></CustomerHomepage> ,loader:customerHomepageLoader},
-      { path: "restaurants", element: <RestaurantListPage /> },
-      { path: "restaurant/:id", element: <MenuPage></MenuPage>,loader:menuLoader },
-      { path: "order", element: <OrderPage></OrderPage> },
-      { path: "payment", element: <PaymentPage></PaymentPage> },
-      { path: "order-placed", element: <OrderPlacedPage></OrderPlacedPage> },
-      { path: "feedback", element: <FeedBackPage mode="customer" /> },
-      { path: "support", element: <SupportChatPage mode="customer" /> },
-      { path: "dashboard", element: <DashBoardPage></DashBoardPage>,loader :DashboardLoader }
-    ],
-    loader:customerLoader
+      { index: true, lazy: () => import("./pages/CustomerHompage").then(m => ({ Component: m.CustomerHomepage, loader: m.loader })) },
+      { path: "restaurants", lazy: () => import("./pages/RestaurantListPage").then(m => ({ Component: m.default })) },
+      { path: "restaurant/:id", lazy: () => import("./pages/MenuPage").then(m => ({ Component: m.MenuPage, loader: m.loader })) },
+      { path: "order", lazy: () => import("./pages/OrderPage").then(m => ({ Component: m.OrderPage })) },
+      { path: "payment", lazy: () => import("./pages/PaymentPage").then(m => ({ Component: m.PaymentPage })) },
+      { path: "order-placed", lazy: () => import("./pages/OrderPlacedPage").then(m => ({ Component: m.OrderPlacedPage })) },
+      { path: "feedback", lazy: () => import("./pages/FeedBackPage").then(m => ({ Component: () => { const C = m.FeedBackPage; return <C mode="customer" />; } })) },
+      { path: "support", lazy: () => import("./pages/SupportChatPage").then(m => ({ Component: () => { const C = m.SupportChatPage; return <C mode="customer" />; } })) },
+      { path: "dashboard", lazy: () => import("./pages/DashBoardPage").then(m => ({ Component: m.DashBoardPage, loader: m.loader })) }
+    ]
   },
   {
     path: "/owner",
-    element: <OwnerNav></OwnerNav>,
+    lazy: () => import("./components/OwnerNav").then(m => ({ Component: m.OwnerNav })),
+    loader: ownerLoader,
     children: [
-      { index: true, element: <OwnerHomePage></OwnerHomePage>,loader:OwnerHomePageLoader },
-      { path: "dashboard", element: <OwnerDashBoard></OwnerDashBoard>,loader:OwnerDashBoardLoader },
-      { path: "menumanagement", element: <OwnerManagement></OwnerManagement>,loader:OwnerManagementLoader },
-      { path: "orders", element: <OwnerOrders></OwnerOrders>, loader: OwnerOrdersLoader },
-      { path: "reservations", element: <OwnerReservations />, loader: OwnerReservationsLoader },
-      { path: "inventory", element: <InventoryManagement />, loader: InventoryManagementLoader },
-      { path: "floor", element: <LiveFloor />, loader: LiveFloorLoader },
-      { path: "promotions", element: <Promotions />, loader: isLogin },
-      { path: "settings", element: <OwnerSettings />, loader: isLogin },
-      { path: "feedback", element: <FeedBackPage mode="owner" />, loader: isLogin },
-      { path: "support", element: <SupportChatPage mode="owner" />, loader: isLogin },
-      { path: "staffmanagement", element: <StaffManagement />, loader: isLogin },
-    ],
-    loader:ownerLoader
+      { index: true, lazy: () => import("./pages/OwnerHomePage").then(m => ({ Component: m.OwnerHomePage, loader: m.loader })) },
+      { path: "dashboard", lazy: () => import("./pages/OwnerDashBoard").then(m => ({ Component: m.OwnerDashBoard, loader: m.loader })) },
+      { path: "menumanagement", lazy: () => import("./pages/OwnerManagement").then(m => ({ Component: m.OwnerManagement, loader: m.loader })) },
+      { path: "orders", lazy: () => import("./pages/OwnerOrders").then(m => ({ Component: m.OwnerOrders, loader: m.loader })) },
+      { path: "reservations", lazy: () => import("./pages/OwnerReservations").then(m => ({ Component: m.OwnerReservations, loader: m.loader })) },
+      { path: "inventory", lazy: () => import("./pages/InventoryManagement").then(m => ({ Component: m.InventoryManagement, loader: m.loader })) },
+      { path: "floor", lazy: () => import("./pages/LiveFloor").then(m => ({ Component: m.LiveFloor, loader: m.loader })) },
+      { path: "promotions", loader: isLogin, lazy: () => import("./pages/Promotions").then(m => ({ Component: m.default })) },
+      { path: "settings", loader: isLogin, lazy: () => import("./pages/OwnerSettings").then(m => ({ Component: m.default })) },
+      { path: "feedback", loader: isLogin, lazy: () => import("./pages/FeedBackPage").then(m => ({ Component: () => { const C = m.FeedBackPage; return <C mode="owner" />; } })) },
+      { path: "support", loader: isLogin, lazy: () => import("./pages/SupportChatPage").then(m => ({ Component: () => { const C = m.SupportChatPage; return <C mode="owner" />; } })) },
+      { path: "staffmanagement", loader: isLogin, lazy: () => import("./pages/StaffManagement").then(m => ({ Component: m.default })) },
+    ]
   },
   {
     path: "/staff",
-    element: <StaffNav></StaffNav>,
+    lazy: () => import("./components/StaffNav").then(m => ({ Component: m.StaffNav })),
+    loader: staffLoader,
     children: [
-      { index: true, element: <StaffHomePage></StaffHomePage>,loader:StaffHomePageLoader},
-      { path: "dashboard", element: <StaffDashBoardPage></StaffDashBoardPage>,loader:StaffDashboardLoader},
-      { path: "leftovers", element: <StaffLeftoversPage /> }
-    ],
-    loader:staffLoader
+      { index: true, lazy: () => import("./pages/StaffHomePage").then(m => ({ Component: m.StaffHomePage, loader: m.loader })) },
+      { path: "dashboard", lazy: () => import("./pages/StaffDashBoardPage").then(m => ({ Component: m.StaffDashBoardPage, loader: m.loader })) },
+      { path: "leftovers", lazy: () => import("./pages/StaffLeftoversPage").then(m => ({ Component: m.default })) }
+    ]
   },
   {
     path: "/admin",
-    element: <AdminPage />,
-    loader: adminLoader
+    lazy: () => import("./pages/AdminPage").then(m => ({ Component: m.AdminPage, loader: m.loader }))
   },
   {
     path: "/employee",
-    element: <EmployeePage />,
-    loader: employeeLoader
+    lazy: () => import("./pages/EmployeePage").then(m => ({ Component: m.EmployeePage, loader: m.loader }))
   },
   {
     path: "/superadmin",
-    element: <SuperAdminPage />,
-    loader: superAdminLoader
+    lazy: () => import("./pages/SuperAdminPage").then(m => ({ Component: m.SuperAdminPage, loader: m.loader }))
   },
   {
     path: "/login",
-    element: <AuthPage></AuthPage>,
-    action: authAction
+    lazy: () => import("./pages/AuthPage").then(m => ({ Component: m.AuthPage, action: m.action }))
   },
   {
     path: "/signup",
-    element: <AuthPage></AuthPage>,
-    action: authAction
+    lazy: () => import("./pages/AuthPage").then(m => ({ Component: m.AuthPage, action: m.action }))
   },
   {
-    path:"logout",
-    element:<AuthPage></AuthPage>,
-    loader:logout
+    path: "logout",
+    lazy: () => import("./pages/AuthPage").then(m => ({ Component: m.AuthPage })),
+    loader: logout
   },
   {
     path: "/restaurant-application",
-    element: <RestaurantApplication></RestaurantApplication>,
-    action: restaurantApplicationAction
+    lazy: () => import("./pages/RestaurantApplication").then(m => ({ Component: m.RestaurantApplication, action: m.action }))
   },
   {
     path: "*",
-    element: <ErrorPage></ErrorPage>
+    lazy: () => import("./pages/ErrorPage").then(m => ({ Component: m.default }))
   }
-]
-);
+]);
 
 function App() {
   return (
     <Provider store={store}>
       <ToastProvider>
         <ConfirmProvider>
-          {stripePromise ? (
-            <Elements stripe={stripePromise}>
-              <RouterProvider router={router} future={{ v7_startTransition: true }} />
-            </Elements>
-          ) : (
-            <RouterProvider router={router} future={{ v7_startTransition: true }} />
-          )}
+          <RouterProvider router={router} future={{ v7_startTransition: true }} />
         </ConfirmProvider>
       </ToastProvider>
     </Provider>
   );
 }
 
-export default App
-
+export default App;
