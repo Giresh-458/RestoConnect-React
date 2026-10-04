@@ -8,7 +8,7 @@ const RestaurantCard = ({ restaurant }) => {
   return (
     <Link to={`/restaurant/${id}`} className="restaurant-card">
       <div className="card-image-container">
-        <img src={image} alt={name} className="restaurant-image" />
+        <img src={image} alt={name} className="restaurant-image" loading="lazy" />
         <div className={`status-badge ${isOpen ? 'open' : 'closed'}`}>
           {isOpen ? 'Open' : 'Closed'}
         </div>
