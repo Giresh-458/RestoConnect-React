@@ -40,20 +40,7 @@ export default defineConfig(({ mode }) => {
       port: devPort,
       proxy,
     },
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'react-core';
-              if (id.includes('chart.js') || id.includes('recharts')) return 'charts';
-              if (id.includes('@stripe')) return 'stripe';
-              return 'vendor';
-            }
-          }
-        }
-      }
-    },
+
     test: {
       environment: 'jsdom',
       globals: true,
